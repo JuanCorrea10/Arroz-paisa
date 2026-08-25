@@ -52,7 +52,10 @@ function selectorDeEmpresa(valor, alCambiar, conTodas = true) {
     el("select", { id: "empresa-informe", alCambiar: (e) => alCambiar(e.target.value) },
       conTodas ? el("option", { value: "", selected: !valor }, "Todas las empresas") : null,
       ...empresas().map((e) => el("option", { value: e.codigo, selected: e.codigo === valor }, `${e.codigo} — ${e.razonSocial}`))
-    )
+    ),
+    // El renglon de ayuda va aunque este vacio: asi los dos campos miden
+    // igual y la caja no cambia de alto al elegir otra empresa.
+    el("small", { estilo: "color:var(--tinta-suave)", texto: valor ? (empresaPorCodigo(valor) || {}).razonSocial || "" : "Sirve para ver todo junto" })
   );
 }
 

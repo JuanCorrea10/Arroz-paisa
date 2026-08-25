@@ -38,7 +38,44 @@ if (-not $sinSubir -and -not $commitsPendientes) {
     exit 0
 }
 
-# --- 2. La revision que no se puede olvidar ---------------------------------
+# --- 2. Cambiar la version -------------------------------------------------
+#
+#  GitHub guarda cada archivo 10 minutos por su cuenta. Sin esto, justo
+#  despues de publicar hay navegadores que se quedan con el HTML nuevo y el
+#  CSS viejo, y la pagina no se ve vieja: se ve ROTA.
+#
+#  Poniendole la version a la direccion (archivo.css?v=...), un archivo nuevo
+#  tiene direccion nueva y el navegador no tiene de donde sacar el viejo.
+#  Lo hace el computador porque es de esas cosas que uno olvida siempre.
+
+Titulo "Cambiando la version"
+
+$version = Get-Date -Format "yyyyMMdd-HHmm"
+
+# Ojo con como se escriben estos archivos.
+#
+# "Set-Content -Encoding UTF8" en Windows PowerShell mete un BOM: tres bytes
+# invisibles al principio del archivo. En un .html eso es basura ANTES del
+# <!doctype>, y algunos navegadores se quejan. Peor: como es invisible, uno
+# no lo ve nunca y el script lo volveria a meter en cada publicacion.
+#
+# Por eso se escribe con .NET pidiendo UTF8 SIN BOM.
+$sinBom = New-Object System.Text.UTF8Encoding $false
+
+$rutaHtml = Join-Path $PSScriptRoot "index.html"
+$html = [System.IO.File]::ReadAllText($rutaHtml)
+$html = [regex]::Replace($html, '<meta name="version" content="[^"]*">', "<meta name=`"version`" content=`"$version`">")
+$html = [regex]::Replace($html, '\?v=[0-9-]+', "?v=$version")
+[System.IO.File]::WriteAllText($rutaHtml, $html, $sinBom)
+
+$rutaCss = Join-Path $PSScriptRoot "css/pantallas.css"
+$css = [System.IO.File]::ReadAllText($rutaCss)
+$css = [regex]::Replace($css, '--version: "[^"]*";', "--version: `"$version`";")
+[System.IO.File]::WriteAllText($rutaCss, $css, $sinBom)
+
+Write-Host "  Version $version" -ForegroundColor Green
+
+# --- 3. La revision que no se puede olvidar ---------------------------------
 
 Titulo "Revisando que no se vaya nada privado"
 
@@ -63,12 +100,12 @@ if ($peligrosos) {
 
 Write-Host "  Ningun dato de personas. Se puede subir." -ForegroundColor Green
 
-# --- 3. Que se va a subir ---------------------------------------------------
+# --- 4. Que se va a subir ---------------------------------------------------
 
 Titulo "Lo que cambia"
 git diff --cached --stat | Select-Object -Last 20 | ForEach-Object { Write-Host "  $_" }
 
-# --- 4. El mensaje ----------------------------------------------------------
+# --- 5. El mensaje ----------------------------------------------------------
 
 if (-not $Mensaje) {
     Write-Host ""
@@ -80,7 +117,7 @@ if (-not $Mensaje) {
     exit 1
 }
 
-# --- 5. Subir ---------------------------------------------------------------
+# --- 6. Subir ---------------------------------------------------------------
 
 if ($sinSubir) {
     git commit -q -m $Mensaje
@@ -95,6 +132,7 @@ Write-Host ""
 Write-Host "  Listo. En un minuto se ve el cambio en:" -ForegroundColor Green
 Write-Host "     https://juancorrea10.github.io/Arroz-paisa/" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  (GitHub se demora un poco en actualizar la pagina. Si no ve el" -ForegroundColor DarkGray
-Write-Host "   cambio, espere un minuto y recargue con Ctrl+Shift+R.)" -ForegroundColor DarkGray
+Write-Host "  (GitHub se demora un minuto. Si no ve el cambio, recargue con" -ForegroundColor DarkGray
+Write-Host "   Ctrl+Shift+R, que le pide los archivos de nuevo sin usar los" -ForegroundColor DarkGray
+Write-Host "   que tenia guardados.)" -ForegroundColor DarkGray
 Write-Host ""

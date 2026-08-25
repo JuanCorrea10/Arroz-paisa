@@ -5,11 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#3b1b34">
 <meta name="color-scheme" content="light">
+
+<!--
+  La version. No es adorno: GitHub guarda cada archivo 10 minutos por su
+  cuenta, asi que el navegador puede quedarse con el HTML nuevo y el CSS
+  viejo. Cuando eso pasa la pagina se ve ROTA, no vieja, que es peor.
+
+  Poniendole la version a la direccion, un archivo nuevo tiene direccion
+  nueva y el navegador no tiene de donde sacar el viejo. Lo cambia solo el
+  script de publicar; a mano no se toca.
+-->
+<meta name="version" content="20260825-1619">
 <title>Arroz Paisa — Control de almuerzos</title>
 
-<link rel="stylesheet" href="css/fuentes.css">
-<link rel="stylesheet" href="css/estilos.css">
-<link rel="stylesheet" href="css/pantallas.css">
+<link rel="stylesheet" href="css/fuentes.css?v=20260825-1619">
+<link rel="stylesheet" href="css/estilos.css?v=20260825-1619">
+<link rel="stylesheet" href="css/pantallas.css?v=20260825-1619">
 
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%233b1b34'/><text x='16' y='23' font-size='19' text-anchor='middle' fill='%23dfeaf6' font-family='Georgia,serif'>A</text></svg>">
 
@@ -66,7 +77,7 @@
   </div>
 </noscript>
 
-<script type="module" src="js/app.js"></script>
+<script type="module" src="js/app.js?v=20260825-1619"></script>
 
 <script>
   // Si el navegador es muy viejo y no entiende módulos, el script de arriba ni

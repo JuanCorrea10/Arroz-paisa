@@ -1,3 +1,10 @@
+:root {
+  /* La misma version que el meta del index.html. Sirve para que la app pueda
+     comprobar que el CSS que llego es el que le toca, y no uno viejo que el
+     navegador tenia guardado. Lo cambia el script de publicar. */
+  --version: "20260825-1619";
+}
+
 /* ===========================================================================
    pantallas.css  -  Lo que le faltaba al diseño para las pantallas nuevas.
 
@@ -1064,3 +1071,61 @@ thead th {
 .tarjetas-ajustes .tarjeta-enlace p,
 .tarjetas-ajustes .tarjeta-enlace h2 { align-self: stretch; }
 .etiqueta { display: inline-block; }
+
+/* El aviso de "te llego una mezcla de versiones". Va arriba de todo, porque
+   si la pagina se ve rota es lo primero que hay que leer. */
+.aviso-version {
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--e3);
+  padding: var(--e3) var(--e4);
+  background: var(--amarillo-claro);
+  border-bottom: 2px solid var(--amarillo);
+  color: #6b4708;
+  font-size: var(--t-sm);
+}
+
+/* ---------------------------------------------------------------------
+   La barra del dia y la empresa: alinear por ARRIBA
+
+   Estaba con align-items: flex-end, que alinea por abajo. El campo "Dia"
+   tiene tres renglones (etiqueta, casilla, y el "martes 25 de agosto" de
+   ayuda) y el de "Empresa" solo dos. Alineando por abajo, el corto se
+   empuja hacia abajo y los dos quedan desnivelados.
+
+   En un formulario lo que tiene que quedar a la misma altura son las
+   ETIQUETAS y las CASILLAS. El texto de ayuda cuelga debajo del que lo
+   tenga, y eso se ve bien. Por eso: por arriba.
+   --------------------------------------------------------------------- */
+
+.mando { align-items: flex-start; }
+
+/* Que el texto de ayuda no mueva nada al aparecer o desaparecer: siempre
+   ocupa su renglon, tenga texto o no. */
+.mando .campo > small {
+  min-height: 1.2em;
+  display: block;
+}
+
+/* ---------------------------------------------------------------------
+   Un campo no tiene que ser tan ancho como la pantalla
+
+   .mando .campo tenia "flex: 1 1 230px", o sea "crece para llenar". Con dos
+   campos se ve bien, pero en Cocina hay uno solo y se comia los 1300 px de
+   ancho: una casilla de fecha gigante para escribir ocho numeros.
+
+   Un campo debe medir lo que necesita su contenido, no lo que sobre.
+   --------------------------------------------------------------------- */
+
+.mando .campo {
+  flex: 0 1 300px;
+  max-width: 100%;
+}
+
+/* El de empresa aguanta nombres largos ("BOTAS AGROINDUSTRIAL SAS"). */
+.mando .campo:has(select) { flex-basis: 360px; }

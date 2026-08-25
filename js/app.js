@@ -301,7 +301,42 @@ function semaforoDeGuardado() {
 //  Arrancar
 // ---------------------------------------------------------------------------
 
+/**
+ * ¿Le llego a este navegador una mezcla de versiones?
+ *
+ * GitHub guarda cada archivo 10 minutos por su cuenta. Justo despues de
+ * publicar, un navegador puede quedarse con el HTML nuevo y el CSS viejo. Y
+ * eso no se ve "desactualizado": se ve ROTO, con las cajas donde no van.
+ *
+ * Aqui se compara la version que dice el HTML contra la que dice el CSS. Si
+ * no coinciden, se avisa y se ofrece recargar, en vez de dejarla mirando una
+ * pantalla descuadrada sin saber que paso.
+ */
+function revisarLaVersion() {
+  const meta = document.querySelector('meta[name="version"]');
+  if (!meta) return;
+  const delHtml = meta.content.trim();
+
+  const delCss = getComputedStyle(document.documentElement)
+    .getPropertyValue("--version").trim().replace(/^"|"$/g, "");
+
+  if (!delCss || delCss === delHtml) return;
+
+  const barra = el("div", { clase: "aviso-version" },
+    el("span", {},
+      el("strong", { texto: "Hay una versión nueva a medias. " }),
+      "La página puede verse descuadrada hasta que se recargue."),
+    el("button", {
+      clase: "principal chico",
+      alHacerClic: () => location.reload(),
+    }, "Recargar ahora")
+  );
+  document.body.prepend(barra);
+  console.warn(`Versiones distintas: el HTML dice ${delHtml} y el CSS dice ${delCss}`);
+}
+
 async function arrancar() {
+  revisarLaVersion();
   construirMenu();
   semaforoDeGuardado();
 
