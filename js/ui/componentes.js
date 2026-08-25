@@ -34,6 +34,26 @@ export function el(etiqueta, props = {}, ...hijos) {
   return nodo;
 }
 
+/**
+ * Mete hijos en un nodo, saltandose los que no existen.
+ *
+ * Hace falta porque el append del navegador NO ignora un null: lo convierte
+ * en el texto "null" y lo pinta. Asi salio un "null" suelto arriba de la
+ * pantalla de registrar, porque la tarjeta de "los mismos de ayer" devuelve
+ * null cuando no hay nada que mostrar.
+ *
+ * el() ya filtraba bien; el descuido estaba en los append directos. Por eso
+ * el arreglo va aqui y no en cada pantalla: los arreglos repartidos se
+ * olvidan en el siguiente sitio donde haga falta.
+ */
+export function poner(nodo, ...hijos) {
+  for (const hijo of hijos.flat(3)) {
+    if (hijo === null || hijo === undefined || hijo === false) continue;
+    nodo.append(hijo instanceof Node ? hijo : document.createTextNode(String(hijo)));
+  }
+  return nodo;
+}
+
 export function vaciar(nodo) {
   while (nodo.firstChild) nodo.removeChild(nodo.firstChild);
   return nodo;
@@ -68,7 +88,7 @@ export function mensaje(texto, tipo = "bien", segundos = 4) {
     // cosas que mas molestan, y hasta ahora no habia forma de correrlo.
     alHacerClic: () => irse(m),
   });
-  caja.append(m);
+  poner(caja, m);
 
   // Si se acumulan, los mas viejos se van. Lo ultimo que paso es lo que
   // importa; lo de hace diez segundos ya no.

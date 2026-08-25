@@ -12,7 +12,7 @@
 //  plato de la misma persona que no sumaba en ninguna parte.
 // ============================================================================
 
-import { el, vaciar, buscador, mensaje, pedirDatos, confirmar, ventana, tabla, cifra, cifraPlata, cinta, colorDeEmpresa, vacio } from "./componentes.js";
+import { el, vaciar, buscador, mensaje, pedirDatos, confirmar, ventana, tabla, cifra, cifraPlata, cinta, colorDeEmpresa, vacio, poner } from "./componentes.js";
 import { estado, cambio, empresas, asegurarEmpresa, empresaPorCodigo } from "./estado.js";
 import { pesos, fechaLarga, normalizar, hoyISO } from "../nucleo/formato.js";
 import {
@@ -35,7 +35,7 @@ export function pintarRegistrar(raiz) {
   asegurarEmpresa();
 
   if (!empresas().length) {
-    raiz.append(
+    poner(raiz, 
       el("div", { clase: "encabezado-pantalla" }, el("div", {}, el("h1", { texto: "Registrar el día" }))),
       vacio(
         "Todavía no hay empresas",
@@ -46,7 +46,7 @@ export function pintarRegistrar(raiz) {
     return;
   }
 
-  raiz.append(
+  poner(raiz, 
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Registrar el día" }),
@@ -113,7 +113,12 @@ function barraDeMando(raiz) {
 // ---------------------------------------------------------------------------
 
 function cajaDeCaptura(raiz) {
-  const caja = el("div", { clase: "tarjeta", estilo: "margin-bottom:var(--e5)" });
+  // La clase "caja-captura" no es decorativa: le da a esta tarjeta una capa
+  // propia por encima de las siguientes. Sin eso, la lista de nombres que se
+  // despliega queda POR DEBAJO de las cifras y las comandas, y no se puede ni
+  // leer ni tocar. (Lo provocaron las animaciones: animar transform crea una
+  // capa nueva, y una capa nueva encierra a sus hijos.)
+  const caja = el("div", { clase: "tarjeta caja-captura" });
   const gente = personasDe(estado.datos, estado.empresa);
 
   const buscaPersona = buscador({
@@ -129,15 +134,15 @@ function cajaDeCaptura(raiz) {
     textoCrear: (t) => `Crear a "${t}" en ${estado.empresa}`,
   });
 
-  caja.append(
+  poner(caja, 
     el("h3", { texto: "Agregar pedido" }),
     buscaPersona.nodo
   );
 
   if (personaActiva) {
-    caja.append(comandaEnCurso(raiz));
+    poner(caja, comandaEnCurso(raiz));
   } else {
-    caja.append(
+    poner(caja, 
       el("p", {
         estilo: "margin:var(--e3) 0 0;color:var(--tinta-suave);font-size:var(--t-sm)",
         texto: "Elija una persona de la lista para empezar a anotarle los platos.",
@@ -175,7 +180,7 @@ function comandaEnCurso(raiz) {
     estilo: `margin-top:var(--e4);padding-top:var(--e4);border-top:2px dashed var(--borde)`,
   });
 
-  caja.append(
+  poner(caja, 
     el("div", { clase: "entre" },
       el("h4", {},
         personaActiva,
@@ -517,7 +522,7 @@ function atajosDePedido(raiz, facturaA, yaTieneAlgo) {
         .map((p) => (p.cantidad > 1 ? `${p.cantidad} ${p.producto}` : p.producto))
         .join(" + ");
 
-      caja.append(
+      poner(caja, 
         el("button", {
           clase: "principal lo-de-siempre",
           alHacerClic: () => {
@@ -543,7 +548,7 @@ function atajosDePedido(raiz, facturaA, yaTieneAlgo) {
     empresaFactura: facturaA,
   });
   if (frecuentes.length) {
-    caja.append(
+    poner(caja, 
       el("div", { clase: "fila fichas-platos" },
         ...frecuentes.map((f) =>
           el("button", {

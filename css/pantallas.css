@@ -783,3 +783,284 @@ p.nota strong { display: inline; }
   }
   .grupo-nombres td:first-child { padding: var(--e3) var(--e2); }
 }
+
+/* ===========================================================================
+   CAPAS
+   ===========================================================================
+
+   Al animar la entrada de cada bloque toque transform, y en CSS un elemento
+   con transform crea una CAPA nueva. Una capa nueva encierra a sus hijos: el
+   z-index de adentro ya no puede pasar por encima de los bloques de afuera.
+
+   Resultado: la lista de nombres del buscador quedaba debajo de las cifras y
+   de las comandas. No se podia ni leer ni tocar. Los efectos bonitos no
+   pueden costar eso.
+
+   El arreglo es decir explicitamente cual bloque va encima.
+   =========================================================================== */
+
+.caja-captura {
+  position: relative;
+  z-index: 20;
+  margin-bottom: var(--e5);
+}
+
+.buscador-lista { z-index: 60; }
+
+/* ===========================================================================
+   HEADER DE DOS PISOS
+   ===========================================================================
+
+   Arriba: donde estoy parado (marca, que mes miro, si esta guardado).
+   Abajo:  a donde puedo ir (el menu).
+
+   Se reescriben aqui las reglas de la barra vieja en vez de tocar
+   estilos.css, para que si algo sale mal se borre este bloque y vuelva lo
+   de antes sin buscar nada.
+   =========================================================================== */
+
+.barra { box-shadow: 0 1px 0 rgba(0, 0, 0, 0.16); }
+
+.barra-piso {
+  max-width: 1360px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--e4);
+  padding: 0 var(--e5);
+}
+
+/* Piso de arriba: mas oscuro, mas bajito. Es informacion, no navegacion. */
+.barra-piso-alto {
+  min-height: 52px;
+  background: transparent;
+}
+
+/* Piso de abajo: un tono mas claro, para que se lea como una barra aparte. */
+.barra-piso-bajo {
+  min-height: 46px;
+  padding-top: 0;
+  padding-bottom: 0;
+  position: relative;
+}
+.barra-piso-bajo::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.055);
+  pointer-events: none;
+}
+
+/* Que el fondo del piso de abajo llegue de lado a lado y no solo al centro. */
+.barra { position: sticky; top: 0; z-index: 40; }
+.barra::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 46px;
+  background: rgba(255, 255, 255, 0.055);
+  pointer-events: none;
+  z-index: 0;
+}
+.barra-piso-bajo::before { display: none; }
+.barra-piso { position: relative; z-index: 1; }
+
+.marca { margin-right: auto; }
+
+/* El mes y el estado, juntos a la derecha. */
+.periodo { margin-left: 0; }
+.guardado { margin-left: 0; }
+
+/* El menu, en una sola fila. Si no cabe, se desliza. */
+.menu {
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  gap: 2px;
+  padding: 0;
+}
+.menu::-webkit-scrollbar { display: none; }
+.menu a {
+  flex: none;
+  min-height: 46px;
+  border-radius: 0;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 0 var(--e4);
+  font-size: var(--t-sm);
+}
+.menu a:hover { background: rgba(255, 255, 255, 0.07); }
+
+/* La pagina donde esta parada se marca con una linea abajo, como una pestana.
+   Es mas sobrio que una pastilla de color y se lee igual de rapido. */
+.menu a[aria-current="page"] {
+  background: transparent;
+  color: #fff;
+  border-bottom-color: var(--azul-claro);
+}
+
+@media (max-width: 900px) {
+  .barra-piso { padding: 0 var(--e3); gap: var(--e3); }
+  .marca span { display: none; }
+}
+
+@media (max-width: 720px) {
+  .barra-piso-alto { min-height: 48px; }
+  .periodo select { min-height: 36px; }
+}
+
+/* ===========================================================================
+   CALMAR
+   ===========================================================================
+
+   La app tenia demasiadas cajas: cada cifra con su borde y su sombra, cada
+   nota con su borde de 5 px, cada tarjeta con su sombra. Todo gritaba al
+   tiempo, y cuando todo grita nada resalta.
+
+   La idea aqui es quitar, no agregar. El contenido pone el color; el marco
+   se calla.
+   =========================================================================== */
+
+/* --- Las cifras: sin sombra y con borde fino ------------------------- */
+
+.cifra {
+  box-shadow: none;
+  border-color: var(--borde);
+  background: var(--papel);
+}
+.cifra dt {
+  text-transform: none;      /* las mayusculas sostenidas cansan de leer */
+  letter-spacing: 0;
+  font-size: var(--t-sm);
+  color: var(--tinta-suave);
+  font-weight: 500;
+}
+/* La destacada es la unica que se pinta. Por eso destaca. */
+.cifra.destacada { box-shadow: var(--sombra); }
+
+/* --- Las tarjetas: sombra apenas insinuada ---------------------------- */
+
+.tarjeta {
+  box-shadow: 0 1px 2px rgba(59, 27, 52, 0.05);
+  border: 1px solid var(--borde);
+}
+
+/* --- Las notas: el borde de 5 px era un grito --------------------------- */
+
+.nota {
+  border-left-width: 3px;
+  background: var(--papel-hueso);
+  font-size: var(--t-sm);
+}
+.nota.bien, .nota.malo, .nota.ojo { border-left-width: 3px; }
+
+/* Las barras de color de las tarjetas, mas discretas. */
+.suelto, .grupo-nombres, .tarjeta-personal, .garantia,
+.aviso-arreglable, .con-problemas, .tarjeta-ayer {
+  border-left-width: 3px;
+}
+
+/* --- El titulo de cada pantalla ---------------------------------------- */
+
+/* La rayita de colores debajo del titulo era decoracion pura. Una linea fina
+   de lado a lado ordena igual y no compite con el contenido. */
+.encabezado-pantalla::after {
+  background: var(--borde);
+  height: 1px;
+}
+
+/* --- Las tablas: encabezado mas liviano --------------------------------- */
+
+thead th {
+  font-size: var(--t-xs);
+  letter-spacing: 0.03em;
+  font-weight: 600;
+}
+
+/* --- Los sellos y etiquetas, sin tanto peso ----------------------------- */
+
+.sello { font-weight: 600; letter-spacing: 0.02em; }
+.etiqueta { font-weight: 500; }
+
+/* --- Espacio para respirar ---------------------------------------------- */
+
+.hoja > h2 { margin-top: var(--e6); margin-bottom: var(--e3); }
+.hoja > section + section { margin-top: var(--e4); }
+
+/* ---------------------------------------------------------------------
+   El piso de arriba en pantallas angostas
+
+   Marca + mes + ano + "Guardado" no caben en 390 px: se pasaban 26.
+   En vez de dejar que se caiga a otra linea (que fue justo lo que hacia
+   feo el header viejo), se encoge lo que se puede encoger.
+   --------------------------------------------------------------------- */
+
+@media (max-width: 720px) {
+  .barra-piso-alto { gap: var(--e2); }
+
+  .marca { font-size: var(--t-base); min-width: 0; }
+
+  .periodo { gap: 4px; min-width: 0; }
+  .periodo select {
+    min-height: 34px;
+    font-size: var(--t-xs);
+    padding: 0 4px;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  /* Aqui ya no cabe la palabra: queda el punto de color, que es lo que
+     ella mira de reojo. El texto sigue ahi para quien use lector de
+     pantalla, solo que no se dibuja. */
+  .guardado { font-size: 0; gap: 0; }
+  .guardado::before { width: 11px; height: 11px; }
+}
+
+/* ---------------------------------------------------------------------
+   Los botones secundarios tienen que VERSE
+
+   .plano era transparente hasta pasarle el mouse por encima. En el
+   computador uno lo descubre sin querer; en el celular no hay mouse que
+   pasar, asi que "No, es otra persona" parecia un texto y nadie lo iba a
+   tocar. Un boton que no se ve como boton no existe.
+
+   Queda con borde suave: se ve que es tocable, sin competirle al principal.
+   --------------------------------------------------------------------- */
+
+.plano {
+  border-color: var(--borde-fuerte);
+  background: var(--papel);
+  padding: 0 var(--e4);
+  color: var(--tinta);
+}
+.plano:hover {
+  background: var(--mora-claro);
+  border-color: var(--mora);
+  color: var(--mora-oscuro);
+}
+
+/* "Dejelo asi" si se queda discreto: es la salida, no una accion. */
+.decision .suave, .plano.suave {
+  border-color: transparent;
+  background: transparent;
+  color: var(--tinta-suave);
+}
+.decision .suave:hover, .plano.suave:hover {
+  background: var(--papel-raya);
+  border-color: var(--borde);
+  color: var(--tinta);
+}
+
+/* Las tarjetas de Ajustes, en rejilla y con aire. */
+.tarjetas-ajustes { gap: var(--e4); }
+.tarjetas-ajustes .tarjeta-enlace { display: flex; flex-direction: column; }
+.tarjetas-ajustes .tarjeta-enlace p { flex: 1 1 auto; }
+
+/* Una etiqueta se ajusta a su texto. En una tarjeta flex, por defecto se
+   estira de lado a lado y parece una barra de resaltado. */
+.tarjetas-ajustes .tarjeta-enlace { align-items: flex-start; }
+.tarjetas-ajustes .tarjeta-enlace p,
+.tarjetas-ajustes .tarjeta-enlace h2 { align-self: stretch; }
+.etiqueta { display: inline-block; }

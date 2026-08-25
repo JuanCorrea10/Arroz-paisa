@@ -123,9 +123,17 @@ empresas.
 
 Los cambios **no se suben solos**. Cada vez que se arregle algo:
 
+```powershell
+.\publicar.cmd "lo que cambio"
 ```
-.\publicar.ps1 "lo que cambio"
-```
+
+El `.\` del principio **no sobra**: PowerShell no busca programas en la carpeta
+donde uno esta parado, a proposito, para que nadie corra por accidente algo que
+le dejaron ahi. Sin el `.\` dice "no se reconoce como nombre de un cmdlet".
+
+Se usa el `.cmd` y no el `.ps1` porque Windows no deja correr scripts de
+PowerShell por defecto. El `.cmd` le dice "corre SOLO este, y solo esta vez",
+que es lo mismo sin bajarle la guardia al computador entero.
 
 Eso revisa que no se vaya ningun dato de las personas, guarda el cambio y lo
 sube. Al minuto se ve en <https://juancorrea10.github.io/Arroz-paisa/>.

@@ -4,7 +4,10 @@
 #  Los cambios NO se suben solos. Cada vez que arreglemos algo hay que
 #  publicarlo, y esto lo hace en un comando:
 #
-#      .\publicar.ps1 "lo que cambio"
+#      .\publicar.cmd "lo que cambio"
+#
+#  Ojo al ".\" del principio: PowerShell NO busca en la carpeta donde uno esta
+#  parado. Sin el, contesta "no se reconoce como nombre de un cmdlet".
 #
 #  Antes de subir revisa que no se vaya ningun dato de las personas, porque
 #  GitHub Pages es publico y esa revision es facil de olvidar cuando uno anda

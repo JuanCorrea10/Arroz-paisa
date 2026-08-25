@@ -5,7 +5,7 @@
 //  una tabla, y botones para imprimir o bajar el PDF.
 // ============================================================================
 
-import { el, vaciar, tabla, cifra, cifraPlata, acciones, vacio, mensaje, cinta } from "./componentes.js";
+import { el, vaciar, tabla, cifra, cifraPlata, acciones, vacio, mensaje, cinta, poner } from "./componentes.js";
 import { estado, cambio, empresas, empresaPorCodigo } from "./estado.js";
 import { pesos, fechaLarga, fechaCorta, nombreMes, diasDelMes, hoyISO } from "../nucleo/formato.js";
 import {
@@ -71,7 +71,7 @@ export function pintarCocina(raiz) {
   const filas = informeCocina(estado.datos.consumos, estado.fecha, codigos);
   const totalPlatos = filas.reduce((a, f) => a + f.total, 0);
 
-  raiz.append(
+  poner(raiz, 
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Cocina" }),
@@ -92,11 +92,11 @@ export function pintarCocina(raiz) {
   );
 
   if (!filas.length) {
-    raiz.append(vacio(`No hay nada anotado para el ${fechaCorta(estado.fecha)}`, "Elija otro día, o vaya a Registrar el día."));
+    poner(raiz, vacio(`No hay nada anotado para el ${fechaCorta(estado.fecha)}`, "Elija otro día, o vaya a Registrar el día."));
     return;
   }
 
-  raiz.append(
+  poner(raiz, 
     el("dl", { clase: "cifras", estilo: "margin-bottom:var(--e5)" },
       cifra("Platos distintos", String(filas.length)),
       cifra("Unidades a preparar", String(totalPlatos), true)
@@ -132,7 +132,7 @@ export function pintarResumenDia(raiz) {
   const emp = empresaResumen ? empresaPorCodigo(empresaResumen) : null;
   const nombre = emp ? emp.razonSocial || emp.codigo : "Todas las empresas";
 
-  raiz.append(
+  poner(raiz, 
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Resumen del día" }),
@@ -156,11 +156,11 @@ export function pintarResumenDia(raiz) {
   );
 
   if (!informe.filas.length) {
-    raiz.append(vacio(`No hay nada anotado para el ${fechaCorta(estado.fecha)}`, "Elija otro día u otra empresa."));
+    poner(raiz, vacio(`No hay nada anotado para el ${fechaCorta(estado.fecha)}`, "Elija otro día u otra empresa."));
     return;
   }
 
-  raiz.append(
+  poner(raiz, 
     el("div", { clase: "documento" },
       el("h2", { texto: "Resumen del día" }),
       el("p", { estilo: "text-align:center;color:var(--tinta-media);margin-bottom:var(--e5)" },
@@ -203,7 +203,7 @@ export function pintarPorPersona(raiz) {
   const emp = empresaPersonas ? empresaPorCodigo(empresaPersonas) : null;
   const nombre = emp ? emp.razonSocial || emp.codigo : "Todas las empresas";
 
-  raiz.append(
+  poner(raiz, 
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Consumo por persona" }),
@@ -227,14 +227,14 @@ export function pintarPorPersona(raiz) {
   );
 
   if (!filas.length) {
-    raiz.append(vacio(`No hay nada anotado en ${nombreMes(estado.mes)} de ${estado.anio}`, "Elija otro mes u otra empresa."));
+    poner(raiz, vacio(`No hay nada anotado en ${nombreMes(estado.mes)} de ${estado.anio}`, "Elija otro mes u otra empresa."));
     return;
   }
 
   const tQ1 = filas.reduce((a, f) => a + f.q1, 0);
   const tQ2 = filas.reduce((a, f) => a + f.q2, 0);
 
-  raiz.append(
+  poner(raiz, 
     el("dl", { clase: "cifras", estilo: "margin-bottom:var(--e5)" },
       cifra("Personas", String(filas.length)),
       cifra("Facturas", String(filas.reduce((a, f) => a + f.facturas, 0))),
@@ -281,7 +281,7 @@ export function pintarCuadre(raiz) {
   const conDato = filas.filter((f) => f.declarado !== null);
   const malos = conDato.filter((f) => f.estado === "no-cuadra");
 
-  raiz.append(
+  poner(raiz, 
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Cuadre de facturas" }),
@@ -301,7 +301,7 @@ export function pintarCuadre(raiz) {
     el("div", { clase: "mando" }, ...selectorDeMes(repintar))
   );
 
-  raiz.append(
+  poner(raiz, 
     malos.length
       ? el("div", { clase: "nota malo" },
           el("div", {},
@@ -346,7 +346,7 @@ export function pintarCuadre(raiz) {
     )
   );
 
-  raiz.append(
+  poner(raiz, 
     tabla(
       [
         { titulo: "Día" }, { titulo: "Dijo el trabajador" }, { titulo: "Hay registradas", clase: "n" },

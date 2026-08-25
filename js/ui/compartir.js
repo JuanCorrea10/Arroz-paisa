@@ -32,6 +32,7 @@
 
 import {
   el, vaciar, mensaje, tabla, cinta, cifra, vacio, acciones, ventana,
+  poner,
 } from "./componentes.js";
 import { estado, empresas, empresaPorCodigo } from "./estado.js";
 import { pesos, nombreMes, fechaCorta } from "../nucleo/formato.js";
@@ -46,7 +47,7 @@ export function pintarCompartir(raiz) {
   vaciar(raiz);
   const lista = empresas();
 
-  raiz.append(
+  poner(raiz, 
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Compartir con las empresas" }),
@@ -60,15 +61,15 @@ export function pintarCompartir(raiz) {
   );
 
   if (!lista.length) {
-    raiz.append(vacio("Todavía no hay empresas",
+    poner(raiz, vacio("Todavía no hay empresas",
       el("p", { texto: "Cree las empresas primero." })));
     return;
   }
 
-  raiz.append(garantiaDePrivacidad());
+  poner(raiz, garantiaDePrivacidad());
 
   for (const empresa of lista) {
-    raiz.append(tarjetaDeEmpresa(empresa));
+    poner(raiz, tarjetaDeEmpresa(empresa));
   }
 }
 

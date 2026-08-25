@@ -10,7 +10,7 @@
 //  y los datos siguen guardados.
 // ============================================================================
 
-import { el, vaciar, mensaje } from "./ui/componentes.js";
+import { el, vaciar, mensaje, poner } from "./ui/componentes.js";
 import { estado, alCambiar, sincronizarPeriodo, asegurarEmpresa, cambiarPeriodo } from "./ui/estado.js";
 import { nombreMes } from "./nucleo/formato.js";
 import * as almacen from "./datos/almacen.js";
@@ -99,7 +99,7 @@ function pintar() {
 function pantallaRota(donde, error) {
   console.error(error);
   vaciar(donde);
-  donde.append(
+  poner(donde, 
     el("section", { clase: "tarjeta con-problemas" },
       el("h1", { texto: "Se dañó esta pantalla" }),
       el("p", {},
@@ -171,14 +171,14 @@ function pintarAjustes(donde) {
     },
   ];
 
-  donde.append(
+  poner(donde, 
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Ajustes" }),
         el("p", { texto: "Las cosas que se tocan de vez en cuando." })
       )
     ),
-    el("div", { clase: "rejilla-2 tarjetas-ajustes" },
+    el("div", { clase: "rejilla rejilla-2 tarjetas-ajustes" },
       ...tarjetas.map((t) =>
         el("a", { clase: "tarjeta tarjeta-enlace", href: t.href },
           el("h2", { texto: t.titulo }),
@@ -254,7 +254,7 @@ function construirPeriodo() {
   }, ...Array.from({ length: 7 }, (_, i) => ahora - 3 + i).map((a) =>
     el("option", { value: a, selected: a === estado.anio }, String(a))));
 
-  caja.append(
+  poner(caja, 
     el("span", { clase: "solo-lectores", texto: "Mes que se está mirando" }),
     meses, anios
   );
@@ -397,7 +397,7 @@ arrancar().catch((error) => {
   const donde = raiz();
   if (!donde) return;
   vaciar(donde);
-  donde.append(
+  poner(donde, 
     el("section", { clase: "tarjeta con-problemas" },
       el("h1", { texto: "La app no pudo arrancar" }),
       el("p", { texto: "Sus datos no se tocaron. Pruebe a cerrar y volver a abrir." }),

@@ -7,7 +7,7 @@
 //  y de ninguna otra.
 // ============================================================================
 
-import { el, vaciar, tabla, cifra, cifraPlata, acciones, vacio, mensaje, confirmar } from "./componentes.js";
+import { el, vaciar, tabla, cifra, cifraPlata, acciones, vacio, mensaje, confirmar, poner } from "./componentes.js";
 import { estado, empresas, empresaPorCodigo, asegurarEmpresa } from "./estado.js";
 import { pesos, nombreMes, fechaCorta } from "../nucleo/formato.js";
 import { cuentaDeCobro, deQuincena, sumar } from "../nucleo/calculos.js";
@@ -23,7 +23,7 @@ export function pintarCobro(raiz) {
   const repintar = () => pintarCobro(raiz);
 
   if (!empresas().length) {
-    raiz.append(
+    poner(raiz, 
       el("div", { clase: "encabezado-pantalla" }, el("div", {}, el("h1", { texto: "Cuenta de cobro" }))),
       vacio("Todavía no hay empresas", el("p", {}, "Cree las empresas en ", el("a", { href: "#empresas", texto: "Empresas" }), "."))
     );
@@ -42,7 +42,7 @@ export function pintarCobro(raiz) {
     (c) => c.facturable !== false && !(c.precioUnitario > 0)
   );
 
-  raiz.append(
+  poner(raiz, 
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Cuenta de cobro" }),
@@ -85,7 +85,7 @@ export function pintarCobro(raiz) {
   );
 
   if (enCero.length) {
-    raiz.append(
+    poner(raiz, 
       el("div", { clase: "nota malo no-imprimir" },
         el("div", {},
           el("strong", { texto: `${enCero.length} ${enCero.length === 1 ? "renglón está" : "renglones están"} en $ 0` }),
@@ -98,15 +98,15 @@ export function pintarCobro(raiz) {
   }
 
   if (!cuenta.filas.length) {
-    raiz.append(vacio(
+    poner(raiz, vacio(
       `No hay nada que cobrarle a ${empresaCobro} en la quincena ${quincena} de ${nombreMes(estado.mes)}`,
       "Pruebe con la otra quincena, con otro mes o con otra empresa."
     ));
   } else {
-    raiz.append(documentoDeCobro(cuenta, acreedor));
+    poner(raiz, documentoDeCobro(cuenta, acreedor));
   }
 
-  raiz.append(paraElCliente(empresa));
+  poner(raiz, paraElCliente(empresa));
 }
 
 // ---------------------------------------------------------------------------

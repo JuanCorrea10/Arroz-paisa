@@ -13,6 +13,7 @@
 
 import {
   el, vaciar, mensaje, confirmar, ventana, tabla, cinta, cifra, vacio, acciones,
+  poner,
 } from "./componentes.js";
 import { estado, cambio, sincronizarPeriodo, asegurarEmpresa } from "./estado.js";
 import { pesos, fechaCorta, nombreMes, normalizar } from "../nucleo/formato.js";
@@ -26,7 +27,7 @@ export function pintarDatos(raiz) {
   vaciar(raiz);
   const datos = estado.datos;
 
-  raiz.append(
+  poner(raiz, 
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Datos y respaldos" }),

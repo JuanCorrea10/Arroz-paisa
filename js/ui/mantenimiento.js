@@ -9,6 +9,7 @@
 
 import {
   el, vaciar, mensaje, confirmar, pedirDatos, tabla, cinta, cifra, vacio, ventana,
+  poner,
 } from "./componentes.js";
 import { estado, cambio, empresas } from "./estado.js";
 import { pesos, normalizar, coincide, aEntero } from "../nucleo/formato.js";
@@ -29,7 +30,7 @@ export function pintarEmpresas(raiz) {
   vaciar(raiz);
   const lista = estado.datos.empresas;
 
-  raiz.append(
+  poner(raiz, 
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Empresas" }),
@@ -41,12 +42,12 @@ export function pintarEmpresas(raiz) {
   );
 
   if (!lista.length) {
-    raiz.append(vacio("Todavía no hay empresas",
+    poner(raiz, vacio("Todavía no hay empresas",
       el("p", { texto: 'Toque "Agregar empresa" para crear la primera.' })));
     return;
   }
 
-  raiz.append(
+  poner(raiz, 
     el("p", { clase: "nota" },
       "La quincena 1 va del día 1 hasta el día de corte, y la quincena 2 del " +
       "siguiente hasta fin de mes. Cada empresa puede cortar en un día distinto."),
@@ -182,7 +183,7 @@ export function pintarCatalogo(raiz) {
   const sinPrecio = productos.filter((p) =>
     lista.some((e) => precioDe(estado.datos, p.nombre, e.codigo) === null));
 
-  raiz.append(
+  poner(raiz, 
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Catálogo" }),
@@ -197,7 +198,7 @@ export function pintarCatalogo(raiz) {
   );
 
   if (sinPrecio.length) {
-    raiz.append(
+    poner(raiz, 
       el("p", { clase: "nota malo" },
         `${sinPrecio.length} platos no tienen precio en alguna empresa. Si se ` +
         "anota uno de esos, el renglón entra en $ 0 y la cuenta de cobro sale " +
@@ -221,15 +222,15 @@ export function pintarCatalogo(raiz) {
       }
     },
   });
-  raiz.append(el("div", { clase: "campo" }, busca));
+  poner(raiz, el("div", { clase: "campo" }, busca));
 
   if (!productos.length) {
-    raiz.append(vacio("El catálogo está vacío",
+    poner(raiz, vacio("El catálogo está vacío",
       el("p", { texto: 'Toque "Agregar plato", o importe el Excel desde la pantalla Datos.' })));
     return;
   }
 
-  raiz.append(
+  poner(raiz, 
     tabla(
       [
         { titulo: "Plato" },
@@ -401,7 +402,7 @@ export function pintarPersonas(raiz) {
   const cruzadas = todas.filter(
     (p) => normalizar(p.empresaFactura) !== normalizar(p.empresaCome));
 
-  raiz.append(
+  poner(raiz, 
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Personas" }),
@@ -445,7 +446,7 @@ export function pintarPersonas(raiz) {
     },
   });
 
-  raiz.append(
+  poner(raiz, 
     el("div", { clase: "mando" },
       el("div", { clase: "campo crece" }, el("label", { texto: "Buscar" }), busca),
       el("div", { clase: "campo" }, el("label", { texto: "Empresa" }), filtro)
@@ -453,12 +454,12 @@ export function pintarPersonas(raiz) {
   );
 
   if (!todas.length) {
-    raiz.append(vacio("Todavía no hay personas",
+    poner(raiz, vacio("Todavía no hay personas",
       el("p", { texto: 'Agréguelas aquí, o impórtelas del Excel desde la pantalla Datos.' })));
     return;
   }
 
-  raiz.append(
+  poner(raiz, 
     tabla(
       [
         { titulo: "Nombre" }, { titulo: "Come en" }, { titulo: "Se le cobra a" }, { titulo: "", clase: "dato" },
@@ -468,7 +469,7 @@ export function pintarPersonas(raiz) {
   );
 
   if (visibles.length > 300) {
-    raiz.append(el("p", { clase: "nota" },
+    poner(raiz, el("p", { clase: "nota" },
       `Se muestran las primeras 300 de ${visibles.length}. Escriba en el buscador para encontrar a alguien.`));
   }
 }

@@ -14,6 +14,7 @@
 
 import {
   el, vaciar, mensaje, confirmar, ventana, tabla, cinta, cifra, vacio, pedirDatos,
+  poner,
 } from "./componentes.js";
 import { estado, cambio, empresas } from "./estado.js";
 import { pesos, fechaCorta, normalizar } from "../nucleo/formato.js";
@@ -38,7 +39,7 @@ export function pintarNombres(raiz) {
   const sucios = nombresSucios(datos);
   const tocayos = tocayosEntreEmpresas(datos);
 
-  raiz.append(
+  poner(raiz, 
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Revisar nombres" }),
@@ -57,16 +58,16 @@ export function pintarNombres(raiz) {
   );
 
   // --- 0. La lista de personal: la única forma de no adivinar --------------
-  raiz.append(tarjetaDePersonal(raiz));
+  poner(raiz, tarjetaDePersonal(raiz));
 
   // --- 1. Lo que se arregla solo ------------------------------------------
-  if (sucios.length) raiz.append(tarjetaDeLimpieza(raiz, sucios));
+  if (sucios.length) poner(raiz, tarjetaDeLimpieza(raiz, sucios));
 
   // --- 2. Los grupos que necesitan que ella decida -------------------------
-  raiz.append(el("h2", { texto: "Nombres que se parecen" }));
+  poner(raiz, el("h2", { texto: "Nombres que se parecen" }));
 
   if (!grupos.length) {
-    raiz.append(
+    poner(raiz, 
       vacio(
         "Todo en orden",
         el("p", {},
@@ -75,16 +76,16 @@ export function pintarNombres(raiz) {
       )
     );
   } else {
-    raiz.append(
+    poner(raiz, 
       el("p", { clase: "nota" },
         "Solo se comparan nombres de la MISMA empresa. Dos personas de empresas " +
         "distintas nunca se juntan, aunque se llamen igual.")
     );
     for (const grupo of grupos.slice(0, mostrando)) {
-      raiz.append(tarjetaDeGrupo(raiz, grupo));
+      poner(raiz, tarjetaDeGrupo(raiz, grupo));
     }
     if (grupos.length > mostrando) {
-      raiz.append(
+      poner(raiz, 
         el("button", {
           clase: "plano",
           alHacerClic: () => { mostrando += DE_A_CUANTOS; pintarNombres(raiz); },
@@ -94,7 +95,7 @@ export function pintarNombres(raiz) {
   }
 
   // --- 3. Los tocayos: informativo, no se tocan ----------------------------
-  if (tocayos.length) raiz.append(tarjetaDeTocayos(tocayos));
+  if (tocayos.length) poner(raiz, tarjetaDeTocayos(tocayos));
 }
 
 // ---------------------------------------------------------------------------
@@ -595,7 +596,7 @@ function tarjetaDeTocayos(tocayos) {
     },
   }, `Ver los ${tocayos.length} nombres`);
 
-  caja.append(
+  poner(caja, 
     tabla(
       [{ titulo: "Nombre" }, { titulo: "Está en" }],
       tocayos.map((t) =>

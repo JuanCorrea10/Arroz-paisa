@@ -17,6 +17,7 @@
 
 import {
   el, vaciar, mensaje, ventana, confirmar, pedirDatos, tabla, cinta, cifra, vacio,
+  poner,
 } from "./componentes.js";
 import { estado, cambio, empresas } from "./estado.js";
 import { pesos, normalizar } from "../nucleo/formato.js";
@@ -34,7 +35,7 @@ export function pintarErrores(raiz) {
   const platos = platosSueltos(estado.datos);
   const parecidos = gruposParaRevisar(estado.datos).length;
 
-  raiz.append(
+  poner(raiz, 
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Posibles errores" }),
@@ -59,7 +60,7 @@ export function pintarErrores(raiz) {
   );
 
   if (!personas.length && !platos.length) {
-    raiz.append(
+    poner(raiz, 
       vacio("No hay nada raro",
         el("p", {},
           "Todos los renglones apuntan a una persona y a un plato que existen. ",
@@ -73,7 +74,7 @@ export function pintarErrores(raiz) {
     return;
   }
 
-  raiz.append(
+  poner(raiz, 
     el("p", { clase: "nota" },
       "Mientras no se arreglen, estos renglones entran en $ 0 a la cuenta de " +
       "cobro y no aparecen en la Cocina. O sea: se vendió la comida y no se " +
@@ -82,22 +83,22 @@ export function pintarErrores(raiz) {
 
   // --- Personas ------------------------------------------------------------
   if (personas.length) {
-    raiz.append(el("h2", { texto: "Personas que no están en la lista de su empresa" }));
-    for (const p of personas) raiz.append(tarjetaDePersona(raiz, p));
+    poner(raiz, el("h2", { texto: "Personas que no están en la lista de su empresa" }));
+    for (const p of personas) poner(raiz, tarjetaDePersona(raiz, p));
   }
 
   // --- Platos --------------------------------------------------------------
   if (platos.length) {
-    raiz.append(el("h2", { texto: "Platos que no están en el catálogo" }));
+    poner(raiz, el("h2", { texto: "Platos que no están en el catálogo" }));
 
     const obvios = platos.filter((p) => p.sugerencias.some((s) => s.obvio));
-    if (obvios.length > 1) raiz.append(tarjetaDeObvios(raiz, obvios));
+    if (obvios.length > 1) poner(raiz, tarjetaDeObvios(raiz, obvios));
 
-    for (const p of platos) raiz.append(tarjetaDePlato(raiz, p));
+    for (const p of platos) poner(raiz, tarjetaDePlato(raiz, p));
   }
 
   if (parecidos) {
-    raiz.append(
+    poner(raiz, 
       el("p", { clase: "nota" },
         `Aparte de esto hay ${parecidos} grupos de nombres parecidos en `,
         el("a", { href: "#nombres", texto: "Revisar nombres" }),

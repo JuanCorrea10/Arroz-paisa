@@ -28,17 +28,24 @@
 
 <a class="salto-al-contenido" href="#pantalla">Saltar al contenido</a>
 
+<!--
+  El header va en DOS pisos a proposito.
+
+  Antes era uno solo y los 10 enlaces no cabian, asi que el mes y el estado se
+  caian a una segunda linea y parecia un accidente. Partirlo de entrada se ve
+  intencional y ademas separa dos cosas distintas: arriba DONDE estoy parado
+  (que mes miro, si esta guardado) y abajo A DONDE puedo ir.
+-->
 <header class="barra">
-  <div class="barra-fila">
+  <div class="barra-piso barra-piso-alto">
     <div class="marca">Arroz Paisa <span>Ibagué</span></div>
-
-    <nav class="menu" id="menu" aria-label="Pantallas"></nav>
-
     <div class="periodo" id="periodo"></div>
-
-    <div class="guardado" id="guardado" data-estado="bien" role="status" aria-live="polite">
+    <div class="guardado" id="guardado" data-estado="bien" role="status" aria-live="polite" title="Si esta verde, todo esta guardado">
       Abriendo…
     </div>
+  </div>
+  <div class="barra-piso barra-piso-bajo">
+    <nav class="menu" id="menu" aria-label="Pantallas"></nav>
   </div>
 </header>
 

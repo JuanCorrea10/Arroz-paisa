@@ -9,7 +9,7 @@
 //  además se puede imprimir y pegar al lado del computador.
 // ============================================================================
 
-import { el, vaciar, acciones } from "./componentes.js";
+import { el, vaciar, acciones, poner } from "./componentes.js";
 
 const RUTA_MANUAL = "docs/manual.html";
 
@@ -19,7 +19,7 @@ let manualEnMemoria = null;
 export async function pintarAyuda(raiz) {
   vaciar(raiz);
 
-  raiz.append(
+  poner(raiz, 
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Cómo se usa" }),
@@ -43,15 +43,15 @@ export async function pintarAyuda(raiz) {
   const caja = el("div", { clase: "manual-adentro" },
     el("p", { clase: "cargando", texto: "Trayendo el manual…" })
   );
-  raiz.append(caja);
+  poner(raiz, caja);
 
   try {
     if (!manualEnMemoria) manualEnMemoria = await traerManual();
     vaciar(caja);
-    caja.append(manualEnMemoria.cloneNode(true));
+    poner(caja, manualEnMemoria.cloneNode(true));
   } catch (error) {
     vaciar(caja);
-    caja.append(
+    poner(caja, 
       el("section", { clase: "tarjeta" },
         el("h2", { texto: "El manual no se pudo traer" }),
         el("p", {},

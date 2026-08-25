@@ -11,7 +11,10 @@ REM  sin bajarle la guardia a la maquina entera.
 REM
 REM  Se usa de dos formas:
 REM     doble clic en este archivo
-REM     o desde la terminal:   publicar "lo que cambio"
+REM     o desde la terminal:   .\publicar.cmd "lo que cambio"
+REM
+REM  El ".\" del principio hace falta: PowerShell no busca en la carpeta
+REM  actual, y sin el contesta "no se reconoce como nombre de un cmdlet".
 REM ===========================================================================
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0publicar.ps1" %*
 if errorlevel 1 (
