@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20260825-1653";
+  --version: "20260825-1745";
 }
 
 /* ===========================================================================
@@ -1408,4 +1408,38 @@ html { scroll-behavior: smooth; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+}
+
+/* Un guion suelto en una celda vacia, sin caja. */
+.nota-suelta { color: var(--tinta-suave); }
+
+/* ---------------------------------------------------------------------
+   Las tarjetas de Revisar: primero QUE pasa, despues la pregunta
+   --------------------------------------------------------------------- */
+
+.que-pasa {
+  font-size: var(--t-md);
+  line-height: 1.45;
+  margin-bottom: var(--e2);
+}
+.que-pasa .cinta { vertical-align: middle; }
+
+.la-pregunta {
+  font-family: var(--display);
+  font-weight: 600;
+  margin: var(--e4) 0 var(--e2);
+}
+
+/* Un boton con un nombre largo adentro tiene que poder partirse. Sin esto,
+   "Agregar COMBO DE CERDO AGRIDULCE..." empujaba la pagina 60 px en el
+   celular. Los botones no parten el texto solos. */
+.decision button {
+  max-width: 100%;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.25;
+  padding-top: var(--e2);
+  padding-bottom: var(--e2);
+  height: auto;
+  min-height: var(--alto-toque);
 }

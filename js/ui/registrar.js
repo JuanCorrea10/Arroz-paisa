@@ -769,6 +769,11 @@ async function crearPersona(nombreEscrito, raiz) {
         opciones: lista.map((e) => ({ valor: e.codigo, texto: e.codigo + " — " + e.razonSocial })),
         ayuda: "Casi siempre es la misma donde come. Cámbielo solo si se le cobra a otra.",
       },
+      {
+        nombre: "documento", etiqueta: "Cédula (opcional)", tipo: "text",
+        ayuda: "Sirve para no confundirla con otra del mismo nombre. La app " +
+               "guarda solo los últimos 5 números, nada más.",
+      },
     ],
     textoAceptar: "Crear y usar",
   });
@@ -778,6 +783,7 @@ async function crearPersona(nombreEscrito, raiz) {
       nombre: datos.nombre,
       empresaCome: estado.empresa,
       empresaFactura: datos.empresaFactura,
+      documento: datos.documento,
     });
   } catch (e) {
     mensaje(e.message, "malo", 6);

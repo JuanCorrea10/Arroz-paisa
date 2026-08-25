@@ -401,6 +401,7 @@ export function pintarPersonas(raiz) {
   // Cuánta gente se le factura a otra empresa distinta de donde come.
   const cruzadas = todas.filter(
     (p) => normalizar(p.empresaFactura) !== normalizar(p.empresaCome));
+  const conDocumento = todas.filter((p) => p.documento);
 
   poner(raiz, 
     el("div", { clase: "encabezado-pantalla" },
@@ -412,6 +413,7 @@ export function pintarPersonas(raiz) {
     ),
     el("dl", { clase: "cifras" },
       cifra("Personas", String(todas.length)),
+      cifra("Con cédula", `${conDocumento.length} de ${todas.length}`),
       cifra("Se le cobra a otra empresa", String(cruzadas.length)),
       cifra("Mostrando", String(visibles.length))
     ),
@@ -462,7 +464,8 @@ export function pintarPersonas(raiz) {
   poner(raiz, 
     tabla(
       [
-        { titulo: "Nombre" }, { titulo: "Come en" }, { titulo: "Se le cobra a" }, { titulo: "", clase: "dato" },
+        { titulo: "Nombre" }, { titulo: "Come en" }, { titulo: "Se le cobra a" },
+        { titulo: "Cédula", clase: "dato" }, { titulo: "", clase: "dato" },
       ],
       visibles.slice(0, 300).map((p) => filaDePersona(raiz, p, lista))
     )
@@ -486,6 +489,11 @@ function filaDePersona(raiz, persona, lista) {
     el("td", {},
       cinta(persona.empresaFactura),
       distinto ? el("span", { clase: "etiqueta", texto: "distinta" }) : null
+    ),
+    el("td", { clase: "dato" },
+      persona.documento
+        ? el("code", { clase: "documento-corto", texto: "···" + persona.documento })
+        : el("span", { clase: "nota-suelta", texto: "—" })
     ),
     el("td", { clase: "dato" },
       el("div", { clase: "fila" },
@@ -523,6 +531,11 @@ async function nuevaPersona(raiz) {
         opciones: lista.map((e) => ({ valor: e.codigo, texto: e.codigo + " — " + e.razonSocial })),
         ayuda: "Casi siempre es la misma de arriba.",
       },
+      {
+        nombre: "documento", etiqueta: "Cédula (opcional)", tipo: "text",
+        ayuda: "Sirve para no confundirla con otra del mismo nombre. La app " +
+               "guarda solo los últimos 5 números, nada más.",
+      },
     ],
     textoAceptar: "Crear",
   });
@@ -550,6 +563,7 @@ async function nuevaPersona(raiz) {
       nombre,
       empresaCome: r.empresaCome,
       empresaFactura: r.empresaFactura,
+      documento: r.documento,
     });
   } catch (e) {
     mensaje(e.message, "malo", 6);
@@ -575,6 +589,13 @@ async function editarPersona(raiz, persona, lista) {
         nombre: "empresaFactura", etiqueta: "¿A qué empresa se le cobra?", tipo: "seleccion",
         valor: persona.empresaFactura,
         opciones: lista.map((e) => ({ valor: e.codigo, texto: e.codigo + " — " + e.razonSocial })),
+      },
+      {
+        nombre: "documento", etiqueta: "Cédula (opcional)", tipo: "text",
+        valor: persona.documento || "",
+        ayuda: persona.documento
+          ? "Ya tiene guardados los últimos 5: " + persona.documento
+          : "Sirve para no confundirla con otra del mismo nombre. Se guardan solo los últimos 5 números.",
       },
     ],
     textoAceptar: "Guardar",
@@ -604,6 +625,10 @@ async function editarPersona(raiz, persona, lista) {
       return;
     }
   }
+
+  // La cedula se guarda siempre que la hayan escrito.
+  const doc = String(r.documento || "").replace(/[^0-9]/g, "").slice(-5);
+  if (doc !== (persona.documento || "")) persona.documento = doc;
 
   if (cambiaFactura) {
     // OJO: solo cambia de aquí en adelante. Lo ya cobrado NO se toca, porque

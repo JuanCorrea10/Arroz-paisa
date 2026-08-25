@@ -21,6 +21,7 @@ import {
 } from "./componentes.js";
 import { estado, cambio, empresas } from "./estado.js";
 import { pesos, normalizar } from "../nucleo/formato.js";
+import { precioDe } from "../nucleo/calculos.js";
 import {
   personasSueltas, platosSueltos, unirPersonaSuelta, crearPersonaSuelta,
   simularUnionDePlato, unirPlatoSuelto, crearPlatoSuelto, dejarComoEsta,
@@ -52,9 +53,13 @@ export function pintarErrores(raiz) {
       cifra("Personas que no están en su empresa", String(personas.length)),
       cifra("Platos que no están en el catálogo", String(platos.length)),
       cifra("Nombres parecidos", String(parecidos)),
-      cifra("Renglones sin cobrar bien", String(
+      // "Por arreglar" y no "sin cobrar": de estos renglones, los de plato SI
+      // se estan cobrando en $ 0, pero los de persona se cobran bien y lo que
+      // esta mal es a quien se le suman. Son dos problemas distintos y el
+      // titulo no puede decir que son el mismo.
+      cifra("Renglones por arreglar", String(
         personas.reduce((a, p) => a + p.renglones, 0) +
-        platos.reduce((a, p) => a + p.sinPrecio, 0)
+        platos.reduce((a, p) => a + p.renglones, 0)
       ), true)
     )
   );
@@ -76,9 +81,10 @@ export function pintarErrores(raiz) {
 
   poner(raiz, 
     el("p", { clase: "nota" },
-      "Mientras no se arreglen, estos renglones entran en $ 0 a la cuenta de " +
-      "cobro y no aparecen en la Cocina. O sea: se vendió la comida y no se " +
-      "está cobrando.")
+      "Los platos que no están en el catálogo entran en $ 0 a la cuenta de " +
+      "cobro: se vendió la comida y no se está cobrando. Las personas que no " +
+      "están en la lista sí se cobran, pero su consumo no se le suma a nadie, " +
+      "así que los informes por persona salen mal.")
   );
 
   // --- Personas ------------------------------------------------------------
@@ -147,42 +153,69 @@ function elegirParecido(sugerencias, nombreGrupo) {
 //  Una persona suelta
 // ---------------------------------------------------------------------------
 
+/**
+ * Una tarjeta tiene que decir TRES cosas, en este orden:
+ *
+ *   1. QUE pasa      "hay 5 renglones a nombre de alguien que no está"
+ *   2. QUE proponemos "¿será que es LEIDY ACOSTA?"
+ *   3. QUE decide ella, con el nombre puesto en el botón
+ *
+ * Antes solo mostraba el nombre suelto y tres botones, y tocaba adivinar cuál
+ * era el problema. Un aviso que hay que descifrar no sirve de nada: es como
+ * el Excel fallando en silencio, pero con más pasos.
+ */
 function tarjetaDePersona(raiz, p) {
   const grupo = "sp-" + p.empresa + "-" + p.nombre.replace(/\s+/g, "_");
   const parecidas = p.sugerencias.length ? elegirParecido(p.sugerencias, grupo) : null;
+  const cual = () => (parecidas ? parecidas.cual() : null);
+
+  const cuantos = p.renglones === 1 ? "1 renglón" : `${p.renglones} renglones`;
 
   return el("section", { clase: "tarjeta suelto suelto-persona" },
-    el("div", { clase: "fila entre" },
-      el("div", { clase: "fila" },
-        cinta(p.empresa),
-        el("h3", { texto: p.nombre })
-      ),
-      el("span", { clase: "apunte-suelto", texto: `${p.renglones} renglones · ${p.dias} días · ${pesos(p.plata)}` })
-    ),
 
+    // 1. Qué pasa, dicho como se lo contaría uno a otra persona.
+    el("p", { clase: "que-pasa" },
+      "Hay ", el("strong", { texto: cuantos }), " a nombre de ",
+      el("strong", { texto: p.nombre }), ", pero esa persona ",
+      el("strong", { texto: "no está en la lista de " }),
+      cinta(p.empresa), "."),
+
+    // Ojo con esta frase: estos renglones SI se estan cobrando. Lo que pasa
+    // es que no se le suman a nadie de la lista, asi que el consumo de esa
+    // persona sale mal en los informes. Decir "sin cobrar" seria mentir.
+    el("p", { clase: "apunte-suelto",
+      texto: `${p.dias} días · ${pesos(p.plata)} que no se le suman a nadie` }),
+
+    // 2. Qué proponemos.
     parecidas
       ? el("div", {},
-          el("p", {}, "En ", el("strong", { texto: p.empresa }), " sí existe:"),
+          el("p", { clase: "la-pregunta" },
+            "¿Será que es esta persona, que sí está en ", p.empresa, "?"),
           parecidas.nodo)
       : el("p", { clase: "nota" },
-          `En ${p.empresa} no hay nadie parecido. Seguramente es alguien nuevo.`),
+          `En ${p.empresa} no hay nadie con un nombre parecido, así que ` +
+          "seguramente es alguien nuevo que hay que agregar a la lista."),
 
-    tresBotones({
-      siTexto: parecidas ? "Sí, es la misma" : "Crearla",
-      alSi: () => {
-        if (!parecidas) return crearla(raiz, p);
-        unirla(raiz, p, parecidas.cual());
-      },
-      noTexto: parecidas ? "No, es otra persona" : "Es un error de escritura",
-      alNo: () => {
-        if (!parecidas) {
-          mensaje("Corrija el nombre desde Personas, o déjelo así por ahora.", "ojo", 7);
-          return;
-        }
-        crearla(raiz, p);
-      },
-      alDejar: () => dejarlaAsi(raiz, p),
-    })
+    // 3. Qué decide ella. El nombre va DENTRO del botón: así no hay que
+    //    acordarse de cuál estaba marcada arriba.
+    parecidas
+      ? tresBotones({
+          siTexto: `Sí, es ${cual() || ""}`,
+          alSi: () => unirla(raiz, p, cual()),
+          noTexto: "No, es otra persona",
+          alNo: () => crearla(raiz, p),
+          alDejar: () => dejarlaAsi(raiz, p),
+        })
+      : el("div", { clase: "fila decision" },
+          el("button", {
+            clase: "principal",
+            alHacerClic: () => crearla(raiz, p),
+          }, `Agregar a ${p.nombre} en ${p.empresa}`),
+          el("button", {
+            clase: "plano suave",
+            alHacerClic: () => dejarlaAsi(raiz, p),
+          }, "Déjelo así")
+        )
   );
 }
 
@@ -233,12 +266,17 @@ async function crearla(raiz, p) {
         valor: p.empresaFactura || p.empresa,
         opciones: lista.map((e) => ({ valor: e.codigo, texto: e.codigo + " — " + e.razonSocial })),
       },
+      {
+        nombre: "documento", etiqueta: "Cédula (opcional)", tipo: "text",
+        ayuda: "Sirve para no confundirla con otra del mismo nombre. La app " +
+               "guarda solo los últimos 5 números, nada más.",
+      },
     ],
     textoAceptar: "Crearla",
   });
   if (!datos) return;
 
-  const r = crearPersonaSuelta(estado.datos, p.empresa, p.nombre, datos.empresaFactura);
+  const r = crearPersonaSuelta(estado.datos, p.empresa, p.nombre, datos.empresaFactura, datos.documento);
   // Si además le cambió el nombre, lo aplicamos.
   if (normalizar(datos.nombre) !== normalizar(p.nombre)) {
     for (const persona of estado.datos.personas) {
@@ -279,21 +317,48 @@ async function dejarlaAsi(raiz, p) {
 function tarjetaDePlato(raiz, p) {
   const grupo = "sl-" + p.nombre.replace(/\s+/g, "_");
   const parecidos = p.sugerencias.length ? elegirParecido(p.sugerencias, grupo) : null;
+  const cual = () => (parecidos ? parecidos.cual() : null);
+
+  const pedidos = p.cantidad === 1 ? "1 vez" : `${p.cantidad} veces`;
+
+  // Cuanto se esta dejando de cobrar por este plato, para que se vea que no
+  // es un detalle de orden sino plata que no se cobro.
+  const suPrecio = parecidos && cual()
+    ? precioDe(estado.datos, cual(), p.empresas[0])
+    : null;
+  const dejadoDeCobrar = suPrecio ? suPrecio * p.cantidad : 0;
 
   return el("section", { clase: "tarjeta suelto suelto-plato" },
-    el("div", { clase: "fila entre" },
-      el("h3", { texto: p.nombre }),
-      el("span", { clase: "apunte-suelto" },
-        `${p.renglones} renglones · ${p.cantidad} pedidos`,
-        p.sinPrecio ? el("span", { clase: "etiqueta malo", texto: `${p.sinPrecio} en $ 0` }) : null)
-    ),
-    el("div", { clase: "fila" }, ...p.empresas.map(cinta)),
 
+    // 1. Que pasa.
+    el("p", { clase: "que-pasa" },
+      "Se pidió ", el("strong", { texto: p.nombre }), " ",
+      el("strong", { texto: pedidos }),
+      ", pero ese plato ", el("strong", { texto: "no está en el catálogo" }),
+      p.sinPrecio
+        ? el("span", {}, ", así que se está cobrando en ",
+            el("strong", { clase: "sube", texto: "$ 0" }), ".")
+        : "."),
+
+    el("div", { clase: "fila" },
+      el("span", { clase: "apunte-suelto", texto: `${p.renglones} renglones · ` }),
+      ...p.empresas.map(cinta)),
+
+    // 2. Que proponemos.
     parecidos
       ? el("div", {},
-          el("p", { texto: "En el catálogo sí está:" }),
-          parecidos.nodo)
-      : el("p", { clase: "nota", texto: "No hay nada parecido en el catálogo." }),
+          el("p", { clase: "la-pregunta" },
+            "¿Será que es este plato, que sí está en el catálogo",
+            suPrecio ? ` a ${pesos(suPrecio)}` : "", "?"),
+          parecidos.nodo,
+          dejadoDeCobrar
+            ? el("p", { clase: "nota ojo" },
+                "Si es el mismo, se dejaron de cobrar ",
+                el("strong", { texto: pesos(dejadoDeCobrar) }), ".")
+            : null)
+      : el("p", { clase: "nota" },
+          "No hay ningún plato parecido en el catálogo, así que hay que " +
+          "agregarlo con su precio para poder cobrarlo."),
 
     // Otros platos que tampoco están catalogados y se parecen a este. Si no
     // se avisara, ella crearía el mismo plato dos veces con dos nombres.
@@ -308,16 +373,24 @@ function tarjetaDePlato(raiz, p) {
           ". Si es el mismo plato, agréguelo UNA vez y después una el otro con él.")
       : null,
 
-    tresBotones({
-      siTexto: parecidos ? "Sí, es el mismo" : "Agregarlo al catálogo",
-      alSi: () => {
-        if (!parecidos) return crearPlato(raiz, p);
-        unirPlato(raiz, p, parecidos.cual());
-      },
-      noTexto: parecidos ? "No, es un plato distinto" : "Ponerle precio",
-      alNo: () => crearPlato(raiz, p),
-      alDejar: () => dejarPlatoAsi(raiz, p),
-    })
+    parecidos
+      ? tresBotones({
+          siTexto: `Sí, es ${cual() || ""}`,
+          alSi: () => unirPlato(raiz, p, cual()),
+          noTexto: "No, es un plato distinto",
+          alNo: () => crearPlato(raiz, p),
+          alDejar: () => dejarPlatoAsi(raiz, p),
+        })
+      : el("div", { clase: "fila decision" },
+          el("button", {
+            clase: "principal",
+            alHacerClic: () => crearPlato(raiz, p),
+          }, "Agregar este plato con su precio"),
+          el("button", {
+            clase: "plano suave",
+            alHacerClic: () => dejarPlatoAsi(raiz, p),
+          }, "Déjelo así")
+        )
   );
 }
 

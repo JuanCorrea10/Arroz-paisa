@@ -263,7 +263,7 @@ export function unirPersonaSuelta(datos, empresa, nombreSuelto, nombreBueno) {
 }
 
 /** "Es otra persona": se crea en la lista y los renglones quedan válidos. */
-export function crearPersonaSuelta(datos, empresa, nombreSuelto, empresaFactura) {
+export function crearPersonaSuelta(datos, empresa, nombreSuelto, empresaFactura, documento = "") {
   const emp = normalizar(empresa);
   const nombre = limpiarNombre(nombreSuelto);
   const yaEsta = datos.personas.some(
@@ -275,6 +275,7 @@ export function crearPersonaSuelta(datos, empresa, nombreSuelto, empresaFactura)
       empresaCome: emp,
       empresaFactura: normalizar(empresaFactura) || emp,
       activa: true,
+      documento: String(documento || "").replace(/[^0-9]/g, "").slice(-5),
     });
   }
   // Si el nombre venía sucio, los renglones se van con él para que coincidan.

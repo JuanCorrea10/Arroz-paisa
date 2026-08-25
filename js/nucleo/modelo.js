@@ -129,8 +129,16 @@ export function agregarPersona(datos, persona) {
     empresaCome,
     empresaFactura: normalizar(persona.empresaFactura) || empresaCome,
     activa: persona.activa !== false,
+    // Del documento se guardan solo los ultimos 5 digitos, y solo si lo dieron.
+    // Ver ultimos5() en personal.js para el porque.
+    documento: soloDigitos(persona.documento).slice(-5),
   });
   return datos;
+}
+
+/** Deja solo los numeros de lo que hayan escrito: "CC 1.110.583.077" -> digitos */
+function soloDigitos(txt) {
+  return String(txt || "").replace(/\D/g, "");
 }
 
 // ---------------------------------------------------------------------------
