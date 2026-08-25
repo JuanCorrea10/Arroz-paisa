@@ -26,6 +26,7 @@ y queda en <http://localhost:8000>.
 | `/` | La app |
 | `/tests/pruebas.html` | Las 170 pruebas |
 | `/tests/generar-inicial.html` | Genera los datos con los que arranca la app |
+| `/tests/revisar-diseno.html` | Mide el layout en computador y celular: cajas corridas y botones muy chicos |
 | `/tests/diagnostico.html` | Abre la app con datos reales y recorre las 15 pantallas |
 | `/ejercicios/` | Ejercicios de programación |
 | `/docs/manual.html` | El manual para la usuaria |

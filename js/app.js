@@ -260,7 +260,23 @@ function construirPeriodo() {
   );
 }
 
-/** El semáforo: "Guardado" en verde, "Guardando" en amarillo, y los problemas en rojo. */
+/**
+ * El semáforo: "Guardado" en verde, "Guardando" en amarillo, los problemas en rojo.
+ *
+ * Ojo con el arranque: al abrir no se guarda nada, asi que si solo escuchara
+ * los avisos de guardado, la lucecita se quedaria diciendo "Abriendo..." para
+ * siempre. Y una lucecita que nunca cambia no tranquiliza a nadie: parece que
+ * la app se quedo colgada. Por eso hay un estado de reposo explicito.
+ */
+function enReposo(hayDatos) {
+  const luz = document.getElementById("guardado");
+  if (!luz) return;
+  luz.dataset.estado = "bien";
+  luz.textContent = !hayDatos
+    ? "Sin datos todavía"
+    : (almacen.hayCarpeta() ? "Guardado en la carpeta" : "Guardado");
+}
+
 function semaforoDeGuardado() {
   const luz = document.getElementById("guardado");
 
@@ -343,6 +359,7 @@ async function arrancar() {
 
   window.addEventListener("hashchange", pintar);
   pintar();
+  enReposo(estado.datos.consumos.length > 0);
 
   // Al cerrar la ventana, guardamos de una sin esperar el medio segundo.
   window.addEventListener("beforeunload", () => { almacen.guardarYa(); });

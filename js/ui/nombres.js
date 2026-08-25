@@ -119,8 +119,13 @@ function tarjetaDePersonal(raiz) {
       el("td", { clase: "dato", texto: String(c.total) }),
       el("td", { clase: "dato", texto: String(c.conDocumento) }),
       el("td", { clase: "dato" },
+        // Ojo con el orden: antes 0 % salia azul y 38 % salia ambar, o sea
+        // que "ninguno" se veia mejor que "algunos". El color tiene que ir
+        // de peor a mejor en el mismo sentido que el numero.
         el("span", {
-          clase: "sello " + (porcentaje >= 60 ? "seguro-alto" : porcentaje > 0 ? "seguro-bajo" : "seguro-medio"),
+          clase: "sello " + (porcentaje >= 60 ? "seguro-alto"
+                           : porcentaje > 0 ? "seguro-medio"
+                           : "seguro-ninguno"),
           texto: porcentaje + " %",
         })
       ),
@@ -368,7 +373,16 @@ function tarjetaDeGrupo(raiz, grupo) {
       checked: p.nombre === grupo.sugerido,
       alCambiar: () => { elegido = p.nombre; },
     });
-    return el("tr", {},
+    // Toda la fila selecciona. Un circulito de 28 px es dificil de acertar con
+    // el dedo, y agrandarlo mas se ve mal; la fila entera mide 50 y pico y ya
+    // esta ahi. El CSS ya ponia el cursor de mano: faltaba conectarlo.
+    return el("tr", {
+      alHacerClic: (ev) => {
+        if (ev.target.tagName === "INPUT" || ev.target.tagName === "LABEL") return;
+        radio.checked = true;
+        elegido = p.nombre;
+      },
+    },
       el("td", {}, radio),
       el("td", {},
         el("label", { for: radio.id, clase: "nombre-opcion" },

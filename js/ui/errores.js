@@ -46,9 +46,15 @@ export function pintarErrores(raiz) {
       )
     ),
     el("dl", { clase: "cifras" },
-      cifra("Personas que no están en su empresa", String(personas.length), personas.length > 0),
-      cifra("Platos que no están en el catálogo", String(platos.length), platos.length > 0),
-      cifra("Nombres parecidos", String(parecidos))
+      // Solo se destaca UNA. Si se destacan dos, no se destaca ninguna:
+      // el ojo no sabe adonde ir y el enfasis se pierde.
+      cifra("Personas que no están en su empresa", String(personas.length)),
+      cifra("Platos que no están en el catálogo", String(platos.length)),
+      cifra("Nombres parecidos", String(parecidos)),
+      cifra("Renglones sin cobrar bien", String(
+        personas.reduce((a, p) => a + p.renglones, 0) +
+        platos.reduce((a, p) => a + p.sinPrecio, 0)
+      ), true)
     )
   );
 
@@ -150,7 +156,7 @@ function tarjetaDePersona(raiz, p) {
         cinta(p.empresa),
         el("h3", { texto: p.nombre })
       ),
-      el("span", { clase: "nota", texto: `${p.renglones} renglones · ${p.dias} días · ${pesos(p.plata)}` })
+      el("span", { clase: "apunte-suelto", texto: `${p.renglones} renglones · ${p.dias} días · ${pesos(p.plata)}` })
     ),
 
     parecidas
@@ -276,7 +282,7 @@ function tarjetaDePlato(raiz, p) {
   return el("section", { clase: "tarjeta suelto suelto-plato" },
     el("div", { clase: "fila entre" },
       el("h3", { texto: p.nombre }),
-      el("span", { clase: "nota" },
+      el("span", { clase: "apunte-suelto" },
         `${p.renglones} renglones · ${p.cantidad} pedidos`,
         p.sinPrecio ? el("span", { clase: "etiqueta malo", texto: `${p.sinPrecio} en $ 0` }) : null)
     ),

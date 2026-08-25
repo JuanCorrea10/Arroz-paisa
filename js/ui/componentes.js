@@ -43,16 +43,38 @@ export function vaciar(nodo) {
 //  Mensajitos de esquina
 // ---------------------------------------------------------------------------
 
+/** Cuantos mensajes se dejan a la vez. Mas que esto tapan la pantalla. */
+const MAXIMO_MENSAJES = 3;
+
 export function mensaje(texto, tipo = "bien", segundos = 4) {
   const caja = document.getElementById("mensajes");
   if (!caja) return;
-  const m = el("div", { clase: `mensaje ${tipo}`, role: "status", texto });
-  caja.append(m);
-  setTimeout(() => {
-    m.style.transition = "opacity .3s";
+
+  const irse = (m) => {
+    if (!m.isConnected) return;
+    m.style.transition = "opacity .25s, transform .25s";
     m.style.opacity = "0";
-    setTimeout(() => m.remove(), 320);
-  }, segundos * 1000);
+    m.style.transform = "translateY(8px)";
+    setTimeout(() => m.remove(), 280);
+  };
+
+  const m = el("div", {
+    clase: `mensaje ${tipo}`,
+    role: "status",
+    texto,
+    title: "Toque para quitarlo",
+    // Se pueden quitar tocandolos. Suena a detalle, pero un aviso largo
+    // encima de la tabla justo cuando ella esta leyendo un numero es de las
+    // cosas que mas molestan, y hasta ahora no habia forma de correrlo.
+    alHacerClic: () => irse(m),
+  });
+  caja.append(m);
+
+  // Si se acumulan, los mas viejos se van. Lo ultimo que paso es lo que
+  // importa; lo de hace diez segundos ya no.
+  while (caja.children.length > MAXIMO_MENSAJES) irse(caja.firstElementChild);
+
+  setTimeout(() => irse(m), segundos * 1000);
 }
 
 // ---------------------------------------------------------------------------

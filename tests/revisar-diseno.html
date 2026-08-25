@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<title>Revisar el diseño — Arroz Paisa</title>
+<style>
+  body { font-family: system-ui, sans-serif; padding: 1.5rem; background: #f6f0f4; }
+  ul { list-style: none; padding: 0; }
+  li { font-family: ui-monospace, Consolas, monospace; margin: .12rem 0; font-size: .87rem; }
+  .ok { color: #2e7d5b; } .mal { color: #a8253a; font-weight: 700; }
+  .aviso { color: #a9700b; }
+  iframe { border: 1px solid #ccc; }
+</style>
+</head>
+<body>
+<h1>Revisar el diseño</h1>
+
+<p style="background:#fbefd8;border-left:5px solid #a9700b;padding:.8rem 1rem;border-radius:0 6px 6px 0">
+  <strong>Por qué se mide y no se mira.</strong>
+  Chrome sin ventana, en Windows, no puede hacer la ventana más angosta de unos
+  500 px. Si uno le pide una captura de 390, se la da &mdash; pero maquetada a
+  500 y recortada, así que <em>parece</em> que todo se sale cuando no se sale.
+  Aquí se usa un marco (iframe) del ancho exacto, que sí respeta la medida, y
+  se leen los tamaños de verdad. Una captura engaña; una medición no.
+</p>
+
+<p>
+  Busca "cajas corridas" midiendo el layout de verdad, en vez de mirarlo a ojo:
+  contenido que se sale por el lado, tablas que desbordan su marco, y botones
+  demasiado pequeños para tocarlos con el dedo.
+</p>
+<ul id="pasos"></ul>
+
+<script type="module">
+const pasos = document.getElementById("pasos");
+const esperar = (ms) => new Promise((l) => setTimeout(l, ms));
+
+function anotar(texto, estado = "ok") {
+  const li = document.createElement("li");
+  li.className = estado;
+  li.textContent = { ok: "OK   ", mal: "MAL  ", aviso: "OJO  " }[estado] + texto;
+  pasos.append(li);
+}
+
+const PANTALLAS = [
+  "#registrar", "#cocina", "#resumen", "#persona", "#cobro", "#cuadre",
+  "#compartir", "#revisar", "#ajustes", "#personas", "#nombres",
+  "#catalogo", "#empresas", "#datos", "#ayuda",
+];
+
+// Dos anchos: el computador de la cocina y un celular normal.
+const ANCHOS = [
+  { nombre: "computador", ancho: 1360, alto: 900 },
+  { nombre: "celular", ancho: 390, alto: 780 },
+];
+
+/** El tamaño minimo para tocar algo con el dedo sin errar. */
+const TOQUE_MINIMO = 40;
+
+for (const medida of ANCHOS) {
+  anotar(`===== ${medida.nombre.toUpperCase()} (${medida.ancho} px) =====`);
+
+  const marco = document.createElement("iframe");
+  marco.style.width = medida.ancho + "px";
+  marco.style.height = medida.alto + "px";
+  marco.src = "../index.html";
+  document.body.append(marco);
+
+  await new Promise((listo) => {
+    marco.addEventListener("load", listo, { once: true });
+    setTimeout(listo, 15000);
+  });
+  await esperar(3500);
+
+  const doc = marco.contentDocument;
+  const win = marco.contentWindow;
+
+  for (const destino of PANTALLAS) {
+    win.location.hash = destino;
+    await esperar(500);
+
+    const problemas = [];
+
+    // 1) ¿La página entera se corre por el lado? Es el sintoma clasico.
+    const raiz = doc.documentElement;
+    const sobra = raiz.scrollWidth - raiz.clientWidth;
+    if (sobra > 1) problemas.push(`la pagina se corre ${sobra}px por el lado`);
+
+    // 2) ¿Que elemento se sale? Buscamos los que pasan del borde derecho.
+    const anchoVisible = raiz.clientWidth;
+    const culpables = new Map();
+    for (const nodo of doc.querySelectorAll("body *")) {
+      const caja = nodo.getBoundingClientRect();
+      if (caja.width === 0) continue;
+      // Una tabla mas ancha que la pantalla NO es un error si esta dentro de
+      // un marco que se desliza: es justo como debe verse en el celular.
+      if (nodo.closest(".marco-tabla, .vista-previa, .menu, .mensajes")) continue;
+      const exceso = Math.round(caja.right - anchoVisible);
+      if (exceso > 1) {
+        const nombre = nodo.tagName.toLowerCase() +
+          (nodo.className && typeof nodo.className === "string"
+            ? "." + nodo.className.trim().split(/\s+/).slice(0, 2).join(".")
+            : "");
+        // Guardamos tambien el texto y de quien cuelga, porque saber que "un
+        // strong se sale" no sirve para arreglarlo: hay que saber CUAL.
+        const padre = nodo.parentElement;
+        const dePadre = padre ? padre.tagName.toLowerCase() +
+          (typeof padre.className === "string" && padre.className
+            ? "." + padre.className.trim().split(/\s+/)[0] : "") : "";
+        const detalle = `${nombre} dentro de ${dePadre}: "${(nodo.textContent || "").trim().slice(0, 40)}"`;
+        if (!culpables.has(detalle) || culpables.get(detalle) < exceso) {
+          culpables.set(detalle, exceso);
+        }
+      }
+    }
+
+    // 3) ¿Alguna tabla desborda su marco sin poder deslizarse?
+    for (const marcoTabla of doc.querySelectorAll(".marco-tabla")) {
+      const estilo = win.getComputedStyle(marcoTabla);
+      const desborda = marcoTabla.scrollWidth - marcoTabla.clientWidth;
+      if (desborda > 1 && estilo.overflowX !== "auto" && estilo.overflowX !== "scroll") {
+        problemas.push(`una tabla se sale ${desborda}px y no se puede deslizar`);
+      }
+    }
+
+    // 4) ¿Hay botones demasiado chiquitos para el dedo?
+    if (medida.ancho < 500) {
+      let chiquitos = 0;
+      for (const b of doc.querySelectorAll("button, a.boton-enlace, input")) {
+        const caja = b.getBoundingClientRect();
+        if (caja.width === 0 || caja.height === 0) continue;
+        // Un radio o una casilla se tocan por su ETIQUETA, no por el circulito.
+        // Medirlos a ellos seria pedirles un tamano que no les toca tener.
+        if (b.type === "radio" || b.type === "checkbox") {
+          // Lo que se toca puede ser la etiqueta o la fila entera, no el
+          // circulito. Si el envoltorio es lo bastante alto, esta bien.
+          const envoltorio = b.closest("label, tr");
+          if (envoltorio && envoltorio.getBoundingClientRect().height >= TOQUE_MINIMO) continue;
+        }
+        if (caja.height < TOQUE_MINIMO) {
+          chiquitos++;
+          if (chiquitos <= 2) {
+            problemas.push(`chiquito: ${b.tagName.toLowerCase()}${b.type ? "[" + b.type + "]" : ""} "${(b.textContent || b.value || "").trim().slice(0, 22)}" (${Math.round(caja.height)}px)`);
+          }
+        }
+      }
+      if (chiquitos) problemas.push(`${chiquitos} botones mas bajos de ${TOQUE_MINIMO}px`);
+    }
+
+    const salida = [...culpables.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([n, e]) => `${n} (+${e}px)`);
+    if (salida.length) problemas.push("se salen: " + salida.join(", "));
+
+    if (problemas.length) {
+      anotar(`${destino.padEnd(12)} ${problemas.join("  |  ")}`, "mal");
+    } else {
+      anotar(`${destino.padEnd(12)} bien`);
+    }
+  }
+
+  marco.remove();
+}
+
+anotar("revision terminada");
+
+try {
+  await fetch("/diagnostico", {
+    method: "POST",
+    body: [...pasos.children].map((li) => li.textContent).join("\n"),
+  });
+} catch { /* sin servidor no pasa nada */ }
+</script>
+</body>
+</html>

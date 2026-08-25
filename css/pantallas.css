@@ -546,3 +546,240 @@ label.opcion-parecida.obvia {
    app no deja borrar nada que tenga historia. */
 .peligro-suave { color: var(--rojo); }
 .peligro-suave:hover { background: var(--rojo-claro); border-color: var(--rojo); }
+
+/* ===========================================================================
+   ARREGLOS DE CAJAS CORRIDAS
+   ===========================================================================
+
+   El sintoma: en el celular la pagina se corria 297 px por el lado en la
+   pantalla de Revisar, y el culpable era un nombre de plato largo
+   ("COMBO COSTILLA PAISA CON PAPAS").
+
+   La causa es una regla de flexbox que sorprende a todo el mundo: un hijo
+   flex NO se encoge por debajo del ancho de su contenido, porque su
+   min-width vale "auto" y no cero. Entonces un texto largo, en vez de
+   partirse, empuja la caja; y la caja empuja la pagina.
+
+   El arreglo son dos lineas: min-width: 0 para dejarlo encogerse, y
+   overflow-wrap para que el texto se parta cuando ya no cabe.
+   =========================================================================== */
+
+.opcion-parecida,
+.lo-de-siempre,
+.ficha-plato,
+.suelto .fila,
+.grupo-nombres .fila,
+.tarjeta-ayer .entre,
+.encabezado-pantalla,
+.comanda-cabeza {
+  min-width: 0;
+}
+
+label.opcion-parecida span,
+.opcion-parecida strong,
+.opcion-parecida small,
+.lo-de-siempre strong,
+.lo-de-siempre small,
+.ficha-plato span,
+.suelto h3,
+.fusion li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Los nombres de personas y platos son lo mas largo de la app. */
+.suelto h3,
+.nombre-opcion strong,
+.fusion strong {
+  overflow-wrap: anywhere;
+}
+
+/* ---------------------------------------------------------------------
+   Un apunte al lado de un titulo NO es una nota.
+
+   .nota es un bloque con borde y fondo, pensado para explicar algo. Yo la
+   estaba usando para poner "6 renglones - 5 dias - $ 66.000" al lado de un
+   nombre, y quedaba como una cajita flotando, corrida a la derecha.
+   Esto es lo mismo pero sin caja: texto y ya.
+   --------------------------------------------------------------------- */
+
+.apunte-suelto {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--e2);
+  font-family: var(--dato);
+  font-size: var(--t-sm);
+  color: var(--tinta-suave);
+  border: none;
+  background: none;
+  padding: 0;
+  min-width: 0;
+}
+
+/* ---------------------------------------------------------------------
+   En el celular, todo lo que se toca tiene que ser tocable
+   --------------------------------------------------------------------- */
+
+@media (max-width: 720px) {
+  /* .chico esta pensado para el raton, que apunta fino. El dedo no. */
+  .chico { min-height: var(--alto-toque); font-size: var(--t-base); }
+
+  /* Los botones de una fila de tabla, uno al lado del otro, se aprietan
+     tanto que se toca el que no es. Mejor que ocupen su espacio. */
+  td .fila { gap: var(--e2); }
+  td .fila button { flex: 1 1 auto; }
+
+  /* Los precios editables del catalogo tambien se tocan. */
+  input.precio { min-height: var(--alto-toque); }
+
+  /* Las casillas y los botones redondos, mas grandes. */
+  input[type="checkbox"],
+  input[type="radio"] { width: 24px; height: 24px; }
+}
+
+/* Cero no es un estado "informativo", es un pendiente. Que se vea asi. */
+.seguro-ninguno {
+  background: var(--papel-raya);
+  color: var(--tinta-suave);
+  border: 1px solid var(--borde);
+}
+
+/* ===========================================================================
+   MOVIMIENTO
+   ===========================================================================
+
+   La regla: se anima lo que ayuda a ENTENDER que paso, nunca por adorno.
+
+   Un boton que responde al tocarlo dice "si te oi". Una pantalla que entra
+   suave dice "esto es nuevo, mira aca". Un mensaje que se desliza dice "esto
+   acaba de pasar". Todo lo demas -- rebotes, giros, cosas que aparecen solas --
+   distrae a alguien que esta contando almuerzos a las 6 de la manana.
+
+   Todo dura entre 120 y 260 ms. Mas rapido no se ve; mas lento estorba.
+   Y todo se apaga si el sistema pide menos movimiento (ver el final).
+   =========================================================================== */
+
+:root {
+  --suave: 160ms cubic-bezier(0.2, 0, 0.2, 1);
+  --suave-lento: 260ms cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+/* --- Lo que se toca responde ---------------------------------------- */
+
+button, .boton, .boton-enlace, .ficha-plato, .opcion-parecida, .menu a {
+  transition:
+    background-color var(--suave),
+    border-color var(--suave),
+    color var(--suave),
+    box-shadow var(--suave),
+    transform 90ms ease-out;
+}
+
+/* Al apretar, el boton se hunde un pelito. Es el acuse de recibo. */
+button:active, .boton:active, .ficha-plato:active, .opcion-parecida:active {
+  transform: translateY(1px);
+}
+
+.principal:hover, .lo-de-siempre:hover {
+  box-shadow: 0 2px 10px rgba(124, 53, 104, 0.28);
+}
+
+.ficha-plato:hover { transform: translateY(-1px); }
+
+/* --- La pantalla que entra ------------------------------------------- */
+
+@keyframes entrar {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Se anima el contenido, no el marco: si se animara toda la pagina, el menu
+   de arriba parpadearia en cada clic y eso marea. */
+.hoja > * {
+  animation: entrar var(--suave-lento) both;
+}
+
+/* Las tarjetas de una lista entran una detras de otra, muy poquito, para que
+   se lea como una lista y no como un golpe. Solo las primeras: si fueran
+   todas, la ultima de 300 filas entraria medio minuto despues. */
+.hoja > *:nth-child(2) { animation-delay: 30ms; }
+.hoja > *:nth-child(3) { animation-delay: 60ms; }
+.hoja > *:nth-child(4) { animation-delay: 90ms; }
+.hoja > *:nth-child(5) { animation-delay: 110ms; }
+
+/* --- Los mensajes de la esquina --------------------------------------- */
+
+@keyframes entrar-mensaje {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+.mensaje {
+  animation: entrar-mensaje var(--suave) both;
+  cursor: pointer; /* se pueden quitar tocandolos, si estorban */
+}
+.mensaje:hover { filter: brightness(1.08); }
+
+/* --- Las ventanas ----------------------------------------------------- */
+
+@keyframes abrir-ventana {
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+dialog[open] { animation: abrir-ventana var(--suave-lento) both; }
+dialog::backdrop { animation: aparecer var(--suave) both; }
+@keyframes aparecer { from { opacity: 0; } to { opacity: 1; } }
+
+/* --- Las tarjetas ----------------------------------------------------- */
+
+.tarjeta { transition: box-shadow var(--suave), border-color var(--suave); }
+
+/* La lista del buscador, que aparece y desaparece mucho. */
+.buscador-lista { transition: opacity var(--suave); }
+.buscador-lista li { transition: background-color 110ms ease-out; }
+
+/* El numerito del menu, cuando aparece algo nuevo por revisar. */
+.contador { transition: background-color var(--suave), transform var(--suave); }
+
+/* --- Si el sistema pide menos movimiento, se apaga TODO ---------------
+   No es un detalle de accesibilidad y ya: hay gente a la que el movimiento
+   en pantalla le produce mareo de verdad. Si lo pidio, se respeta. */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  button:active, .ficha-plato:hover { transform: none; }
+}
+
+/* ---------------------------------------------------------------------
+   Un parrafo de texto NO es una caja flex
+
+   .nota es display:flex, pensada para "icono + texto". Pero cuando se usa
+   como parrafo con varios pedazos adentro ("Ojo: tampoco esta catalogado
+   <strong>PORCION COSTILLAS</strong>, <strong>COSTILLAS</strong>...") cada
+   pedazo se vuelve un item flex, y los items flex NO se acomodan en varias
+   lineas como hace el texto normal: se ponen todos en fila y empujan.
+
+   Eso corria la pagina 297 px en el celular. Un parrafo es prosa: bloque.
+   --------------------------------------------------------------------- */
+
+p.nota {
+  display: block;
+  overflow-wrap: anywhere;
+}
+p.nota strong { display: inline; }
+
+/* En la tabla de grupos el circulito esta solo en su celda, sin etiqueta
+   alrededor, asi que ahi el circulito SI es lo que se toca. */
+@media (max-width: 720px) {
+  .grupo-nombres input[type="radio"],
+  .grupo-nombres tbody input[type="radio"] {
+    width: 28px;
+    height: 28px;
+  }
+  .grupo-nombres td:first-child { padding: var(--e3) var(--e2); }
+}
