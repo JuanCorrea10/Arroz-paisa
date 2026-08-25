@@ -71,13 +71,18 @@ try {
   // ---- 2. Medir las cuentas pesadas --------------------------------------
   const { gruposParaRevisar, nombresSucios } = await import("../js/nucleo/nombres.js");
 
+  // Se mide sobre la SEMILLA, no sobre el Excel recién leído: la semilla es
+  // lo que la app abre de verdad, y ya trae los documentos puestos. Medir
+  // sobre el Excel daría un número que nadie va a ver nunca.
+  const loQueVeElla = semilla || datos;
+
   let t0 = performance.now();
-  const grupos = gruposParaRevisar(datos);
+  const grupos = gruposParaRevisar(loQueVeElla);
   let ms = Math.round(performance.now() - t0);
   anotar(`gruposParaRevisar(): ${grupos.length} grupos en ${ms} ms`, ms > 1500 ? "lento" : "ok");
 
   t0 = performance.now();
-  const sucios = nombresSucios(datos);
+  const sucios = nombresSucios(loQueVeElla);
   ms = Math.round(performance.now() - t0);
   anotar(`nombresSucios(): ${sucios.length} sucios en ${ms} ms`, ms > 500 ? "lento" : "ok");
 
@@ -89,8 +94,8 @@ try {
 
   // ---- 2.5 Qué va a encontrar la pantalla de Posibles errores ------------
   const { personasSueltas, platosSueltos } = await import("../js/nucleo/sueltos.js");
-  const pers = personasSueltas(datos);
-  const plat = platosSueltos(datos);
+  const pers = personasSueltas(loQueVeElla);
+  const plat = platosSueltos(loQueVeElla);
   anotar(`sueltos: ${pers.length} personas y ${plat.length} platos`);
   for (const p of pers) {
     const s = p.sugerencias[0];

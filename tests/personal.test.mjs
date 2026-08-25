@@ -9,7 +9,8 @@
 import { grupo, prueba, igual, cierto } from "./probar.mjs";
 import {
   comoDocumento, ultimos5, leerListaDePersonal, nombreCortoCabeEn,
-  cruzarConPersonal, aplicarDocumentos, coberturaDeDocumentos,
+  cruzarConPersonal, aplicarDocumentos, anotarDocumentoDeFusiones,
+  coberturaDeDocumentos,
 } from "../js/nucleo/personal.js";
 
 // ---------------------------------------------------------------------------
@@ -234,4 +235,35 @@ prueba("cuenta bien cuántas personas tienen documento", () => {
   const c = coberturaDeDocumentos(datos).get("MGP");
   igual(c.total, 4);
   igual(c.conDocumento, 1);
+});
+
+prueba("a los que son la misma persona se les anota el documento sin unirlos", () => {
+  // Si no se les anotara, esos nombres se quedarian sin documento y la app
+  // volveria a adivinar por letras algo que la lista de la empresa ya probo.
+  const datos = datosMGP();
+  const plan = cruzarConPersonal(datos, "MGP", LISTA_MGP);
+  const antes = datos.personas.length;
+
+  const r = anotarDocumentoDeFusiones(datos, plan.fusiones);
+
+  igual(r.fichas, 2, "las dos fichas del duplicado");
+  igual(datos.personas.length, antes, "anotar NO puede unir ni borrar a nadie");
+
+  const marta = datos.personas.find((p) => p.nombre === "MARTA SALGADO");
+  const elena = datos.personas.find((p) => p.nombre === "ELENA QUINTERO");
+  igual(marta.documento, "00555");
+  igual(elena.documento, marta.documento, "el mismo documento en las dos");
+});
+
+prueba("con el documento anotado, revisar nombres ya no adivina", async () => {
+  const { gruposParaRevisar } = await import("../js/nucleo/nombres.js");
+  const datos = datosMGP();
+  const plan = cruzarConPersonal(datos, "MGP", LISTA_MGP);
+  anotarDocumentoDeFusiones(datos, plan.fusiones);
+
+  const grupos = gruposParaRevisar(datos);
+  const suyo = grupos.find((g) => g.integrantes.some((i) => i.nombre === "MARTA SALGADO"));
+  cierto(suyo, "tenia que salir el grupo");
+  igual(suyo.fuerza, 5, "fuerza 5: probado, no adivinado");
+  igual(suyo.razon, "tienen el mismo documento");
 });

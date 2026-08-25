@@ -282,6 +282,36 @@ export function aplicarDocumentos(datos, asignaciones) {
 //  4. Lo que el documento le enseña a la revisión de nombres
 // ---------------------------------------------------------------------------
 
+/**
+ * Le pone el documento a TODOS los que resultaron ser la misma persona.
+ *
+ * Esto NO los une: solo anota en cada ficha el documento que la lista de la
+ * empresa probó que comparten. Anotar no decide nada y no mueve un peso.
+ *
+ * Hace falta porque si no, esos nombres se quedan sin documento (aplicarDocumentos
+ * solo atiende los cruces de uno a uno) y entonces la pantalla de revisar
+ * nombres vuelve a adivinar por letras, cuando ya tenemos la prueba. Con el
+ * documento puesto en los tres, la app los muestra como
+ * "Probado por el documento", que es lo más fuerte que puede decir.
+ */
+export function anotarDocumentoDeFusiones(datos, fusiones) {
+  let fichas = 0;
+  for (const f of fusiones) {
+    if (!f.documento) continue;
+    for (const x of f.integrantes) {
+      const persona = datos.personas.find(
+        (p) => clavePersona(p.empresaCome, p.nombre) ===
+               clavePersona(x.persona.empresaCome, x.persona.nombre)
+      );
+      if (!persona) continue;
+      persona.documento = f.documento;
+      persona.nombreCompleto = f.nombreCompleto;
+      fichas++;
+    }
+  }
+  return { fichas };
+}
+
 // Ojo: queDiceElDocumento() NO vive aquí, vive en nombres.js. Este archivo ya
 // importa de nombres.js, y si nombres.js importara de este quedarían dándose
 // vueltas el uno al otro. Las flechas de los import van en un solo sentido.

@@ -73,6 +73,65 @@ try {
       .join("\n") + (avisos.length > 25 ? `\n...y ${avisos.length - 25} más` : "");
   }
 
+  // ---- Cruzar con las listas de personal que mandaron las empresas -------
+  //
+  // Aquí solo se PONEN LOS DOCUMENTOS, que no cambian ni un peso: agregan
+  // información y ya. Las uniones NO se aplican solas, aunque el documento
+  // las pruebe, porque unir baja el número de facturas de los días en que
+  // los dos nombres comieron, y ese número ella lo cuadra con el trabajador.
+  // Esas quedan esperándola en la app, marcadas "Probado por el documento".
+  const {
+    leerListaDePersonal, cruzarConPersonal, aplicarDocumentos,
+    anotarDocumentoDeFusiones, coberturaDeDocumentos,
+  } = await import("../js/nucleo/personal.js");
+
+  const LISTAS = [
+    { empresa: "MGP", archivo: "personal-MGP.xlsx" },
+    { empresa: "BASARILI", archivo: "personal-BASARILI.ods" },
+  ];
+
+  for (const { empresa, archivo } of LISTAS) {
+    let hojasPersonal;
+    try {
+      const r = await fetch("datos/" + archivo);
+      if (!r.ok) { anotar(`${empresa}: no hay lista de personal (${archivo})`); continue; }
+      hojasPersonal = await hojasDesdeArchivo(new Uint8Array(await r.arrayBuffer()));
+    } catch (e) {
+      anotar(`${empresa}: no se pudo leer ${archivo} — ${e.message}`, false);
+      continue;
+    }
+
+    const { gente } = leerListaDePersonal(hojasPersonal);
+    const conDoc = gente.filter((g) => g.documento).length;
+    anotar(`${empresa}: la lista trae ${gente.length} personas, ${conDoc} con documento`);
+
+    if (!conDoc) {
+      anotar(`   ${empresa}: sin documentos, no hay nada que poner`);
+      continue;
+    }
+
+    const plan = cruzarConPersonal(datos, empresa, gente);
+    const r = aplicarDocumentos(datos, plan.asignaciones);
+    // A los que resultaron ser la misma persona también se les anota el
+    // documento, aunque no se unan: así la app los muestra como probados y
+    // no vuelve a adivinar por letras lo que ya está demostrado.
+    const sellados = anotarDocumentoDeFusiones(datos, plan.fusiones);
+    anotar(`   ${empresa}: ${r.puestos + sellados.fichas} documentos puestos, ` +
+           `${plan.fusiones.length} duplicados descubiertos, ` +
+           `${plan.dudosas.length} dudosas, ${plan.sinCruzar.length} sin cruzar`);
+
+    for (const f of plan.fusiones) {
+      anotar(`      MISMA PERSONA: ${f.integrantes.map((x) => x.persona.nombre).join("  +  ")}` +
+             `   =  ${f.nombreCompleto}`);
+    }
+  }
+
+  const cobertura = coberturaDeDocumentos(datos);
+  for (const [empresa, c] of cobertura) {
+    const pct = c.total ? Math.round((c.conDocumento / c.total) * 100) : 0;
+    anotar(`cobertura ${empresa}: ${c.conDocumento} de ${c.total} (${pct} %)`);
+  }
+
   // Una última revisión antes de escribirlo: que no salga un archivo cojo.
   const { validarDatos } = await import("../js/nucleo/modelo.js");
   const problemas = validarDatos(datos);
