@@ -45,15 +45,28 @@ try {
   const { importar } = await import("../js/nucleo/importador.js");
   const almacen = await import("../js/datos/almacen.js");
 
-  const respuesta = await fetch("datos/ARROZ_PAISA_CONTROL.xlsx");
+  // La semilla: los datos con los que la app arranca la primera vez.
+  const semilla = await almacen.semillaInicial();
+  if (semilla) {
+    const fechas = semilla.consumos.map((c) => c.fecha).filter(Boolean).sort();
+    anotar(`semilla encontrada: ${semilla.consumos.length} renglones, ` +
+           `del ${fechas[0]} al ${fechas[fechas.length - 1]}, ` +
+           `${semilla.personas.length} personas, ${semilla.productos.length} platos`);
+  } else {
+    anotar("NO hay datos/inicial.json: la app va a abrir vacía", "lento");
+  }
+
+  // Y el Excel, para comparar que la semilla no se quedó vieja.
+  const respuesta = await fetch("datos/PEDIDOS_AUTOMATIZADOS.xlsx");
   const bytes = new Uint8Array(await respuesta.arrayBuffer());
   const { datos, resumen } = importar(await hojasDesdeArchivo(bytes));
   anotar(`Excel leído: ${resumen.renglones} renglones, ${resumen.personas} personas, ` +
          `${resumen.productos} platos`);
 
-  almacen.guardar(datos);
-  await almacen.guardarYa();
-  anotar("datos guardados en el navegador");
+  if (semilla && semilla.consumos.length !== resumen.renglones) {
+    anotar(`la semilla tiene ${semilla.consumos.length} y el Excel ${resumen.renglones}: ` +
+           "hay que volver a generarla con tests/generar-inicial.html", "mal");
+  }
 
   // ---- 2. Medir las cuentas pesadas --------------------------------------
   const { gruposParaRevisar, nombresSucios } = await import("../js/nucleo/nombres.js");
@@ -89,17 +102,27 @@ try {
 
   const menu = doc.getElementById("menu");
   anotar(`el menú tiene ${menu.children.length} enlaces`,
-         menu.children.length === 8 ? "ok" : "mal");
+         menu.children.length === 9 ? "ok" : "mal");
 
   if (pantalla().querySelector(".cargando")) {
     anotar("la app se quedó pegada en 'Abriendo...'", "mal");
   }
 
+  // Lo importante: ¿arrancó sola con los datos, sin que nadie importara nada?
+  // Lo miramos por la pantalla de Datos, que muestra los totales en grande.
+  marco.contentWindow.location.hash = "#datos";
+  await esperar(700);
+  const cifras = [...doc.querySelectorAll("#pantalla .cifra")]
+    .map((c) => c.textContent.replace(/\s+/g, " ").trim());
+  const renglones = cifras.find((c) => c.startsWith("Renglones guardados")) || "";
+  const cuantos = Number((renglones.match(/(\d[\d.]*)\s*$/) || [])[1]?.replace(/[.]/g, "") || 0);
+  anotar(`la app arrancó sola con ${cuantos} renglones`, cuantos > 0 ? "ok" : "mal");
+
   // Todas las pantallas, incluidas las que viven dentro de Ajustes.
   const TODAS = [
     "#registrar", "#cocina", "#resumen", "#persona", "#cobro", "#cuadre",
     "#compartir", "#ajustes", "#personas", "#nombres", "#catalogo",
-    "#empresas", "#datos",
+    "#empresas", "#datos", "#ayuda",
   ];
 
   for (const destino of TODAS) {

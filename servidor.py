@@ -21,6 +21,7 @@
 
 import http.server
 import mimetypes
+import os
 import socketserver
 import sys
 import webbrowser
@@ -46,13 +47,21 @@ class Manejador(http.server.SimpleHTTPRequestHandler):
         tests/ultimo-diagnostico.txt. Es una ayuda para desarrollar; la app
         que usa tu mamá no lo toca nunca.
         """
-        if self.path != "/diagnostico":
+        BUZONES = {
+            "/diagnostico": "tests/ultimo-diagnostico.txt",
+            "/guardar-inicial": "datos/inicial.json",
+        }
+        destino = BUZONES.get(self.path)
+        if destino is None:
             self.send_error(404)
             return
+
         largo = int(self.headers.get("Content-Length", 0))
         cuerpo = self.rfile.read(largo).decode("utf-8", "replace")
-        with open("tests/ultimo-diagnostico.txt", "w", encoding="utf-8") as archivo:
+        os.makedirs(os.path.dirname(destino), exist_ok=True)
+        with open(destino, "w", encoding="utf-8") as archivo:
             archivo.write(cuerpo)
+        print(f"  guardado: {destino} ({len(cuerpo):,} letras)")
         self.send_response(204)
         self.end_headers()
 

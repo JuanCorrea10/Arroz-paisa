@@ -29,6 +29,20 @@ y queda en <http://localhost:8000>.
 | `/ejercicios/` | Ejercicios de programación |
 | `/docs/manual.html` | El manual para la usuaria |
 
+### Que arranque con datos y no vacía
+
+La app busca `datos/inicial.json` la primera vez que se abre. Si está, arranca
+cargada; si no, abre vacía y manda a importar el Excel a mano.
+
+Ese archivo se genera abriendo `/tests/generar-inicial.html`, que lee el Excel
+de `tests/datos/` **con el mismo importador de la app** y se lo pasa al
+servidor para que lo escriba. Se usa el importador de la app a propósito: si
+hubiera dos maneras de leer el Excel, tarde o temprano darían resultados
+distintos y nadie sabría cuál creer.
+
+`datos/` está en el `.gitignore`. La versión publicada abre vacía, que es lo
+correcto: son los nombres de 562 personas.
+
 ---
 
 ## Cómo se prueba

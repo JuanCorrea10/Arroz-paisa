@@ -346,3 +346,45 @@ input.precio.falta::placeholder { color: #7d1a10; opacity: 1; }
 .fusion p { margin-bottom: var(--e2); }
 .fusion ul { margin: 0; padding-left: var(--e5); }
 .fusion li { margin-bottom: 2px; }
+
+/* --------------------------------------------------------------------- */
+/*  Pantalla "Como se usa": el manual metido dentro de la app             */
+/* --------------------------------------------------------------------- */
+
+/* Un enlace que se ve como boton, para "Abrirla aparte". */
+.boton-enlace {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--alto-toque);
+  padding: 0 var(--e4);
+  border-radius: var(--radio);
+  border: 1px solid var(--borde-fuerte);
+  background: var(--papel);
+  color: var(--tinta);
+  text-decoration: none;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: var(--t-sm);
+}
+.boton-enlace:hover { border-color: var(--verde); background: var(--verde-claro); }
+
+.manual-adentro {
+  background: var(--papel);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-g);
+  padding: var(--e5) var(--e6);
+  box-shadow: var(--sombra);
+  max-width: 760px;
+}
+/* El manual trae sus propios tamanos; aca solo lo encuadramos. */
+.manual-adentro > :first-child { margin-top: 0; }
+.manual-adentro > :last-child { margin-bottom: 0; }
+
+@media (max-width: 720px) {
+  .manual-adentro { padding: var(--e4); }
+}
+
+@media print {
+  /* Al imprimir esta pantalla queremos el manual solo, sin marco. */
+  .manual-adentro { border: none; box-shadow: none; padding: 0; max-width: none; }
+}

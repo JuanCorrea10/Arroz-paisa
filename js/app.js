@@ -22,6 +22,7 @@ import { pintarCompartir } from "./ui/compartir.js";
 import { pintarEmpresas, pintarCatalogo, pintarPersonas } from "./ui/mantenimiento.js";
 import { pintarNombres } from "./ui/nombres.js";
 import { pintarDatos } from "./ui/datos.js";
+import { pintarAyuda } from "./ui/ayuda.js";
 import { gruposParaRevisar, nombresSucios } from "./nucleo/nombres.js";
 import { revisarTodo } from "./nucleo/calculos.js";
 
@@ -42,6 +43,7 @@ const PANTALLAS = {
   cuadre:    { titulo: "Cuadre",           pintar: pintarCuadre,    menu: true },
   compartir: { titulo: "Compartir",        pintar: pintarCompartir, menu: true },
   ajustes:   { titulo: "Ajustes",          pintar: pintarAjustes,   menu: true },
+  ayuda:     { titulo: "Cómo se usa",      pintar: pintarAyuda,     menu: true },
 
   personas:  { titulo: "Personas",         pintar: pintarPersonas },
   nombres:   { titulo: "Revisar nombres",  pintar: pintarNombres },
@@ -73,29 +75,41 @@ function pintar() {
   window.scrollTo(0, 0);
 
   try {
-    pantalla.pintar(donde);
+    // Hay pantallas que tardan (la de ayuda va a buscar el manual). Si esta
+    // devuelve una promesa, hay que esperarla: si no, un error de adentro se
+    // escaparía del try y dejaría la pantalla a medio pintar, sin avisar.
+    const quizaPromesa = pantalla.pintar(donde);
+    if (quizaPromesa && typeof quizaPromesa.catch === "function") {
+      quizaPromesa.catch((error) => pantallaRota(donde, error));
+    }
   } catch (error) {
-    // La red de seguridad. Antes de esto, un error dejaba la página en blanco
-    // y parecía que se hubiera perdido todo.
-    console.error(error);
-    vaciar(donde);
-    donde.append(
-      el("section", { clase: "tarjeta con-problemas" },
-        el("h1", { texto: "Se dañó esta pantalla" }),
-        el("p", {},
-          el("strong", { texto: "Sus datos están guardados y completos." }),
-          " Lo que falló fue solo el dibujo de esta pantalla."),
-        el("p", { texto: "Pruebe a entrar a otra pantalla del menú de arriba." }),
-        el("details", {},
-          el("summary", { texto: "Detalle para quien arregle la app" }),
-          el("pre", { texto: String(error && error.stack || error) })),
-        el("button", {
-          clase: "principal",
-          alHacerClic: () => { almacen.descargarRespaldo(estado.datos); },
-        }, "Bajar un respaldo por si acaso")
-      )
-    );
+    pantallaRota(donde, error);
   }
+}
+
+/**
+ * La red de seguridad. Antes de esto, un error dejaba la página en blanco y
+ * parecía que se hubieran perdido los datos.
+ */
+function pantallaRota(donde, error) {
+  console.error(error);
+  vaciar(donde);
+  donde.append(
+    el("section", { clase: "tarjeta con-problemas" },
+      el("h1", { texto: "Se dañó esta pantalla" }),
+      el("p", {},
+        el("strong", { texto: "Sus datos están guardados y completos." }),
+        " Lo que falló fue solo el dibujo de esta pantalla."),
+      el("p", { texto: "Pruebe a entrar a otra pantalla del menú de arriba." }),
+      el("details", {},
+        el("summary", { texto: "Detalle para quien arregle la app" }),
+        el("pre", { texto: String(error && error.stack || error) })),
+      el("button", {
+        clase: "principal",
+        alHacerClic: () => { almacen.descargarRespaldo(estado.datos); },
+      }, "Bajar un respaldo por si acaso")
+    )
+  );
 }
 
 function marcarMenu(cual) {
@@ -150,13 +164,6 @@ function pintarAjustes(donde) {
       texto: "Traer el Excel, bajar copias de seguridad y ver los renglones con problemas.",
       pendiente: problemas > 0 ? `${problemas} renglones con problemas` : null,
     },
-    {
-      href: "docs/manual.html",
-      titulo: "Cómo se usa",
-      texto: "El manual completo, en una página. Se puede imprimir.",
-      pendiente: null,
-      afuera: true,
-    },
   ];
 
   donde.append(
@@ -168,14 +175,7 @@ function pintarAjustes(donde) {
     ),
     el("div", { clase: "rejilla-2 tarjetas-ajustes" },
       ...tarjetas.map((t) =>
-        el("a", {
-          clase: "tarjeta tarjeta-enlace",
-          href: t.href,
-          // El manual es una página aparte: se abre en otra pestaña para no
-          // sacarla de la mitad de lo que estaba haciendo.
-          target: t.afuera ? "_blank" : null,
-          rel: t.afuera ? "noopener" : null,
-        },
+        el("a", { clase: "tarjeta tarjeta-enlace", href: t.href },
           el("h2", { texto: t.titulo }),
           el("p", { texto: t.texto }),
           t.pendiente ? el("span", { clase: "etiqueta pendiente", texto: t.pendiente }) : null
@@ -275,6 +275,18 @@ async function arrancar() {
     estado.datos = cargado.datos;
   }
 
+  // Primera vez y sin nada guardado: si al lado hay unos datos iniciales,
+  // se cargan solos. Así no abre vacía.
+  let vinoDeSemilla = false;
+  if (cargado.origen === "nuevo") {
+    const semilla = await almacen.semillaInicial();
+    if (semilla) {
+      estado.datos = semilla;
+      almacen.guardar(semilla);
+      vinoDeSemilla = true;
+    }
+  }
+
   sincronizarPeriodo();
   asegurarEmpresa();
   construirPeriodo();
@@ -282,11 +294,18 @@ async function arrancar() {
   // Cuando cambian los datos, el mes de la barra puede haber cambiado también.
   alCambiar(() => construirPeriodo());
 
-  // Primera vez: no hay nada. La mandamos derecho a traer el Excel.
+  // Primera vez y de verdad vacía: la mandamos derecho a traer el Excel.
   const vacia = !estado.datos.consumos.length && !estado.datos.empresas.length;
   if (vacia && !location.hash) {
     location.hash = "#datos";
-    mensaje("Bienvenida. Empiece trayendo el Excel viejo.", "bien", 10);
+    mensaje("Bienvenida. Empiece trayendo el Excel.", "bien", 10);
+  } else if (vinoDeSemilla) {
+    mensaje(
+      `Listo: ${estado.datos.consumos.length} renglones de ` +
+      `${nombreMes(estado.mes)}. Si algo no cuadra, en Ajustes puede volver a ` +
+      "traer el Excel.",
+      "bien", 8
+    );
   }
 
   window.addEventListener("hashchange", pintar);

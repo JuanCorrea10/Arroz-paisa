@@ -368,6 +368,42 @@ async function borrarRespaldosViejos(dir) {
 // ---------------------------------------------------------------------------
 
 /** Baja un archivo .json con TODO. Es el paracaídas. */
+/**
+ * Los datos con los que arranca la app la PRIMERA vez.
+ *
+ * Si al lado de la app hay un archivo "datos/inicial.json", se usa. Sirve para
+ * dejarla ya cargada con el mes que venía del Excel, en vez de que abra vacía
+ * y toque importar a mano.
+ *
+ * Si el archivo no está, no pasa nada: la app abre vacía y la manda a la
+ * pantalla de importar. Por eso este archivo NO va al repositorio: lleva los
+ * nombres de 640 personas y lo que comieron, y la app publicada es pública.
+ * Quien la abra sin tener el archivo, la ve vacía, que es lo correcto.
+ */
+export async function semillaInicial() {
+  try {
+    // La dirección se calcula desde ESTE archivo (js/datos/almacen.js) y no
+    // desde la página que lo llame. Si pusiéramos "datos/inicial.json" a secas,
+    // el navegador lo buscaría al lado de la página: desde index.html daría
+    // /datos/inicial.json (bien), pero desde tests/diagnostico.html daría
+    // /tests/datos/inicial.json (mal). Anclarlo al módulo lo deja igual
+    // siempre, y también aguanta si algún día la app vive en una subcarpeta.
+    const donde = new URL("../../datos/inicial.json", import.meta.url);
+    const respuesta = await fetch(donde, { cache: "no-store" });
+    if (!respuesta.ok) return null;
+    const datos = await respuesta.json();
+    const problemas = validarDatos(datos);
+    if (problemas.length) {
+      console.warn("datos/inicial.json está incompleto:", problemas);
+      return null;
+    }
+    return completarDatos(datos);
+  } catch {
+    // No hay archivo, o no se pudo leer. Es lo normal en la app publicada.
+    return null;
+  }
+}
+
 export function descargarRespaldo(datos) {
   const hoy = new Date();
   const dos = (n) => String(n).padStart(2, "0");

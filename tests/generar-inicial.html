@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<title>Generar los datos iniciales</title>
+<script src="../vendor/xlsx.full.min.js"></script>
+<style>
+  body { font-family: system-ui, sans-serif; padding: 1.5rem; background: #e9efe6; }
+  ul { list-style: none; padding: 0; }
+  li { font-family: ui-monospace, Consolas, monospace; margin: .2rem 0; font-size: .92rem; }
+  .ok { color: #23684a; } .mal { color: #a41e12; font-weight: 700; }
+  pre { background: #fff; padding: .7rem; overflow-x: auto; font-size: .8rem; }
+</style>
+</head>
+<body>
+<h1>Generar los datos iniciales</h1>
+<p>
+  Lee el Excel de tu mamá con el <strong>mismo importador de la app</strong> y
+  escribe <code>datos/inicial.json</code>, para que la app arranque ya cargada
+  en vez de vacía.
+</p>
+<p>
+  Se usa el importador de la app a propósito, y no un programa aparte: si
+  hubiera dos maneras de leer el Excel, tarde o temprano darían resultados
+  distintos y nadie sabría cuál creer.
+</p>
+<ul id="pasos"></ul>
+<pre id="detalle"></pre>
+
+<script type="module">
+const pasos = document.getElementById("pasos");
+const detalle = document.getElementById("detalle");
+
+function anotar(texto, bien = true) {
+  const li = document.createElement("li");
+  li.className = bien ? "ok" : "mal";
+  li.textContent = (bien ? "OK   " : "MAL  ") + texto;
+  pasos.append(li);
+}
+
+// El Excel del que salen los datos. Es el más nuevo de tu mamá.
+const ARCHIVO = "PEDIDOS_AUTOMATIZADOS.xlsx";
+
+try {
+  const { hojasDesdeArchivo } = await import("../js/datos/excel.js");
+  const { importar } = await import("../js/nucleo/importador.js");
+
+  const respuesta = await fetch("datos/" + ARCHIVO);
+  if (!respuesta.ok) throw new Error(`No se encontró tests/datos/${ARCHIVO}`);
+  const bytes = new Uint8Array(await respuesta.arrayBuffer());
+  anotar(`${ARCHIVO}: ${bytes.length.toLocaleString("es-CO")} bytes`);
+
+  const hojas = await hojasDesdeArchivo(bytes);
+  anotar("hojas encontradas: " + Object.keys(hojas).join(", "));
+
+  const { datos, resumen, avisos } = importar(hojas);
+
+  anotar(`renglones: ${resumen.renglones.toLocaleString("es-CO")}`);
+  anotar(`del ${resumen.desde} al ${resumen.hasta}`);
+  anotar(`suma: $ ${resumen.total.toLocaleString("es-CO")}`);
+  anotar(`empresas: ${resumen.empresas}   platos: ${resumen.productos}`);
+  anotar(`personas: ${resumen.personas}  (${resumen.nombresUnicos} nombres distintos, ` +
+         `${resumen.nombresEnVariasEmpresas} en varias empresas)`);
+  anotar(`renglones marcados para revisar: ${resumen.paraRevisar} ` +
+         `(${resumen.sinPrecio} sin precio, ${resumen.sinPersona} sin persona, ` +
+         `${resumen.sinFecha} sin fecha)`,
+         true);
+
+  if (avisos.length) {
+    anotar(`avisos del archivo: ${avisos.length}`);
+    detalle.textContent = avisos.slice(0, 25)
+      .map((a) => `${a.hoja}${a.fila ? " fila " + a.fila : ""}: ${a.mensaje}`)
+      .join("\n") + (avisos.length > 25 ? `\n...y ${avisos.length - 25} más` : "");
+  }
+
+  // Una última revisión antes de escribirlo: que no salga un archivo cojo.
+  const { validarDatos } = await import("../js/nucleo/modelo.js");
+  const problemas = validarDatos(datos);
+  if (problemas.length) throw new Error("Los datos salieron incompletos: " + problemas.join(" "));
+
+  const json = JSON.stringify(datos, null, 1);
+  const guardado = await fetch("/guardar-inicial", { method: "POST", body: json });
+  if (!guardado.ok && guardado.status !== 204) {
+    throw new Error("El servidor no lo pudo guardar (HTTP " + guardado.status + ")");
+  }
+  anotar(`escrito datos/inicial.json (${(json.length / 1024).toFixed(0)} KB)`);
+  anotar("LISTO. Recargue la app y va a abrir con los datos puestos.");
+} catch (error) {
+  anotar(String(error && error.message || error), false);
+  detalle.textContent = String(error && error.stack || error);
+}
+</script>
+</body>
+</html>

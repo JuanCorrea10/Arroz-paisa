@@ -24,6 +24,13 @@ tests/datos/
 *personal*.ods
 *personal*.csv
 
+# --- Datos con los que arranca la app --------------------------------------
+# Lo genera tests/generar-inicial.html a partir del Excel. Lleva adentro los
+# nombres de 562 personas y lo que comio cada una, asi que NO sube a internet.
+# Sin este archivo la app abre vacia y ella importa el Excel una vez, que es
+# el comportamiento correcto para la version publicada.
+datos/
+
 # --- Respaldos y datos guardados por la app --------------------------------
 datos.json
 respaldos/
