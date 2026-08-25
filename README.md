@@ -25,7 +25,8 @@ y queda en <http://localhost:8000>.
 |-----------|--------|
 | `/` | La app |
 | `/tests/pruebas.html` | Las 122 pruebas |
-| `/tests/diagnostico.html` | Abre la app con datos reales y recorre las 13 pantallas |
+| `/tests/generar-inicial.html` | Genera los datos con los que arranca la app |
+| `/tests/diagnostico.html` | Abre la app con datos reales y recorre las 14 pantallas |
 | `/ejercicios/` | Ejercicios de programación |
 | `/docs/manual.html` | El manual para la usuaria |
 
@@ -54,7 +55,7 @@ pruebas: el día que haya Node también sirven con `npm run probar`.
 ### Ojo: la prueba de aceptación necesita un archivo que NO está aquí
 
 `tests/datos/` está en el `.gitignore` a propósito. Ahí va el Excel real, con
-los nombres de 561 personas, qué comió cada una y cuánto debe cada empresa.
+los nombres de las personas, qué comió cada una y cuánto debe cada empresa.
 **Eso no se publica.** El código es nuestro; los datos son de ellos.
 
 Para que corran todas las pruebas hay que poner a mano, en `tests/datos/`:
@@ -92,8 +93,8 @@ navegador.
 
 ## Las decisiones que valen la pena
 
-**El nombre no identifica a la persona.** Hay 477 nombres distintos repartidos
-en 561 fichas: 79 nombres existen en dos empresas a la vez. La llave real es
+**El nombre no identifica a la persona.** En el Excel de agosto hay 476 nombres
+distintos repartidos en 562 fichas: 80 nombres existen en dos empresas a la vez. La llave real es
 `(empresa donde come, nombre)`. Dos nombres solo se unen si están en la misma
 empresa; entre empresas, jamás.
 
