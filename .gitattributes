@@ -1,0 +1,29 @@
+# ============================================================================
+#  Finales de linea
+#
+#  Windows y el resto del mundo terminan las lineas distinto: Windows pone dos
+#  caracteres (CRLF) y todos los demas uno (LF). Sin esto, Git avisa en cada
+#  commit "LF will be replaced by CRLF" y uno se acostumbra a ignorar avisos,
+#  que es justo lo que no queremos.
+#
+#  La regla: adentro del repositorio TODO va en LF. Al sacarlo, cada archivo
+#  se acomoda a lo que necesita.
+# ============================================================================
+
+* text=auto eol=lf
+
+# Estos dos SI necesitan CRLF, y no es capricho: un archivo .cmd con finales
+# de linea de Unix hace que Windows no lo reconozca como programa. Nos paso
+# armando publicar.cmd y costo un rato entenderlo.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Lo que no es texto, que Git no lo toque.
+*.png  binary
+*.jpg  binary
+*.woff2 binary
+*.xlsx binary
+*.xls  binary
+*.ods  binary
+*.pdf  binary
