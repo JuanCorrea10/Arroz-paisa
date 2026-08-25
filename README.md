@@ -24,7 +24,7 @@ y queda en <http://localhost:8000>.
 | Dirección | Qué es |
 |-----------|--------|
 | `/` | La app |
-| `/tests/pruebas.html` | Las 150 pruebas |
+| `/tests/pruebas.html` | Las 170 pruebas |
 | `/tests/generar-inicial.html` | Genera los datos con los que arranca la app |
 | `/tests/diagnostico.html` | Abre la app con datos reales y recorre las 15 pantallas |
 | `/ejercicios/` | Ejercicios de programación |
@@ -80,6 +80,7 @@ js/nucleo/     Las cuentas. Archivos PUROS: reciben datos y devuelven datos.
   nombres.js     nombres repetidos, parecidos y mal escritos
   personal.js    cruzar con las listas de empleados de las empresas
   sueltos.js     renglones que apuntan a alguien o algo que no existe
+  habitos.js     lo que cada persona pide siempre, para no volver a escribirlo
 
 js/datos/      Guardar y leer de verdad (IndexedDB, carpeta del PC, .xlsx)
 js/ui/         Las pantallas

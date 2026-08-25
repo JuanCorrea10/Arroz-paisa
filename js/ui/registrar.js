@@ -12,7 +12,7 @@
 //  plato de la misma persona que no sumaba en ninguna parte.
 // ============================================================================
 
-import { el, vaciar, buscador, mensaje, pedirDatos, confirmar, ventana, cifra, cifraPlata, cinta, colorDeEmpresa, vacio } from "./componentes.js";
+import { el, vaciar, buscador, mensaje, pedirDatos, confirmar, ventana, tabla, cifra, cifraPlata, cinta, colorDeEmpresa, vacio } from "./componentes.js";
 import { estado, cambio, empresas, asegurarEmpresa, empresaPorCodigo } from "./estado.js";
 import { pesos, fechaLarga, normalizar, hoyISO } from "../nucleo/formato.js";
 import {
@@ -22,6 +22,10 @@ import { nuevoConsumo, agregarPersona, agregarProducto } from "../nucleo/modelo.
 import {
   limpiarNombre, parecidasEnEmpresa, tocayosEnOtrasEmpresas,
 } from "../nucleo/nombres.js";
+import {
+  pedidoHabitual, tieneCostumbre, platosFrecuentes, loDelDiaAnterior,
+  yaAnotadasHoy, cuantoValdria,
+} from "../nucleo/habitos.js";
 
 /** La persona cuya comanda se está llenando ahora mismo. */
 let personaActiva = null;
@@ -50,6 +54,7 @@ export function pintarRegistrar(raiz) {
       )
     ),
     barraDeMando(raiz),
+    tarjetaDeAyer(raiz),
     cajaDeCaptura(raiz),
     resumenEnVivo(),
     listaDeComandas(raiz)
@@ -183,6 +188,7 @@ function comandaEnCurso(raiz) {
         alHacerClic: () => { personaActiva = null; pintarRegistrar(raiz); },
       }, "Terminar con esta persona")
     ),
+    atajosDePedido(raiz, facturaA, mios.length),
     buscaPlato.nodo,
     mios.length ? tablaDePlatos(mios, raiz) : el("p", {
       estilo: "margin:var(--e3) 0 0;color:var(--tinta-suave);font-size:var(--t-sm)",
@@ -361,6 +367,199 @@ function renglonesDe(nombre) {
   return estado.datos.consumos.filter(
     (c) => c.fecha === estado.fecha && c.empresaCome === estado.empresa && c.persona === nombre
   );
+}
+
+// ---------------------------------------------------------------------------
+//  "Los mismos de ayer"
+//
+//  En una fábrica come casi siempre la misma gente. Buscar a las 18 personas
+//  una por una, todos los días, es el grueso del trabajo. Aquí se trae la
+//  lista del último día registrado y ella solo desmarca a los que faltaron.
+//
+//  Solo aparece cuando el día está en blanco: si ya empezó a anotar, meterle
+//  la lista de ayer encima sería duplicarle el trabajo, no ahorrárselo.
+// ---------------------------------------------------------------------------
+
+function tarjetaDeAyer(raiz) {
+  const hoyEnEstaEmpresa = delDia(estado.datos.consumos, estado.fecha)
+    .filter((c) => normalizar(c.empresaCome) === normalizar(estado.empresa));
+  if (hoyEnEstaEmpresa.length) return null;
+
+  const ayer = loDelDiaAnterior(estado.datos, estado.empresa, estado.fecha);
+  if (!ayer || !ayer.gente.length) return null;
+
+  return el("section", { clase: "tarjeta tarjeta-ayer" },
+    el("div", { clase: "fila entre" },
+      el("div", {},
+        el("h3", { texto: `El ${fechaLarga(ayer.fecha)} comieron ${ayer.gente.length} en ${estado.empresa}` }),
+        el("p", { clase: "nota", texto: "Si hoy es parecido, tráigalos y quite a los que faltaron." })
+      ),
+      el("button", {
+        clase: "principal",
+        alHacerClic: () => ventanaDeAyer(raiz, ayer),
+      }, "Traer la lista de ese día")
+    )
+  );
+}
+
+function ventanaDeAyer(raiz, ayer) {
+  const yaEstan = yaAnotadasHoy(estado.datos, estado.empresa, estado.fecha);
+  const marcados = new Map(ayer.gente.map((g) => [g.persona, !yaEstan.has(g.persona)]));
+
+  const filas = ayer.gente.map((g) => {
+    const resumen = g.platos
+      .map((p) => (p.cantidad > 1 ? `${p.cantidad} ${p.producto}` : p.producto))
+      .join(" + ");
+    const casilla = el("input", {
+      type: "checkbox",
+      checked: marcados.get(g.persona),
+      alCambiar: (ev) => marcados.set(g.persona, ev.target.checked),
+    });
+    return el("tr", { clase: yaEstan.has(g.persona) ? "apagada" : "" },
+      el("td", {}, casilla),
+      el("td", {}, el("strong", { texto: g.persona })),
+      el("td", { texto: resumen }),
+      el("td", { clase: "dato", texto: yaEstan.has(g.persona) ? "ya está hoy" : "" })
+    );
+  });
+
+  const cuerpo = el("div", {},
+    el("p", {},
+      "Se les va a anotar hoy lo mismo que pidieron el ",
+      el("strong", { texto: fechaLarga(ayer.fecha) }), "."),
+    el("p", { clase: "nota" },
+      "Los precios que se guardan son los de HOY, no los de ese día. Después " +
+      "puede cambiarle el pedido a cualquiera."),
+    el("div", { clase: "fila" },
+      el("button", {
+        clase: "plano chico",
+        alHacerClic: (ev) => {
+          const cuadros = ev.target.closest(".ventana-cuerpo").querySelectorAll('input[type="checkbox"]');
+          const prender = [...cuadros].some((c) => !c.checked);
+          cuadros.forEach((c, i) => {
+            c.checked = prender;
+            marcados.set(ayer.gente[i].persona, prender);
+          });
+        },
+      }, "Marcar o desmarcar todos")
+    ),
+    tabla([{ titulo: "" }, { titulo: "Persona" }, { titulo: "Pidió" }, { titulo: "", clase: "dato" }], filas)
+  );
+
+  ventana({
+    titulo: "Los mismos de ese día",
+    cuerpo,
+    botones: [
+      { texto: "Cancelar" },
+      {
+        texto: "Anotarlos",
+        clase: "principal",
+        alHacerClic: () => {
+          const elegidos = ayer.gente.filter((g) => marcados.get(g.persona));
+          if (!elegidos.length) { mensaje("No marcó a nadie.", "ojo"); return; }
+
+          let personas = 0;
+          let renglones = 0;
+          for (const g of elegidos) {
+            const persona = estado.datos.personas.find(
+              (p) => clavePersona(p.empresaCome, p.nombre) === clavePersona(estado.empresa, g.persona)
+            );
+            if (!persona) continue; // ya no está en la empresa: se salta
+            const facturaA = persona.empresaFactura || estado.empresa;
+            for (const plato of g.platos) {
+              // El precio se congela con el catálogo de HOY, no con el de ese
+              // día: si subió el almuerzo, lo de hoy se cobra a lo de hoy.
+              const precio = precioDe(estado.datos, plato.producto, facturaA);
+              estado.datos.consumos.push(nuevoConsumo({
+                fecha: estado.fecha,
+                empresaCome: estado.empresa,
+                persona: persona.nombre,
+                empresaFactura: facturaA,
+                producto: plato.producto,
+                cantidad: plato.cantidad,
+                precioUnitario: precio === null ? 0 : precio,
+                facturable: plato.facturable,
+              }));
+              renglones++;
+            }
+            personas++;
+          }
+          cambio();
+          pintarRegistrar(raiz);
+          mensaje(`Anotadas ${personas} personas, ${renglones} renglones.`, "bien", 6);
+        },
+      },
+    ],
+  });
+}
+
+// ---------------------------------------------------------------------------
+//  Atajos: lo que hace que no haya que escribir nada
+//
+//  De los 896 pedidos de agosto, el 61 % es exactamente lo que esa misma
+//  persona pide todos los días, y un solo plato (ALMUERZO) es el 37 % de todo.
+//  Así que la mayoría de las veces no hay nada que buscar: ya sabemos qué va
+//  a pedir. Estos botones convierten "buscar, escribir, elegir" en un toque.
+//
+//  Ojo: son ATAJOS, no automatismos. Nada se anota sin que ella lo toque.
+// ---------------------------------------------------------------------------
+
+function atajosDePedido(raiz, facturaA, yaTieneAlgo) {
+  const caja = el("div", { clase: "atajos" });
+
+  // 1) Lo de siempre. Solo si todavía no le ha anotado nada hoy: si ya empezó,
+  //    ofrecerle "repetir" sería confuso y podría duplicarle el pedido.
+  if (!yaTieneAlgo) {
+    const habito = pedidoHabitual(estado.datos, estado.empresa, personaActiva, estado.fecha);
+    if (tieneCostumbre(habito)) {
+      const { total, faltaPrecio } = cuantoValdria(estado.datos, habito.platos, facturaA);
+      const resumen = habito.platos
+        .map((p) => (p.cantidad > 1 ? `${p.cantidad} ${p.producto}` : p.producto))
+        .join(" + ");
+
+      caja.append(
+        el("button", {
+          clase: "principal lo-de-siempre",
+          alHacerClic: () => {
+            for (const p of habito.platos) {
+              for (let i = 0; i < p.cantidad; i++) agregarPlato(p.producto, raiz);
+            }
+          },
+        },
+          el("strong", { texto: "Lo de siempre" }),
+          el("small", { texto: resumen + (faltaPrecio ? "  ·  ojo, falta un precio" : `  ·  ${pesos(total)}`) })
+        ),
+        el("span", { clase: "nota atajo-porque" },
+          habito.veces === habito.dias
+            ? `es lo que ha pedido las ${habito.dias} veces`
+            : `${habito.veces} de sus ${habito.dias} días`)
+      );
+    }
+  }
+
+  // 2) Los platos que más se piden en esta empresa, a un toque.
+  const frecuentes = platosFrecuentes(estado.datos, estado.empresa, {
+    limite: 5,
+    empresaFactura: facturaA,
+  });
+  if (frecuentes.length) {
+    caja.append(
+      el("div", { clase: "fila fichas-platos" },
+        ...frecuentes.map((f) =>
+          el("button", {
+            clase: "ficha-plato",
+            title: `${f.producto} — ${pesos(f.precio)}`,
+            alHacerClic: () => agregarPlato(f.producto, raiz),
+          },
+            el("span", { texto: f.producto }),
+            el("small", { texto: pesos(f.precio) })
+          )
+        )
+      )
+    );
+  }
+
+  return caja.children.length ? caja : null;
 }
 
 function agregarPlato(plato, raiz) {

@@ -13,7 +13,10 @@ import {
 import { estado, cambio, empresas } from "./estado.js";
 import { pesos, normalizar, coincide, aEntero } from "../nucleo/formato.js";
 import { clavePrecio, precioDe, indicePorCodigo } from "../nucleo/calculos.js";
-import { agregarEmpresa, agregarProducto, agregarPersona } from "../nucleo/modelo.js";
+import {
+  agregarEmpresa, agregarProducto, agregarPersona,
+  puedeBorrarPersona, borrarPersona, puedeBorrarProducto, borrarProducto,
+} from "../nucleo/modelo.js";
 import {
   limpiarNombre, parecidasEnEmpresa, renombrarPersona, tocayosEnOtrasEmpresas,
 } from "../nucleo/nombres.js";
@@ -282,7 +285,11 @@ function filaDePlato(raiz, producto, lista) {
             cambio();
             pintarCatalogo(raiz);
           },
-        }, producto.activo === false ? "Prender" : "Apagar")
+        }, producto.activo === false ? "Prender" : "Apagar"),
+        el("button", {
+          clase: "plano chico peligro-suave",
+          alHacerClic: () => quitarPlato(raiz, producto),
+        }, "Borrar")
       )
     )
   );
@@ -485,7 +492,11 @@ function filaDePersona(raiz, persona, lista) {
         el("button", {
           clase: "plano chico",
           alHacerClic: () => { persona.activa = persona.activa === false; cambio(); pintarPersonas(raiz); },
-        }, persona.activa === false ? "Prender" : "Apagar")
+        }, persona.activa === false ? "Prender" : "Apagar"),
+        el("button", {
+          clase: "plano chico peligro-suave",
+          alHacerClic: () => quitarPersona(raiz, persona),
+        }, "Borrar")
       )
     )
   );
@@ -607,4 +618,92 @@ async function editarPersona(raiz, persona, lista) {
   cambio();
   pintarPersonas(raiz);
   if (!cambiaFactura) mensaje("Guardado.", "bien");
+}
+
+// ===========================================================================
+//  BORRAR
+//
+//  Lo que tiene historia no se borra, se apaga. Aquí solo se explica eso en
+//  cristiano y se le ofrece el apagado, que es lo que ella quería de verdad:
+//  que deje de estorbar al buscar, sin perder lo que ya pasó.
+// ===========================================================================
+
+async function quitarPersona(raiz, persona) {
+  const { puede, renglones } = puedeBorrarPersona(estado.datos, persona.empresaCome, persona.nombre);
+
+  if (!puede) {
+    const apagar = await confirmar({
+      titulo: `${persona.nombre} no se puede borrar`,
+      mensaje:
+        `Tiene ${renglones} renglones registrados. Si la borrara, ese consumo ` +
+        `quedaría sin dueño. ¿La apago? Sale de las listas al anotar y lo ya ` +
+        `cobrado se queda igual.`,
+      siTexto: "Sí, apagarla",
+      noTexto: "Dejarla como está",
+    });
+    if (!apagar) return;
+    persona.activa = false;
+    cambio();
+    pintarPersonas(raiz);
+    mensaje(`${persona.nombre} quedó apagada. Ya no sale al anotar.`, "bien", 6);
+    return;
+  }
+
+  const seguro = await confirmar({
+    titulo: `Borrar a ${persona.nombre}`,
+    mensaje:
+      `No tiene ningún renglón registrado, así que se puede borrar sin dañar ` +
+      `nada. ¿Seguro?`,
+    siTexto: "Sí, borrarla",
+    peligroso: true,
+  });
+  if (!seguro) return;
+
+  try {
+    borrarPersona(estado.datos, persona.empresaCome, persona.nombre);
+    cambio();
+    pintarPersonas(raiz);
+    mensaje(`${persona.nombre} se borró de ${persona.empresaCome}.`, "bien");
+  } catch (e) {
+    mensaje(e.message, "malo", 9);
+  }
+}
+
+async function quitarPlato(raiz, producto) {
+  const { puede, renglones } = puedeBorrarProducto(estado.datos, producto.nombre);
+
+  if (!puede) {
+    const apagar = await confirmar({
+      titulo: `"${producto.nombre}" no se puede borrar`,
+      mensaje:
+        `Está en ${renglones} renglones ya registrados. Si lo borrara, esos ` +
+        `renglones quedarían con un plato que no existe. ¿Lo apago? Deja de ` +
+        `salir al anotar y lo ya cobrado no cambia.`,
+      siTexto: "Sí, apagarlo",
+      noTexto: "Dejarlo como está",
+    });
+    if (!apagar) return;
+    producto.activo = false;
+    cambio();
+    pintarCatalogo(raiz);
+    mensaje(`"${producto.nombre}" quedó apagado.`, "bien", 6);
+    return;
+  }
+
+  const seguro = await confirmar({
+    titulo: `Borrar "${producto.nombre}"`,
+    mensaje: "Nunca se ha pedido, así que se puede borrar sin dañar nada. ¿Seguro?",
+    siTexto: "Sí, borrarlo",
+    peligroso: true,
+  });
+  if (!seguro) return;
+
+  try {
+    const r = borrarProducto(estado.datos, producto.nombre);
+    cambio();
+    pintarCatalogo(raiz);
+    mensaje(`"${producto.nombre}" se borró, con sus ${r.precios} precios.`, "bien");
+  } catch (e) {
+    mensaje(e.message, "malo", 9);
+  }
 }

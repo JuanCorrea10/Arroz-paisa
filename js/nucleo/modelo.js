@@ -133,6 +133,76 @@ export function agregarPersona(datos, persona) {
   return datos;
 }
 
+// ---------------------------------------------------------------------------
+//  Borrar
+//
+//  La regla es una sola y no tiene excepciones:
+//
+//      lo que tiene historia NO se borra, se APAGA.
+//
+//  Si se borrara una persona que ya comió, sus renglones quedarían apuntando
+//  a alguien que no existe: la cuenta de cobro seguiría bien (el precio está
+//  congelado en cada renglón), pero la app no sabría de quién es ese consumo
+//  y saldría en "Posibles errores" para siempre.
+//
+//  Apagar hace lo que ella quiere de verdad: sacarla de las listas para que
+//  no estorbe al buscar, sin perder lo que ya pasó.
+// ---------------------------------------------------------------------------
+
+/** ¿Se puede borrar del todo, o solo apagar? Dice cuántos renglones la atan. */
+export function puedeBorrarPersona(datos, codigoEmpresa, nombre) {
+  const llave = clavePersona(codigoEmpresa, nombre);
+  const renglones = datos.consumos.filter(
+    (c) => clavePersona(c.empresaCome, c.persona) === llave
+  ).length;
+  return { puede: renglones === 0, renglones };
+}
+
+export function borrarPersona(datos, codigoEmpresa, nombre) {
+  const { puede, renglones } = puedeBorrarPersona(datos, codigoEmpresa, nombre);
+  if (!puede) {
+    throw new Error(
+      `${normalizar(nombre)} tiene ${renglones} renglones registrados, así que no ` +
+      `se puede borrar sin dejarlos huérfanos. Apáguela: sale de las listas y ` +
+      `lo ya cobrado se queda como está.`
+    );
+  }
+  const llave = clavePersona(codigoEmpresa, nombre);
+  const antes = datos.personas.length;
+  datos.personas = datos.personas.filter(
+    (p) => clavePersona(p.empresaCome, p.nombre) !== llave
+  );
+  return { borradas: antes - datos.personas.length };
+}
+
+/** Lo mismo para un plato. Además hay que quitarle sus precios. */
+export function puedeBorrarProducto(datos, nombre) {
+  const limpio = normalizar(nombre);
+  const renglones = datos.consumos.filter((c) => normalizar(c.producto) === limpio).length;
+  return { puede: renglones === 0, renglones };
+}
+
+export function borrarProducto(datos, nombre) {
+  const limpio = normalizar(nombre);
+  const { puede, renglones } = puedeBorrarProducto(datos, nombre);
+  if (!puede) {
+    throw new Error(
+      `"${limpio}" está en ${renglones} renglones registrados, así que no se ` +
+      `puede borrar. Apáguelo: deja de salir al anotar y lo ya cobrado no cambia.`
+    );
+  }
+  const antes = datos.productos.length;
+  datos.productos = datos.productos.filter((p) => normalizar(p.nombre) !== limpio);
+
+  // Los precios también se van: si no, quedarían ocupando espacio para siempre
+  // y reaparecerían solos si alguien vuelve a crear un plato con ese nombre.
+  let precios = 0;
+  for (const llave of Object.keys(datos.precios)) {
+    if (llave.startsWith(limpio + "|")) { delete datos.precios[llave]; precios++; }
+  }
+  return { borrados: antes - datos.productos.length, precios };
+}
+
 /**
  * Crea un renglón de consumo dejando el precio CONGELADO.
  * Este es el único sitio donde nace un consumo, para que no haya dos maneras

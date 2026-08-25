@@ -468,3 +468,81 @@ label.opcion-parecida.obvia {
 @media (max-width: 720px) {
   .decision .suave { margin-left: 0; }
 }
+
+/* --------------------------------------------------------------------- */
+/*  Atajos de registro: lo que evita tener que escribir                    */
+/* --------------------------------------------------------------------- */
+
+.atajos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e2);
+  margin: var(--e3) 0 var(--e4);
+}
+
+/* "Lo de siempre": el boton mas usado de la app. Grande a proposito. */
+.lo-de-siempre {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: var(--e3) var(--e4);
+  text-align: left;
+}
+.lo-de-siempre strong { font-size: var(--t-md); }
+.lo-de-siempre small { font-weight: 400; opacity: 0.9; font-family: var(--dato); font-size: var(--t-xs); }
+
+.atajo-porque {
+  font-size: var(--t-xs);
+  color: var(--tinta-suave);
+  margin-top: -2px;
+}
+
+/* Los platos mas pedidos, como fichas de un toque. */
+.fichas-platos { flex-wrap: wrap; gap: var(--e2); }
+.ficha-plato {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  min-height: var(--alto-toque);
+  padding: var(--e2) var(--e3);
+  border: 1.5px solid var(--borde-fuerte);
+  border-radius: var(--radio);
+  background: var(--papel-hueso);
+  cursor: pointer;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: var(--t-sm);
+  line-height: 1.25;
+  text-align: left;
+}
+.ficha-plato:hover { background: var(--mora-claro); border-color: var(--mora); }
+.ficha-plato small {
+  font-family: var(--dato);
+  font-weight: 400;
+  font-size: var(--t-xs);
+  color: var(--tinta-suave);
+}
+.ficha-plato:hover small { color: var(--mora); }
+
+/* La tarjeta de "los mismos de ayer". */
+.tarjeta-ayer {
+  border-left: 5px solid var(--azul);
+  background: var(--azul-suave);
+  margin-bottom: var(--e4);
+}
+.tarjeta-ayer h3 { font-size: var(--t-md); color: var(--azul-hondo); }
+.tarjeta-ayer p { margin: 0; }
+
+@media (max-width: 720px) {
+  /* En el celular las fichas ocupan toda la fila de a dos. */
+  .ficha-plato { flex: 1 1 calc(50% - var(--e2)); }
+  .tarjeta-ayer .entre { flex-direction: column; align-items: stretch; gap: var(--e3); }
+}
+
+/* Borrar se ve distinto sin gritar: es raro, pero no es peligroso porque la
+   app no deja borrar nada que tenga historia. */
+.peligro-suave { color: var(--rojo); }
+.peligro-suave:hover { background: var(--rojo-claro); border-color: var(--rojo); }
