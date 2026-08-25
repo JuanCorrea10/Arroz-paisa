@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ejercicios — Arroz Paisa</title>
+<style>
+  :root { --verde: #23684a; --rojo: #a41e12; --achiote: #bc4318; }
+  body {
+    margin: 0; padding: 1.5rem 1.25rem 4rem;
+    background: #e9efe6; color: #16211b;
+    font-family: "Segoe UI", system-ui, sans-serif; line-height: 1.55;
+  }
+  .hoja { max-width: 780px; margin: 0 auto; }
+  h1 { font-size: 1.9rem; margin: 0 0 .3rem; }
+  .sub { color: #6d7d74; margin: 0 0 1.5rem; }
+  .tarjeta { background: #fff; border-radius: 8px; padding: 1.1rem 1.35rem;
+             margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(18,60,41,.09); }
+  .tarjeta h2 { font-size: 1.15rem; margin: 0 0 .2rem; color: var(--verde); }
+  .tarjeta .archivo { font-family: ui-monospace, Consolas, monospace;
+                      font-size: .82rem; color: #6d7d74; }
+  #marcador { padding: .9rem 1.15rem; border-radius: 8px; color: #fff;
+              font-weight: 700; font-size: 1.15rem; background: #6d7d74;
+              margin: 1rem 0; }
+  #marcador.bien { background: var(--verde); }
+  #marcador.mal { background: var(--rojo); }
+  .p { display: flex; gap: .6rem; align-items: baseline;
+       padding: .3rem 0; border-top: 1px solid #eef2ec; font-size: .93rem; }
+  .marca { font-family: ui-monospace, Consolas, monospace; font-weight: 700; flex: none; }
+  .ok .marca { color: var(--verde); }
+  .mal .marca { color: var(--rojo); }
+  pre { margin: .3rem 0 .3rem 2.2rem; padding: .55rem .8rem; background: #fff5f4;
+        border-left: 3px solid var(--rojo); font-size: .85rem;
+        white-space: pre-wrap; }
+  a { color: var(--achiote); }
+  .pista { background: #fdf1d8; border-left: 4px solid #b47500;
+           padding: .8rem 1rem; border-radius: 0 6px 6px 0; font-size: .93rem; }
+  code { background: #f4f8f2; padding: 1px 5px; border-radius: 3px;
+         font-family: ui-monospace, Consolas, monospace; font-size: .88em; }
+</style>
+</head>
+<body>
+<div class="hoja">
+  <h1>Ejercicios</h1>
+  <p class="sub">
+    Sale de errores de verdad cometidos armando esta app. Arregla el código
+    hasta que todo esté en verde.
+  </p>
+
+  <div class="tarjeta">
+    <h2>1 — Un dato puede tener dos formas</h2>
+    <p class="archivo">ejercicios/01-dos-formas-del-mismo-dato.js</p>
+    <p>
+      Lee primero
+      <a href="01-dos-formas-del-mismo-dato.md">la explicación</a>,
+      después abre el archivo <code>.js</code> y arregla la función
+      <code>unir()</code>.
+    </p>
+  </div>
+
+  <div id="marcador">Corriendo…</div>
+  <div id="salida"></div>
+
+  <p class="pista">
+    <strong>Cómo trabajar:</strong> deja esta página abierta al lado del editor.
+    Cambias el archivo, guardas, recargas aquí con <code>F5</code> y ves si
+    pasaste. Ese ciclo — cambiar, correr, mirar — es literalmente el trabajo
+    de programar. Entre más corto lo tengas, más rápido aprendes.
+  </p>
+</div>
+
+<script type="module">
+const marcador = document.getElementById("marcador");
+const salida = document.getElementById("salida");
+
+try {
+  const { PRUEBAS } = await import("./01-dos-formas-del-mismo-dato.js");
+
+  let pasaron = 0;
+  for (const p of PRUEBAS) {
+    const fila = document.createElement("div");
+    const marca = document.createElement("span");
+    marca.className = "marca";
+    const texto = document.createElement("span");
+    texto.textContent = p.nombre;
+
+    let error = null;
+    try {
+      p.correr();
+      pasaron++;
+    } catch (e) {
+      error = e;
+    }
+
+    fila.className = "p " + (error ? "mal" : "ok");
+    marca.textContent = error ? "MAL" : "OK ";
+    fila.append(marca, texto);
+    salida.append(fila);
+
+    if (error) {
+      const detalle = document.createElement("pre");
+      detalle.textContent = error.message;
+      salida.append(detalle);
+    }
+  }
+
+  const fallaron = PRUEBAS.length - pasaron;
+  marcador.className = fallaron ? "mal" : "bien";
+  marcador.textContent = fallaron
+    ? `Faltan ${fallaron} de ${PRUEBAS.length}. Sigue.`
+    : `¡Listo! Pasaron las ${PRUEBAS.length} pruebas.`;
+} catch (error) {
+  marcador.className = "mal";
+  marcador.textContent = "El archivo tiene un error de escritura";
+  const detalle = document.createElement("pre");
+  detalle.textContent = String(error && error.stack || error);
+  salida.append(detalle);
+}
+</script>
+</body>
+</html>

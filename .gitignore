@@ -1,0 +1,45 @@
+# ============================================================================
+#  Lo que NUNCA sube a internet.
+#
+#  Esto no es manía: si publicamos la app en GitHub Pages, TODO lo que esté en
+#  el repositorio queda público para cualquiera. El código puede ser público
+#  sin problema. Los datos de las personas NO.
+#
+#  Regla para acordarse: el código es nuestro, los datos son de ellos.
+# ============================================================================
+
+# --- Datos reales del negocio ---------------------------------------------
+# Nombres de 561 personas, qué comió cada una y cuánto debe cada empresa.
+tests/datos/
+
+# --- Listas de personal que mandan las empresas ----------------------------
+# Nombres completos y números de documento. Lo más delicado de todo.
+#
+# Ojo: solo se nombran las extensiones de DATOS. Al principio puse "*PERSONAL*"
+# a secas y se llevó por delante a "tests/personal.test.mjs", que es código y sí
+# tiene que subir. En Windows, Git no distingue mayúsculas de minúsculas, así
+# que "*PERSONAL*" también tapaba "personal". Los patrones anchos muerden.
+*personal*.xlsx
+*personal*.xls
+*personal*.ods
+*personal*.csv
+
+# --- Respaldos y datos guardados por la app --------------------------------
+datos.json
+respaldos/
+respaldo-arroz-paisa-*.json
+*.backup.json
+
+# --- Capturas de pantalla (pueden traer nombres reales adentro) ------------
+docs/capturas/
+
+# --- Basura de las pruebas -------------------------------------------------
+tests/ultimo-diagnostico.txt
+
+# --- Basura de Windows y de los editores -----------------------------------
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/
+node_modules/

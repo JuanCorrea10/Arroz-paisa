@@ -1,0 +1,348 @@
+/* ===========================================================================
+   pantallas.css  -  Lo que le faltaba al diseño para las pantallas nuevas.
+
+   Va aparte de estilos.css a propósito: estilos.css es el armazón (papel,
+   tinta, tablas, barra) y aquí están solo las piezas nuevas. Si un día hay que
+   volver atrás, se borra este archivo y la app sigue viéndose bien.
+
+   Se respeta el mismo lenguaje: papel de contaduría, verde de cocina para el
+   armazón, achiote para la acción, y nada en lo que haya que tocar por debajo
+   de --alto-toque.
+   =========================================================================== */
+
+/* --------------------------------------------------------------------- */
+/*  Piezas del esqueleto                                                   */
+/* --------------------------------------------------------------------- */
+
+/* Para quien navega con el teclado: el primer tabulador salta el menú. */
+.salto-al-contenido {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  background: var(--achiote);
+  color: #fff;
+  padding: var(--e2) var(--e4);
+  border-radius: 0 0 var(--radio) 0;
+  font-family: var(--display);
+  font-weight: 600;
+}
+.salto-al-contenido:focus { left: 0; }
+
+/* El mes y el año que miran todos los informes. Siempre a la vista. */
+.periodo {
+  display: flex;
+  gap: var(--e2);
+  align-items: center;
+  flex: none;
+}
+.periodo select {
+  min-height: 40px;
+  padding: 0 var(--e2);
+  border-radius: var(--radio);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: var(--t-sm);
+}
+.periodo select option { color: var(--tinta); background: #fff; }
+
+.cargando {
+  color: var(--tinta-suave);
+  font-family: var(--dato);
+  padding: var(--e6) 0;
+}
+
+/* Los botones de descargar/imprimir de los informes. */
+.acciones { flex-wrap: wrap; gap: var(--e2); margin: var(--e3) 0 var(--e5); }
+
+/* Una fila apagada: la persona o el plato que está inactivo. */
+.apagada { opacity: 0.5; }
+.apagada strong { text-decoration: line-through; }
+
+/* Lista de avisos del importador. */
+.avisos {
+  margin: var(--e2) 0 0;
+  padding-left: var(--e5);
+  font-size: var(--t-sm);
+  color: var(--tinta-media);
+  max-height: 340px;
+  overflow-y: auto;
+}
+.avisos li { margin-bottom: var(--e1); }
+
+/* --------------------------------------------------------------------- */
+/*  Ajustes: las tarjetas que llevan a las otras pantallas                 */
+/* --------------------------------------------------------------------- */
+
+.tarjetas-ajustes { align-items: stretch; }
+
+.tarjeta-enlace {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.1s, box-shadow 0.1s, border-color 0.1s;
+  border: 1px solid var(--borde);
+}
+.tarjeta-enlace:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sombra-alta);
+  border-color: var(--verde);
+}
+.tarjeta-enlace h2 { color: var(--verde); margin-bottom: var(--e2); }
+.tarjeta-enlace p { color: var(--tinta-media); margin-bottom: var(--e2); }
+
+.etiqueta.pendiente {
+  background: var(--amarillo-claro);
+  color: #7a4f00;
+  border: 1px solid #e2c37a;
+}
+
+/* --------------------------------------------------------------------- */
+/*  Renglones y pantallas con problemas                                    */
+/* --------------------------------------------------------------------- */
+
+.con-problemas { border-left: 5px solid var(--rojo); }
+.con-problemas h1, .con-problemas h2 { color: var(--rojo); }
+.con-problemas pre {
+  background: var(--papel-raya);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: var(--e3);
+  overflow-x: auto;
+  font-size: var(--t-xs);
+  font-family: var(--dato);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.problema {
+  border-top: 1px solid var(--borde);
+  padding-top: var(--e4);
+  margin-top: var(--e4);
+}
+.problema h3 { color: var(--rojo); font-size: var(--t-md); margin-bottom: var(--e1); }
+
+/* --------------------------------------------------------------------- */
+/*  Revisar nombres                                                        */
+/* --------------------------------------------------------------------- */
+
+.aviso-arreglable { border-left: 5px solid var(--amarillo); }
+.aviso-arreglable h2 { color: #7a4f00; }
+
+/* El "antes" y el "después" de un nombre sucio. Se muestran entre comillas
+   para que se vean los espacios que sobran, que si no son invisibles. */
+.muestra-mal, .muestra-bien {
+  font-family: var(--dato);
+  font-size: var(--t-sm);
+  padding: 2px 6px;
+  border-radius: 3px;
+  white-space: pre;
+}
+.muestra-mal { background: var(--rojo-claro); color: #7d1a10; }
+.muestra-bien { background: var(--verde-claro); color: var(--verde-hondo); }
+
+.grupo-nombres { border-left: 5px solid var(--azul); }
+
+.razon {
+  font-family: var(--dato);
+  font-size: var(--t-sm);
+  color: var(--tinta-media);
+}
+
+/* Qué tan seguros estamos de que son la misma persona. */
+.sello {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: var(--t-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.seguro-alto  { background: var(--verde-claro);   color: var(--verde-hondo); }
+.seguro-medio { background: var(--azul-claro);    color: #123f57; }
+.seguro-bajo  { background: var(--amarillo-claro); color: #7a4f00; }
+
+/* La fila donde ella marca cuál es el nombre bueno. Toda la fila es tocable. */
+.grupo-nombres tbody tr { cursor: pointer; }
+.grupo-nombres input[type="radio"] {
+  width: 22px;
+  height: 22px;
+  min-height: auto;
+  accent-color: var(--achiote);
+  cursor: pointer;
+}
+.nombre-opcion {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e2);
+  cursor: pointer;
+  min-height: var(--alto-toque);
+  font-weight: inherit;
+}
+.etiqueta.sugerida {
+  background: var(--verde-claro);
+  color: var(--verde-hondo);
+  border: 1px solid var(--borde-fuerte);
+}
+
+/* --------------------------------------------------------------------- */
+/*  "¿Es la misma persona?" — la ventana que evita el duplicado            */
+/* --------------------------------------------------------------------- */
+
+.opciones-parecidas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e2);
+  margin-top: var(--e3);
+}
+
+.opcion-parecida {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  width: 100%;
+  min-height: var(--alto-toque);
+  padding: var(--e3) var(--e4);
+  border: 2px solid var(--borde);
+  border-radius: var(--radio-g);
+  background: var(--papel);
+  cursor: pointer;
+  font-family: var(--cuerpo);
+}
+.opcion-parecida:hover {
+  border-color: var(--verde);
+  background: var(--verde-claro);
+}
+.opcion-parecida strong {
+  font-family: var(--display);
+  font-size: var(--t-md);
+  color: var(--tinta);
+}
+.opcion-parecida small {
+  color: var(--tinta-suave);
+  font-size: var(--t-sm);
+}
+/* La de "es otra persona" se ve distinta: es la decisión menos frecuente. */
+.opcion-parecida.es-otra {
+  border-style: dashed;
+  margin-top: var(--e2);
+}
+.opcion-parecida.es-otra:hover {
+  border-color: var(--achiote);
+  background: var(--achiote-claro);
+}
+
+/* --------------------------------------------------------------------- */
+/*  Catálogo: los precios editables ahí mismo                              */
+/* --------------------------------------------------------------------- */
+
+input.precio {
+  width: 100%;
+  min-width: 90px;
+  min-height: 40px;
+  text-align: right;
+  font-family: var(--dato);
+  font-size: var(--t-sm);
+  padding: 0 var(--e2);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--papel-hueso);
+}
+input.precio:focus { background: #fff; border-color: var(--verde); }
+/* Un plato sin precio entra en $ 0 a la cuenta de cobro. Se tiene que ver. */
+input.precio.falta {
+  background: var(--rojo-claro);
+  border-color: var(--rojo);
+}
+input.precio.falta::placeholder { color: #7d1a10; opacity: 1; }
+
+/* --------------------------------------------------------------------- */
+/*  Compartir con las empresas                                            */
+/* --------------------------------------------------------------------- */
+
+.garantia { border-left: 5px solid var(--verde); background: var(--papel-hueso); }
+.garantia h2 { color: var(--verde-hondo); }
+
+.empresa-compartir h3 {
+  font-size: var(--t-md);
+  margin-top: var(--e5);
+  margin-bottom: var(--e1);
+  color: var(--verde-hondo);
+}
+
+/* La vista previa del archivo, tal como lo va a ver el supervisor. */
+.vista-previa {
+  width: 100%;
+  height: 55vh;
+  min-height: 320px;
+  border: 1px solid var(--borde-fuerte);
+  border-radius: var(--radio);
+  background: #fff;
+  margin-top: var(--e3);
+}
+
+/* --------------------------------------------------------------------- */
+/*  Celular                                                                */
+/* --------------------------------------------------------------------- */
+
+@media (max-width: 720px) {
+  .periodo { order: 2; margin-left: auto; }
+  .vista-previa { height: 45vh; }
+  .opcion-parecida { padding: var(--e4); }
+  /* En la tabla de precios, que no se aplaste el nombre del plato. */
+  input.precio { min-width: 74px; }
+}
+
+@media print {
+  .periodo, .salto-al-contenido, .vista-previa { display: none !important; }
+}
+
+/* --------------------------------------------------------------------- */
+/*  La lista de personal de la empresa                                     */
+/* --------------------------------------------------------------------- */
+
+.tarjeta-personal { border-left: 5px solid var(--verde); }
+.tarjeta-personal h2 { color: var(--verde-hondo); }
+
+/* El documento se muestra siempre cortado: solo los ultimos numeros. */
+.documento-corto {
+  font-family: var(--dato);
+  font-size: var(--t-sm);
+  background: var(--verde-claro);
+  color: var(--verde-hondo);
+  padding: 2px 7px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+/* Cuando el documento lo prueba, no es una opinion: es un hecho. */
+.seguro-probado {
+  background: var(--verde-hondo);
+  color: #fff;
+}
+
+.fusiones-halladas {
+  border-top: 1px solid var(--borde);
+  margin-top: var(--e4);
+  padding-top: var(--e4);
+}
+.fusiones-halladas h4 { color: var(--verde-hondo); margin-bottom: var(--e2); }
+
+.fusion {
+  background: var(--papel-hueso);
+  border: 1px solid var(--borde);
+  border-left: 4px solid var(--verde);
+  border-radius: var(--radio);
+  padding: var(--e3);
+  margin-bottom: var(--e3);
+}
+.fusion p { margin-bottom: var(--e2); }
+.fusion ul { margin: 0; padding-left: var(--e5); }
+.fusion li { margin-bottom: 2px; }

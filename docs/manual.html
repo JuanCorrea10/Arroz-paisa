@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cómo usar Arroz Paisa</title>
+<link rel="stylesheet" href="../css/fuentes.css">
+<style>
+  :root {
+    --verde-hondo: #123c29; --verde: #23684a; --verde-claro: #dfeee5;
+    --achiote: #bc4318; --rojo: #a41e12; --rojo-claro: #fbe3e0;
+    --amarillo-claro: #fdf1d8; --tinta: #16211b; --tinta-suave: #6d7d74;
+    --borde: #cfdbcb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2rem 1.25rem 4rem;
+    background: #e9efe6; color: var(--tinta);
+    font-family: "Asap", "Segoe UI", system-ui, sans-serif;
+    font-size: 17px; line-height: 1.6;
+  }
+  .hoja { max-width: 760px; margin: 0 auto; background: #fff;
+          padding: 2.5rem 2.75rem 3rem; border-radius: 10px;
+          box-shadow: 0 2px 14px rgba(18,60,41,.09); }
+  h1, h2, h3 { font-family: "Familjen Grotesk", "Segoe UI", system-ui, sans-serif;
+               line-height: 1.15; margin: 0; }
+  h1 { font-size: 2.3rem; color: var(--verde-hondo); }
+  .lema { color: var(--tinta-suave); margin: .3rem 0 2rem; font-size: 1.05rem; }
+  h2 { font-size: 1.5rem; color: var(--verde); margin: 2.5rem 0 .3rem;
+       padding-top: 1.2rem; border-top: 2px solid var(--borde); }
+  h3 { font-size: 1.12rem; margin: 1.5rem 0 .3rem; }
+  p { margin: 0 0 .9rem; }
+  ol, ul { margin: 0 0 1rem; padding-left: 1.4rem; }
+  li { margin-bottom: .45rem; }
+  .paso { display: flex; gap: 1rem; align-items: flex-start; margin-bottom: 1.1rem; }
+  .numero { flex: none; width: 34px; height: 34px; border-radius: 50%;
+            background: var(--achiote); color: #fff; font-weight: 700;
+            display: flex; align-items: center; justify-content: center;
+            font-family: "Familjen Grotesk", sans-serif; }
+  .paso p { margin: 0; }
+  .paso strong { display: block; }
+  .caja { border-radius: 0 7px 7px 0; padding: .9rem 1.15rem; margin: 1.2rem 0; }
+  .ojo { background: var(--amarillo-claro); border-left: 5px solid #b47500; }
+  .malo { background: var(--rojo-claro); border-left: 5px solid var(--rojo); }
+  .bien { background: var(--verde-claro); border-left: 5px solid var(--verde); }
+  .caja p:last-child { margin-bottom: 0; }
+  .boton { display: inline-block; background: var(--achiote); color: #fff;
+           padding: 1px 9px; border-radius: 4px; font-weight: 600;
+           font-family: "Familjen Grotesk", sans-serif; font-size: .93em; }
+  .menu-item { background: var(--verde-hondo); color: #fff; padding: 1px 8px;
+               border-radius: 4px; font-weight: 600; font-size: .93em;
+               font-family: "Familjen Grotesk", sans-serif; white-space: nowrap; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .95rem; }
+  th { background: var(--verde-hondo); color: #fff; text-align: left;
+       padding: .5rem .7rem; font-family: "Familjen Grotesk", sans-serif; }
+  td { padding: .5rem .7rem; border-bottom: 1px solid var(--borde); vertical-align: top; }
+  .indice { background: #f4f8f2; border-radius: 8px; padding: 1.1rem 1.4rem; }
+  .indice ol { margin: 0; }
+  .indice a { color: var(--verde); }
+  @media print {
+    body { background: #fff; padding: 0; font-size: 11.5pt; }
+    .hoja { box-shadow: none; padding: 0; max-width: none; }
+    h2 { page-break-after: avoid; }
+    .caja, .paso { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="hoja">
+
+<h1>Arroz Paisa</h1>
+<p class="lema">Cómo llevar el control de los almuerzos. Todo en una página.</p>
+
+<div class="indice">
+  <strong>De un vistazo</strong>
+  <ol>
+    <li><a href="#dia">Lo de todos los días</a></li>
+    <li><a href="#quincena">Lo de cada quincena</a></li>
+    <li><a href="#nombres">Cuando un nombre queda repetido</a></li>
+    <li><a href="#guardado">Dónde quedan guardados los datos</a></li>
+    <li><a href="#problemas">Si algo sale mal</a></li>
+  </ol>
+</div>
+
+<div class="caja bien">
+  <p><strong>Lo primero de todo:</strong> aquí no hay que darle a "guardar".
+  Todo se guarda solo, apenas usted lo escribe. Arriba a la derecha hay una
+  lucecita que dice <strong>Guardado</strong>. Mientras esa lucecita esté
+  verde, todo está en su sitio.</p>
+</div>
+
+<h2 id="dia">1. Lo de todos los días</h2>
+
+<p>Se entra a <span class="menu-item">Registrar el día</span>. Es la pantalla
+con la que se trabaja siempre.</p>
+
+<div class="paso">
+  <span class="numero">1</span>
+  <p><strong>Elija el día</strong>
+  Arriba a la izquierda, en el calendario. El día se pone
+  <em>una sola vez</em> y vale para todo lo que anote después.</p>
+</div>
+
+<div class="paso">
+  <span class="numero">2</span>
+  <p><strong>Elija la empresa</strong>
+  Al lado del día. También una sola vez. De ahí en adelante solo le van a
+  aparecer las personas de esa empresa.</p>
+</div>
+
+<div class="paso">
+  <span class="numero">3</span>
+  <p><strong>Busque a la persona</strong>
+  Escriba las primeras letras del nombre y aparece la lista. No tiene que
+  escribir el nombre completo ni ponerle tildes: escribiendo
+  <em>quinones</em> le sale <em>QUIÑONES</em>.</p>
+</div>
+
+<div class="paso">
+  <span class="numero">4</span>
+  <p><strong>Póngale sus platos</strong>
+  Cada persona queda como un papelito, con todo lo que pidió junto.
+  Almuerzo, gaseosa y postre van en el mismo papelito: eso es
+  <em>una sola factura</em>.</p>
+</div>
+
+<p>Mientras anota, arriba le va mostrando cuántas facturas lleva y cuánto suma
+el día. Eso es lo que después tiene que cuadrar con lo que le diga el
+trabajador.</p>
+
+<h3>Si la persona no aparece en la lista</h3>
+<p>Escriba el nombre y le sale la opción de crearla. Antes de crearla, la app
+le va a mostrar si ya hay <em>alguien parecido</em> en esa empresa, y le
+pregunta si es la misma. <strong>Lea bien esa pregunta</strong>: es la que
+evita que a un empleado le quede el consumo partido en dos.</p>
+
+<h3>Si el plato no está</h3>
+<p>Igual: lo escribe, le sale la opción de crearlo, y le pide el precio.
+El precio se guarda para la próxima.</p>
+
+<div class="caja ojo">
+  <p><strong>Por qué no se puede escribir cualquier cosa.</strong> Las personas
+  y los platos solo se pueden elegir de la lista. En el Excel viejo, cuando se
+  escribía un plato que no estaba, ese renglón entraba en $ 0 a la cuenta de
+  cobro <em>y además no aparecía en la Cocina</em>, o sea que ese plato ni se
+  preparaba. Y nadie se enteraba.</p>
+</div>
+
+<h3>En la mañana: la Cocina</h3>
+<p>En <span class="menu-item">Cocina</span> sale cuánto hay que preparar de
+cada plato ese día, en columnas por empresa. Se imprime o se manda por
+WhatsApp con el botón <span class="boton">Bajar PDF</span>.</p>
+
+<h3>Al final del día</h3>
+<p>En <span class="menu-item">Resumen del día</span> sale lo del día con los
+totales, que es lo que se le manda a cada empresa.</p>
+
+<h2 id="quincena">2. Lo de cada quincena</h2>
+
+<div class="caja ojo">
+  <p><strong>Mire siempre el mes de arriba.</strong> Al lado del menú hay dos
+  casillas con el mes y el año. Todo lo que ve en los informes es de ese mes.
+  Si en septiembre quiere revisar agosto, cambie ahí el mes.</p>
+</div>
+
+<h3>Cuadrar las facturas</h3>
+<p>En <span class="menu-item">Cuadre</span> hay una fila por cada día del mes.
+Usted escribe cuántas facturas le dijo el trabajador, y la app le dice cuántas
+tiene registradas y de a cuántas está la diferencia. Verde es que cuadra,
+rojo es que no.</p>
+
+<h3>La cuenta de cobro</h3>
+<p>En <span class="menu-item">Cuenta de cobro</span> elige la empresa y la
+quincena, y sale el documento listo, con el NIT y el total. El botón
+<span class="boton">Bajar PDF</span> lo deja en Descargas.</p>
+
+<table>
+  <tr><th>Empresa</th><th>Quincena 1</th><th>Quincena 2</th></tr>
+  <tr><td>MGP</td><td>del 1 al 13</td><td>del 14 a fin de mes</td></tr>
+  <tr><td>AGRO, PUNTERAS, BASARILI</td><td>del 1 al 14</td><td>del 15 a fin de mes</td></tr>
+</table>
+
+<h3>Mandarle la información a las empresas</h3>
+<p>En <span class="menu-item">Compartir</span>, cada empresa tiene su botón
+<span class="boton">Bajar el archivo para mandar</span>. Ese archivo se manda
+por WhatsApp o por correo, y el supervisor lo abre con doble clic: ve el día a
+día, el consumo de cada persona y los totales de las dos quincenas.</p>
+
+<div class="caja bien">
+  <p><strong>Puede mandarlo tranquila.</strong> El archivo de cada empresa
+  lleva adentro <em>únicamente</em> los datos de esa empresa. No es que se los
+  esconda: es que los de las otras no están ahí. Y no se puede editar.</p>
+  <p>Si quiere estar segura, el botón <span class="boton">Ver primero qué
+  lleva</span> se lo muestra tal como lo va a ver el supervisor, antes de
+  mandarlo.</p>
+</div>
+
+<h2 id="nombres">3. Cuando un nombre queda repetido</h2>
+
+<p>Pasa que la misma persona queda anotada de dos formas: <em>LUZ MIRANDA</em>
+y <em>LUZ DARY MIRANDA</em>. Cuando pasa eso, su consumo aparece partido en
+dos y ninguna de las dos cuenta bien.</p>
+
+<p>Para eso está <span class="menu-item">Ajustes</span> →
+<strong>Revisar nombres</strong>. Ahí le salen los que se parecen, uno por
+uno. Usted marca cuál es el nombre bueno y le da a
+<span class="boton">Unir en el que marqué</span>. Antes de hacer nada le
+muestra cuántos renglones se van a mover.</p>
+
+<div class="caja bien">
+  <p><strong>Unir no cambia ni un peso.</strong> Los renglones son los mismos:
+  solo cambian de dueño. El total del mes queda igual.</p>
+</div>
+
+<h3>Dos personas con el mismo nombre NO es un error</h3>
+<p>Hay 79 nombres que existen en dos empresas a la vez, casi todos entre AGRO
+y BASARILI, que son sedes vecinas. <strong>Son personas distintas que se
+llaman igual.</strong> La app nunca las junta, ni aunque usted se lo pida.</p>
+
+<h3>Lo mejor: la lista de la empresa</h3>
+<p>Cuando una empresa le mande su lista de empleados, métala en
+<strong>Revisar nombres</strong>, en el botón
+<span class="boton">Traer lista</span>. Con esa lista la app ya no adivina:
+sabe quién es quién por el documento.</p>
+<p>Así aparecen repetidos que por el nombre son imposibles de ver. En MGP
+salió que <em>LEIDY OROZCO</em> y <em>VALENTINA OSPITIA</em> eran la misma
+señora: se llama OROZCO OSPITIA LEIDY VALENTINA, y a veces la anotaban por un
+apellido y a veces por el otro.</p>
+<p>De cada documento la app guarda solo los últimos 5 números, y ese dato no
+sale en las cuentas de cobro ni en lo que se le manda a las empresas.</p>
+
+<h2 id="guardado">4. Dónde quedan guardados los datos</h2>
+
+<p>En dos sitios a la vez, a propósito:</p>
+<ul>
+  <li><strong>Dentro del navegador.</strong> Es instantáneo. Pero si alguien
+  le da a "limpiar el caché", se borra.</li>
+  <li><strong>En una carpeta del computador</strong>, que usted elige una sola
+  vez en <span class="menu-item">Ajustes</span> → Datos y respaldos. Ahí queda
+  un archivo siempre al día, y una copia con la fecha de cada día.</li>
+</ul>
+
+<div class="caja ojo">
+  <p><strong>Conecte la carpeta el primer día.</strong> Y si puede, elija una
+  que esté dentro de OneDrive: así los datos quedan además guardados en
+  internet, sin que usted tenga que hacer nada.</p>
+</div>
+
+<p>Además, una vez por semana entre a Datos y respaldos y déle a
+<span class="boton">Bajar un respaldo ahora</span>. Ese archivo lo puede
+mandar a su propio correo. Es el paracaídas: con él vuelve todo, aunque se
+dañe el computador.</p>
+
+<h2 id="problemas">5. Si algo sale mal</h2>
+
+<table>
+  <tr><th>Qué ve</th><th>Qué hacer</th></tr>
+  <tr>
+    <td>La lucecita de arriba dice <strong>No se pudo guardar</strong></td>
+    <td>Baje un respaldo de una, desde Datos y respaldos. No siga anotando
+        hasta que vuelva a decir Guardado.</td>
+  </tr>
+  <tr>
+    <td>Sale <strong>"Se dañó esta pantalla"</strong></td>
+    <td>Sus datos están completos. Entre a otra pantalla del menú. Si sigue,
+        cierre y vuelva a abrir.</td>
+  </tr>
+  <tr>
+    <td>Renglones marcados en rojo</td>
+    <td>Entre a Datos y respaldos, abajo dice cuántos son, qué les falta y
+        cómo se arregla cada uno.</td>
+  </tr>
+  <tr>
+    <td>Un plato aparece en $ 0</td>
+    <td>Es que no tiene precio en esa empresa. Se lo pone en
+        <span class="menu-item">Ajustes</span> → Catálogo.</td>
+  </tr>
+  <tr>
+    <td>Se quedó en <strong>"Abriendo…"</strong></td>
+    <td>Cierre las otras pestañas de la app y vuelva a entrar. El navegador no
+        deja abrir los datos dos veces al tiempo.</td>
+  </tr>
+</table>
+
+<div class="caja malo">
+  <p><strong>Lo único que no tiene arreglo</strong> es borrar todo y no tener
+  respaldo. Por eso la app le baja un respaldo sola antes de cualquier cosa
+  peligrosa. Guárdelos.</p>
+</div>
+
+<p style="margin-top:2.5rem;color:var(--tinta-suave);font-size:.93rem;
+          border-top:2px solid var(--borde);padding-top:1rem">
+  Hecho para Arroz Paisa, Ibagué. Si algo no se entiende, eso es culpa del
+  manual y no suya: dígalo y se cambia.
+</p>
+
+</div>
+</body>
+</html>

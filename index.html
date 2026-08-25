@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14402c">
+<meta name="color-scheme" content="light">
+<title>Arroz Paisa — Control de almuerzos</title>
+
+<link rel="stylesheet" href="css/fuentes.css">
+<link rel="stylesheet" href="css/estilos.css">
+<link rel="stylesheet" href="css/pantallas.css">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%2314402c'/><text x='16' y='23' font-size='19' text-anchor='middle' fill='%23e8c34a' font-family='Georgia,serif'>A</text></svg>">
+
+<!--
+  Las tres librerías van aquí, en el HTML, y no dentro del JavaScript:
+  así quedan disponibles como window.XLSX y window.jspdf para todo el mundo.
+  Son copias guardadas en la carpeta vendor/ a propósito. Si las cargáramos de
+  internet, el día que no haya internet la app dejaría de exportar.
+-->
+<script src="vendor/xlsx.full.min.js"></script>
+<script src="vendor/jspdf.umd.min.js"></script>
+<script src="vendor/jspdf.plugin.autotable.min.js"></script>
+</head>
+
+<body>
+
+<a class="salto-al-contenido" href="#pantalla">Saltar al contenido</a>
+
+<header class="barra">
+  <div class="barra-fila">
+    <div class="marca">Arroz Paisa <span>Ibagué</span></div>
+
+    <nav class="menu" id="menu" aria-label="Pantallas"></nav>
+
+    <div class="periodo" id="periodo"></div>
+
+    <div class="guardado" id="guardado" data-estado="bien" role="status" aria-live="polite">
+      Abriendo…
+    </div>
+  </div>
+</header>
+
+<main class="hoja" id="pantalla" tabindex="-1">
+  <p class="cargando">Abriendo sus datos…</p>
+</main>
+
+<!-- Los mensajitos de la esquina de abajo. -->
+<div class="mensajes" id="mensajes" aria-live="polite"></div>
+
+<noscript>
+  <div class="hoja">
+    <section class="tarjeta con-problemas">
+      <h1>Hay que prender JavaScript</h1>
+      <p>Esta app necesita JavaScript para funcionar. En Chrome está en
+         Configuración → Privacidad y seguridad → Configuración de sitios → JavaScript.</p>
+    </section>
+  </div>
+</noscript>
+
+<script type="module" src="js/app.js"></script>
+
+<script>
+  // Si el navegador es muy viejo y no entiende módulos, el script de arriba ni
+  // se ejecuta y la página se queda en "Abriendo…" para siempre. Esto lo
+  // detecta y lo explica, en vez de dejarla mirando una pantalla pegada.
+  window.addEventListener("load", function () {
+    setTimeout(function () {
+      var main = document.getElementById("pantalla");
+      if (main && main.querySelector(".cargando")) {
+        main.innerHTML =
+          '<section class="tarjeta con-problemas">' +
+          '<h1>No se pudo abrir</h1>' +
+          '<p>Puede ser que el navegador esté muy viejo, o que el archivo se haya ' +
+          'abierto con doble clic en vez de desde su dirección de internet.</p>' +
+          '<p>Pruebe con Google Chrome o con Microsoft Edge.</p>' +
+          '</section>';
+      }
+    }, 8000);
+  });
+</script>
+
+</body>
+</html>

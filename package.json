@@ -1,0 +1,11 @@
+{
+  "name": "arroz-paisa",
+  "version": "1.0.0",
+  "description": "Control de almuerzos y cuentas de cobro de Arroz Paisa, Ibague",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "probar": "node tests/correr.mjs",
+    "servir": "py -3 servidor.py"
+  }
+}

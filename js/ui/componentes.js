@@ -1,0 +1,356 @@
+// ============================================================================
+//  componentes.js  -  Los ladrillos con los que se arman todas las pantallas.
+// ============================================================================
+
+import { coincide, pesos } from "../nucleo/formato.js";
+
+/**
+ * Crea un elemento. Es la función más usada de todo el proyecto.
+ *
+ *   el("button", { clase: "principal", alHacerClic: guardar }, "Guardar")
+ *
+ * Usa "clase" y no "class" porque class es palabra reservada de JavaScript.
+ */
+export function el(etiqueta, props = {}, ...hijos) {
+  const nodo = document.createElement(etiqueta);
+  for (const [llave, valor] of Object.entries(props || {})) {
+    if (valor === null || valor === undefined || valor === false) continue;
+    if (llave === "clase") nodo.className = valor;
+    else if (llave === "texto") nodo.textContent = valor;
+    else if (llave === "html") nodo.innerHTML = valor;
+    else if (llave === "alHacerClic") nodo.addEventListener("click", valor);
+    else if (llave === "alCambiar") nodo.addEventListener("change", valor);
+    else if (llave === "alEscribir") nodo.addEventListener("input", valor);
+    else if (llave === "alTeclear") nodo.addEventListener("keydown", valor);
+    else if (llave === "datos") for (const [k, v] of Object.entries(valor)) nodo.dataset[k] = v;
+    else if (llave === "estilo") nodo.setAttribute("style", valor);
+    else if (llave in nodo && typeof nodo[llave] !== "object") nodo[llave] = valor;
+    else nodo.setAttribute(llave, valor);
+  }
+  for (const hijo of hijos.flat(3)) {
+    if (hijo === null || hijo === undefined || hijo === false) continue;
+    nodo.append(hijo instanceof Node ? hijo : document.createTextNode(String(hijo)));
+  }
+  return nodo;
+}
+
+export function vaciar(nodo) {
+  while (nodo.firstChild) nodo.removeChild(nodo.firstChild);
+  return nodo;
+}
+
+// ---------------------------------------------------------------------------
+//  Mensajitos de esquina
+// ---------------------------------------------------------------------------
+
+export function mensaje(texto, tipo = "bien", segundos = 4) {
+  const caja = document.getElementById("mensajes");
+  if (!caja) return;
+  const m = el("div", { clase: `mensaje ${tipo}`, role: "status", texto });
+  caja.append(m);
+  setTimeout(() => {
+    m.style.transition = "opacity .3s";
+    m.style.opacity = "0";
+    setTimeout(() => m.remove(), 320);
+  }, segundos * 1000);
+}
+
+// ---------------------------------------------------------------------------
+//  Ventanas
+// ---------------------------------------------------------------------------
+
+/** Una ventana con título, contenido y botones. Devuelve la ventana abierta. */
+export function ventana({ titulo, cuerpo, botones = [], alCerrar }) {
+  const dialogo = el("dialog");
+  const pie = el("div", { clase: "ventana-pie" });
+  for (const b of botones) {
+    pie.append(
+      el("button", {
+        clase: b.clase || "",
+        type: "button",
+        alHacerClic: () => {
+          const seguir = b.alHacerClic ? b.alHacerClic(dialogo) : true;
+          if (seguir !== false) cerrar();
+        },
+      }, b.texto)
+    );
+  }
+  const contenido = el("div", { clase: "ventana-cuerpo" },
+    el("h3", { texto: titulo }),
+    cuerpo,
+    botones.length ? pie : null
+  );
+  dialogo.append(contenido);
+  document.body.append(dialogo);
+
+  function cerrar() {
+    dialogo.close();
+    dialogo.remove();
+    if (alCerrar) alCerrar();
+  }
+  dialogo.addEventListener("cancel", (e) => { e.preventDefault(); cerrar(); });
+  dialogo.showModal();
+  const primero = dialogo.querySelector("input, select, textarea, button");
+  if (primero) setTimeout(() => primero.focus(), 30);
+  return { dialogo, cerrar };
+}
+
+/** Pregunta sí o no. Devuelve una promesa con true o false. */
+export function confirmar({ titulo, mensaje: texto, siTexto = "Sí, hacerlo", noTexto = "Cancelar", peligroso = false }) {
+  return new Promise((resolver) => {
+    let respuesta = false;
+    ventana({
+      titulo,
+      cuerpo: el("p", { texto }),
+      botones: [
+        { texto: noTexto, alHacerClic: () => { respuesta = false; } },
+        { texto: siTexto, clase: peligroso ? "peligro" : "principal", alHacerClic: () => { respuesta = true; } },
+      ],
+      alCerrar: () => resolver(respuesta),
+    });
+  });
+}
+
+/**
+ * Un formulario en una ventana.
+ * campos = [{ nombre, etiqueta, tipo, valor, opciones, requerido, ayuda }]
+ * Devuelve una promesa con { nombre: valor } o null si canceló.
+ */
+export function pedirDatos({ titulo, campos, textoAceptar = "Guardar" }) {
+  return new Promise((resolver) => {
+    const nodos = {};
+    const errorGeneral = el("p", { clase: "nota malo oculto" });
+    const cuerpo = el("div", { clase: "rejilla" }, errorGeneral);
+
+    for (const c of campos) {
+      let entrada;
+      if (c.tipo === "seleccion") {
+        entrada = el("select", {},
+          ...(c.opciones || []).map((o) =>
+            el("option", { value: o.valor, selected: String(o.valor) === String(c.valor ?? "") }, o.texto)
+          )
+        );
+      } else if (c.tipo === "casilla") {
+        entrada = el("input", { type: "checkbox", checked: c.valor !== false, estilo: "width:auto;min-height:auto" });
+      } else {
+        entrada = el("input", { type: c.tipo || "text", value: c.valor ?? "" });
+        if (c.tipo === "number") { entrada.min = c.min ?? 0; entrada.step = c.step ?? 1; }
+      }
+      entrada.id = "campo-" + c.nombre;
+      nodos[c.nombre] = entrada;
+      cuerpo.append(
+        el("div", { clase: "campo" },
+          el("label", { for: entrada.id, texto: c.etiqueta }),
+          entrada,
+          c.ayuda ? el("small", { estilo: "color:var(--tinta-suave)", texto: c.ayuda }) : null
+        )
+      );
+    }
+
+    let resultado = null;
+    const { cerrar } = ventana({
+      titulo,
+      cuerpo,
+      botones: [
+        { texto: "Cancelar", alHacerClic: () => { resultado = null; } },
+        {
+          texto: textoAceptar,
+          clase: "principal",
+          alHacerClic: () => {
+            const valores = {};
+            let malo = null;
+            for (const c of campos) {
+              const nodo = nodos[c.nombre];
+              const v = c.tipo === "casilla" ? nodo.checked : nodo.value.trim();
+              if (c.requerido && (v === "" || v === null)) {
+                malo = malo || `Falta llenar "${c.etiqueta}".`;
+                nodo.setAttribute("aria-invalid", "true");
+              } else {
+                nodo.removeAttribute("aria-invalid");
+              }
+              valores[c.nombre] = v;
+            }
+            if (malo) {
+              errorGeneral.textContent = malo;
+              errorGeneral.classList.remove("oculto");
+              return false; // no cerrar
+            }
+            resultado = valores;
+          },
+        },
+      ],
+      alCerrar: () => resolver(resultado),
+    });
+    // Enter dentro de un campo = aceptar.
+    cuerpo.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") {
+        e.preventDefault();
+        cuerpo.parentElement.querySelector(".ventana-pie button:last-child").click();
+      }
+    });
+    void cerrar;
+  });
+}
+
+// ---------------------------------------------------------------------------
+//  El buscador con lista
+//
+//  Es el componente más importante de la app: es como se eligen las personas
+//  (hasta 217 en una empresa) y los platos (75). Reglas:
+//   - solo se puede elegir de la lista, nunca escribir libre;
+//   - se filtra escribiendo, sin importar tildes;
+//   - si lo que escribió no existe, ofrece crearlo ahí mismo;
+//   - funciona con el teclado (flechas y Enter) y con el dedo.
+// ---------------------------------------------------------------------------
+
+export function buscador({
+  etiqueta,
+  placeholder = "Escriba para buscar...",
+  opciones = [],
+  alElegir,
+  alCrear = null,
+  textoCrear = (t) => `Crear "${t}"`,
+  id = "buscador-" + Math.random().toString(36).slice(2, 8),
+}) {
+  let lista = opciones;
+  let resaltado = -1;
+  let visibles = [];
+
+  const entrada = el("input", {
+    type: "text",
+    id,
+    placeholder,
+    autocomplete: "off",
+    role: "combobox",
+    "aria-expanded": "false",
+    "aria-autocomplete": "list",
+    "aria-controls": id + "-lista",
+  });
+
+  const ul = el("ul", { clase: "buscador-lista oculto", id: id + "-lista", role: "listbox" });
+  const caja = el("div", { clase: "buscador" }, entrada, ul);
+  const contenedor = el("div", { clase: "campo" },
+    etiqueta ? el("label", { for: id, texto: etiqueta }) : null,
+    caja
+  );
+
+  function opcionesVisibles() {
+    const texto = entrada.value.trim();
+    const encontradas = lista.filter((o) => coincide(o.texto, texto));
+    const hayExacta = lista.some((o) => o.texto.toUpperCase() === texto.toUpperCase());
+    const items = encontradas.slice(0, 60).map((o) => ({ tipo: "opcion", ...o }));
+    if (alCrear && texto.length >= 2 && !hayExacta) {
+      items.push({ tipo: "crear", texto, valor: texto });
+    }
+    return items;
+  }
+
+  function pintar() {
+    visibles = opcionesVisibles();
+    vaciar(ul);
+    if (!visibles.length) {
+      ul.append(el("li", { estilo: "color:var(--tinta-suave);cursor:default", texto: "No hay nada con ese nombre." }));
+    }
+    visibles.forEach((o, i) => {
+      ul.append(
+        el("li", {
+          role: "option",
+          clase: o.tipo === "crear" ? "crear" : "",
+          "aria-selected": String(i === resaltado),
+          alHacerClic: () => elegir(i),
+        },
+          el("span", { texto: o.tipo === "crear" ? textoCrear(o.texto) : o.texto }),
+          o.apunte ? el("span", { clase: "apunte", texto: o.apunte }) : null
+        )
+      );
+    });
+    ul.classList.remove("oculto");
+    entrada.setAttribute("aria-expanded", "true");
+    const activo = ul.children[resaltado];
+    if (activo) activo.scrollIntoView({ block: "nearest" });
+  }
+
+  function ocultar() {
+    ul.classList.add("oculto");
+    entrada.setAttribute("aria-expanded", "false");
+    resaltado = -1;
+  }
+
+  function elegir(i) {
+    const o = visibles[i];
+    if (!o) return;
+    if (o.tipo === "crear") {
+      ocultar();
+      alCrear(o.texto);
+      return;
+    }
+    entrada.value = "";
+    ocultar();
+    alElegir(o.valor, o);
+  }
+
+  entrada.addEventListener("input", () => { resaltado = visibles.length ? 0 : -1; pintar(); });
+  entrada.addEventListener("focus", () => { resaltado = -1; pintar(); });
+  entrada.addEventListener("blur", () => setTimeout(ocultar, 180));
+  entrada.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); resaltado = Math.min(resaltado + 1, visibles.length - 1); pintar(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); resaltado = Math.max(resaltado - 1, 0); pintar(); }
+    else if (e.key === "Enter") {
+      e.preventDefault();
+      if (resaltado >= 0) elegir(resaltado);
+      else if (visibles.length === 1) elegir(0);
+    } else if (e.key === "Escape") { ocultar(); entrada.blur(); }
+  });
+
+  return {
+    nodo: contenedor,
+    entrada,
+    enfocar: () => entrada.focus(),
+    limpiar: () => { entrada.value = ""; ocultar(); },
+    cambiarOpciones: (nuevas) => { lista = nuevas; if (document.activeElement === entrada) pintar(); },
+  };
+}
+
+// ---------------------------------------------------------------------------
+//  Pedacitos que se repiten
+// ---------------------------------------------------------------------------
+
+/** Un color estable por empresa: el mismo código siempre da el mismo color. */
+const COLORES_CINTA = ["#23684a", "#bc4318", "#1c5878", "#7a4a86", "#8a6a12", "#0e6f6f", "#a03360"];
+export function colorDeEmpresa(codigo) {
+  let n = 0;
+  for (const c of String(codigo || "")) n = (n * 31 + c.charCodeAt(0)) % 100000;
+  return COLORES_CINTA[n % COLORES_CINTA.length];
+}
+
+export function cinta(codigo) {
+  return el("span", { clase: "cinta", estilo: `background:${colorDeEmpresa(codigo)}`, texto: codigo || "?" });
+}
+
+export function cifra(titulo, valor, destacada = false) {
+  return el("div", { clase: "cifra" + (destacada ? " destacada" : "") },
+    el("dt", { texto: titulo }),
+    el("dd", { texto: valor })
+  );
+}
+
+export function cifraPlata(titulo, valor, destacada = false) {
+  return cifra(titulo, pesos(valor), destacada);
+}
+
+export function vacio(titulo, explicacion) {
+  return el("div", { clase: "vacio" }, el("strong", { texto: titulo }), explicacion);
+}
+
+/** Tabla con encabezados. columnas = [{titulo, clase}] */
+export function tabla(columnas, filas, pie = null) {
+  const thead = el("thead", {}, el("tr", {}, ...columnas.map((c) => el("th", { clase: c.clase || "", texto: c.titulo }))));
+  const tbody = el("tbody", {}, ...filas);
+  const t = el("table", {}, thead, tbody, pie ? el("tfoot", {}, pie) : null);
+  return el("div", { clase: "marco-tabla" }, t);
+}
+
+/** Botón que descarga o imprime, para las pantallas de informes. */
+export function acciones(...botones) {
+  return el("div", { clase: "acciones fila no-imprimir" }, ...botones.filter(Boolean));
+}

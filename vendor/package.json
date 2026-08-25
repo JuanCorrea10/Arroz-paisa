@@ -1,0 +1,4 @@
+{
+  "//": "Estas librerias de terceros son CommonJS. Este archivito le avisa a Node para que las cargue bien al correr las pruebas. El navegador lo ignora.",
+  "type": "commonjs"
+}

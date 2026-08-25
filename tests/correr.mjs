@@ -1,0 +1,8 @@
+// Corre todas las pruebas en Node.  Uso:  npm run probar
+// (Si no hay Node instalado, se abre tests/pruebas.html en el navegador.)
+import "./calculos.test.mjs";
+import "./nombres.test.mjs";
+import "./personal.test.mjs";
+import "./aceptacion.test.mjs";
+import { correrTodo } from "./probar.mjs";
+await correrTodo();

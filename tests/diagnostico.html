@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<title>Diagnóstico — Arroz Paisa</title>
+<script src="../vendor/xlsx.full.min.js"></script>
+<script src="../vendor/jspdf.umd.min.js"></script>
+<script src="../vendor/jspdf.plugin.autotable.min.js"></script>
+<style>
+  body { font-family: system-ui, sans-serif; padding: 1.5rem; background: #e9efe6; }
+  ul { list-style: none; padding: 0; }
+  li { font-family: ui-monospace, Consolas, monospace; margin: .15rem 0; font-size: .9rem; }
+  .ok { color: #23684a; } .mal { color: #a41e12; font-weight: 700; }
+  .lento { color: #b47500; font-weight: 700; }
+  pre { background: #fff; padding: .7rem; overflow-x: auto; font-size: .8rem; }
+  iframe { width: 1200px; height: 700px; border: 1px solid #ccc; }
+</style>
+</head>
+<body>
+<h1>Diagnóstico de arranque</h1>
+<p>
+  Abre la app con los datos de verdad del Excel y recorre TODAS las pantallas,
+  para ver si alguna se revienta o se pone lenta.
+</p>
+<ul id="pasos"></ul>
+<pre id="detalle"></pre>
+
+<script type="module">
+const pasos = document.getElementById("pasos");
+const detalle = document.getElementById("detalle");
+
+function anotar(texto, estado = "ok") {
+  const li = document.createElement("li");
+  li.className = estado;
+  const marca = { ok: "OK   ", mal: "MAL  ", lento: "LENTO" }[estado] || "     ";
+  li.textContent = marca + " " + texto;
+  pasos.append(li);
+}
+
+const esperar = (ms) => new Promise((listo) => setTimeout(listo, ms));
+
+try {
+  // ---- 1. Traer el Excel de verdad y meterlo en el navegador --------------
+  const { hojasDesdeArchivo } = await import("../js/datos/excel.js");
+  const { importar } = await import("../js/nucleo/importador.js");
+  const almacen = await import("../js/datos/almacen.js");
+
+  const respuesta = await fetch("datos/ARROZ_PAISA_CONTROL.xlsx");
+  const bytes = new Uint8Array(await respuesta.arrayBuffer());
+  const { datos, resumen } = importar(await hojasDesdeArchivo(bytes));
+  anotar(`Excel leído: ${resumen.renglones} renglones, ${resumen.personas} personas, ` +
+         `${resumen.productos} platos`);
+
+  almacen.guardar(datos);
+  await almacen.guardarYa();
+  anotar("datos guardados en el navegador");
+
+  // ---- 2. Medir las cuentas pesadas --------------------------------------
+  const { gruposParaRevisar, nombresSucios } = await import("../js/nucleo/nombres.js");
+
+  let t0 = performance.now();
+  const grupos = gruposParaRevisar(datos);
+  let ms = Math.round(performance.now() - t0);
+  anotar(`gruposParaRevisar(): ${grupos.length} grupos en ${ms} ms`, ms > 1500 ? "lento" : "ok");
+
+  t0 = performance.now();
+  const sucios = nombresSucios(datos);
+  ms = Math.round(performance.now() - t0);
+  anotar(`nombresSucios(): ${sucios.length} sucios en ${ms} ms`, ms > 500 ? "lento" : "ok");
+
+  // Un vistazo a lo que encontró, que es lo que le va a salir a ella.
+  for (const g of grupos.slice(0, 6)) {
+    anotar(`   ${g.empresa}: ${g.integrantes.map((i) => i.nombre).join("  |  ")}  (${g.razon})`);
+  }
+  if (grupos.length > 6) anotar(`   ...y ${grupos.length - 6} grupos más`);
+
+  // ---- 3. Abrir la app entera y recorrer todas las pantallas --------------
+  const marco = document.createElement("iframe");
+  marco.src = "../index.html";
+  document.body.append(marco);
+  await new Promise((listo) => {
+    marco.addEventListener("load", listo, { once: true });
+    setTimeout(listo, 15000);
+  });
+  await esperar(3000);
+
+  const doc = marco.contentDocument;
+  const pantalla = () => doc.getElementById("pantalla");
+
+  const menu = doc.getElementById("menu");
+  anotar(`el menú tiene ${menu.children.length} enlaces`,
+         menu.children.length === 8 ? "ok" : "mal");
+
+  if (pantalla().querySelector(".cargando")) {
+    anotar("la app se quedó pegada en 'Abriendo...'", "mal");
+  }
+
+  // Todas las pantallas, incluidas las que viven dentro de Ajustes.
+  const TODAS = [
+    "#registrar", "#cocina", "#resumen", "#persona", "#cobro", "#cuadre",
+    "#compartir", "#ajustes", "#personas", "#nombres", "#catalogo",
+    "#empresas", "#datos",
+  ];
+
+  for (const destino of TODAS) {
+    const inicio = performance.now();
+    marco.contentWindow.location.hash = destino;
+    await esperar(150);
+    // Esperamos a que aparezca un h1, hasta 6 segundos.
+    let intentos = 0;
+    while (!pantalla().querySelector("h1") && intentos < 60) {
+      await esperar(100);
+      intentos++;
+    }
+    const tardo = Math.round(performance.now() - inicio);
+
+    const roto = !!pantalla().querySelector(".con-problemas h1");
+    const h1 = pantalla().querySelector("h1");
+    const filas = pantalla().querySelectorAll("tbody tr").length;
+
+    const estado = roto ? "mal" : (tardo > 2500 ? "lento" : "ok");
+    anotar(`${destino.padEnd(11)} ${String(tardo).padStart(5)} ms  ` +
+           `${filas ? String(filas).padStart(4) + " filas  " : "          "}` +
+           (roto ? "SE REVENTÓ" : (h1 ? h1.textContent : "sin título")), estado);
+
+    if (roto && !detalle.textContent) {
+      detalle.textContent = destino + "\n\n" +
+        (pantalla().querySelector("pre")?.textContent || "(sin detalle)");
+    }
+  }
+
+  marco.remove();
+  anotar("recorrido terminado");
+} catch (error) {
+  anotar(String(error && error.message || error), "mal");
+  detalle.textContent = String(error && error.stack || error);
+}
+
+// Le mandamos el resultado al servidor para poder revisarlo sin mirar la
+// pantalla. Si el servidor no está, se ve aquí y ya.
+try {
+  await fetch("/diagnostico", {
+    method: "POST",
+    body: [...pasos.children].map((li) => li.textContent).join("\n") +
+          (detalle.textContent ? "\n\nDETALLE:\n" + detalle.textContent : ""),
+  });
+} catch { /* sin servidor no pasa nada */ }
+</script>
+</body>
+</html>

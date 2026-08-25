@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pruebas — Arroz Paisa</title>
+
+<!-- La librería de Excel: la prueba de aceptación lee el archivo de verdad. -->
+<script src="../vendor/xlsx.full.min.js"></script>
+
+<style>
+  :root { --verde: #23684a; --rojo: #a41e12; --tinta: #16211b; }
+  body {
+    margin: 0; padding: 1.5rem;
+    background: #e9efe6; color: var(--tinta);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    font-size: 16px; line-height: 1.5;
+  }
+  .hoja { max-width: 900px; margin: 0 auto; }
+  h1 { margin: 0 0 .25rem; font-size: 1.9rem; }
+  .sub { color: #6d7d74; margin: 0 0 1.5rem; }
+  #marcador {
+    position: sticky; top: 0; z-index: 5;
+    padding: 1rem 1.25rem; border-radius: 8px; margin-bottom: 1.25rem;
+    font-size: 1.25rem; font-weight: 700; color: #fff; background: #6d7d74;
+    box-shadow: 0 2px 10px rgba(18,60,41,.15);
+  }
+  #marcador.bien { background: var(--verde); }
+  #marcador.mal  { background: var(--rojo); }
+  .grupo { background: #fff; border-radius: 8px; padding: .5rem 1.25rem 1rem;
+           margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(18,60,41,.09); }
+  .grupo h2 { font-size: 1.05rem; margin: .9rem 0 .5rem; color: var(--verde); }
+  .p { display: flex; gap: .6rem; align-items: baseline; padding: .18rem 0;
+       border-top: 1px solid #eef2ec; font-size: .93rem; }
+  .marca { font-weight: 700; font-family: ui-monospace, Consolas, monospace; flex: none; }
+  .ok  .marca { color: var(--verde); }
+  .mal .marca { color: var(--rojo); }
+  .mal { background: #fbe3e0; margin: 0 -1.25rem; padding: .18rem 1.25rem; }
+  pre { margin: .3rem 0 .3rem 2rem; padding: .6rem .8rem; background: #fff5f4;
+        border-left: 3px solid var(--rojo); font-size: .85rem;
+        white-space: pre-wrap; overflow-x: auto; }
+  .nota { color: #6d7d74; font-size: .9rem; }
+  code { background: #f4f8f2; padding: 1px 5px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="hoja">
+  <h1>Pruebas de Arroz Paisa</h1>
+  <p class="sub">
+    Si todo sale verde, la app hace bien las cuentas y no daña los nombres.
+    Si algo sale rojo, <strong>no se puede usar</strong> hasta arreglarlo.
+  </p>
+
+  <div id="marcador">Corriendo las pruebas…</div>
+  <div id="salida"></div>
+
+  <p class="nota">
+    Esta página existe porque en este computador no hay Node instalado.
+    El día que se instale, las mismas pruebas corren con <code>npm run probar</code>.
+  </p>
+</div>
+
+<script type="module">
+  const marcador = document.getElementById("marcador");
+  const salida = document.getElementById("salida");
+
+  try {
+    // El orden importa: primero se cargan las pruebas (que se van apuntando
+    // solas en una lista) y solo al final se corren todas juntas.
+    await import("./calculos.test.mjs");
+    await import("./nombres.test.mjs");
+    await import("./personal.test.mjs");
+    await import("./aceptacion.test.mjs");
+
+    const { correrYDevolver } = await import("./probar.mjs");
+    const resultados = await correrYDevolver();
+
+    const pasaron = resultados.filter((r) => r.paso).length;
+    const fallaron = resultados.length - pasaron;
+
+    marcador.className = fallaron ? "mal" : "bien";
+    marcador.textContent = fallaron
+      ? `FALLARON ${fallaron} de ${resultados.length} pruebas`
+      : `TODO BIEN — pasaron las ${pasaron} pruebas`;
+
+    let grupoActual = null;
+    let caja = null;
+    for (const r of resultados) {
+      if (r.grupo !== grupoActual) {
+        grupoActual = r.grupo;
+        caja = document.createElement("div");
+        caja.className = "grupo";
+        const h = document.createElement("h2");
+        h.textContent = grupoActual || "(sin grupo)";
+        caja.append(h);
+        salida.append(caja);
+      }
+      const fila = document.createElement("div");
+      fila.className = "p " + (r.paso ? "ok" : "mal");
+      const marca = document.createElement("span");
+      marca.className = "marca";
+      marca.textContent = r.paso ? "OK " : "MAL";
+      const texto = document.createElement("span");
+      texto.textContent = r.nombre;
+      fila.append(marca, texto);
+      caja.append(fila);
+
+      if (!r.paso) {
+        const detalle = document.createElement("pre");
+        detalle.textContent = r.mensaje;
+        caja.append(detalle);
+      }
+    }
+  } catch (error) {
+    marcador.className = "mal";
+    marcador.textContent = "No se pudieron ni cargar las pruebas";
+    const detalle = document.createElement("pre");
+    detalle.textContent = String(error && error.stack || error);
+    salida.append(detalle);
+  }
+</script>
+</body>
+</html>
