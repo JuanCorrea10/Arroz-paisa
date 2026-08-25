@@ -15,37 +15,43 @@
    =========================================================================== */
 
 :root {
-  /* Papel */
-  --papel-contable: #e9efe6;
-  --papel: #ffffff;
-  --papel-raya: #f4f8f2;
-  --papel-hueso: #fbfcfa;
+  /* Leche: el papel. Un blanco tibio, no un blanco de hospital. */
+  --papel-contable: #f6f0f4;   /* el fondo de toda la pagina */
+  --papel: #ffffff;            /* las tarjetas, que asi resaltan */
+  --papel-raya: #fbf6f9;       /* las filas de en medio de las tablas */
+  --papel-hueso: #fdfafc;
 
-  /* Tinta */
-  --tinta: #16211b;
-  --tinta-media: #43544a;
-  --tinta-suave: #6d7d74;
+  /* Tinta: negro con una gota de mora, para que no pelee con el fondo */
+  --tinta: #241b21;
+  --tinta-media: #574a53;
+  --tinta-suave: #80727b;
 
-  /* Verde de cocina: el armazón */
-  --verde-hondo: #123c29;
-  --verde: #23684a;
-  --verde-claro: #dfeee5;
+  /* Mora: el armazon. La barra, los encabezados, los botones que hacen algo. */
+  --mora-hondo: #3b1b34;
+  --mora: #7c3568;
+  --mora-oscuro: #612650;
+  --mora-claro: #f5e6f1;
 
-  /* Achiote: la acción */
-  --achiote: #bc4318;
-  --achiote-oscuro: #9a3512;
-  --achiote-claro: #fbe8e0;
+  /* Azul clarito: lo que acompania. La pagina en la que se esta parada, la
+     fila sobre la que pasa el mouse, los avisos que solo informan. */
+  --azul-claro: #dfeaf6;
+  --azul-suave: #eef4fb;
+  --azul: #3d6e9c;
+  --azul-hondo: #26496b;
 
-  /* Señales */
-  --amarillo: #b47500;
-  --amarillo-claro: #fdf1d8;
-  --rojo: #a41e12;
-  --rojo-claro: #fbe3e0;
-  --azul: #1c5878;
-  --azul-claro: #e0eef5;
+  /* Senales. Estas NO cambian de color porque el color ES el mensaje:
+     verde bien, rojo mal, ambar ojo. Solo se les baja el tono para que
+     convivan con la mora. */
+  --verde: #2e7d5b;
+  --verde-claro: #dff0e7;
+  --verde-hondo: #1d5540;
+  --rojo: #a8253a;
+  --rojo-claro: #fbe3e7;
+  --amarillo: #a9700b;
+  --amarillo-claro: #fbefd8;
 
-  --borde: #cfdbcb;
-  --borde-fuerte: #a9bda4;
+  --borde: #e2d5de;
+  --borde-fuerte: #c6b2c0;
 
   /* Tipografía */
   --display: "Familjen Grotesk", "Segoe UI", system-ui, sans-serif;
@@ -109,10 +115,10 @@ h2 { font-size: var(--t-xl); }
 h3 { font-size: var(--t-lg); }
 h4 { font-size: var(--t-md); }
 p { margin: 0 0 var(--e3); }
-a { color: var(--verde); }
+a { color: var(--mora); }
 
 :focus-visible {
-  outline: 3px solid var(--achiote);
+  outline: 3px solid var(--azul);
   outline-offset: 2px;
   border-radius: 3px;
 }
@@ -128,8 +134,8 @@ a { color: var(--verde); }
 /* --------------------------------------------------------------------- */
 
 .barra {
-  background: var(--verde-hondo);
-  color: #eaf3ed;
+  background: var(--mora-hondo);
+  color: #f6ecf3;
   position: sticky;
   top: 0;
   z-index: 40;
@@ -161,7 +167,7 @@ a { color: var(--verde); }
   font-family: var(--dato);
   font-size: var(--t-xs);
   font-weight: 400;
-  color: #8fbfa4;
+  color: #bb9db2;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -174,7 +180,7 @@ a { color: var(--verde); }
 }
 
 .menu a {
-  --_color: #bcd8c8;
+  --_color: #d9c3d3;
   display: inline-flex;
   align-items: center;
   min-height: 40px;
@@ -190,9 +196,9 @@ a { color: var(--verde); }
 }
 .menu a:hover { background: rgba(255, 255, 255, 0.09); color: #fff; }
 .menu a[aria-current="page"] {
-  background: var(--achiote);
-  color: #fff;
-  border-color: var(--achiote-oscuro);
+  background: var(--azul-claro);
+  color: var(--mora-hondo);
+  border-color: #b9cfe6;
 }
 
 /* El semáforo de guardado. Que ella pueda mirar y quedarse tranquila. */
@@ -202,14 +208,14 @@ a { color: var(--verde); }
   gap: 0.45rem;
   font-size: var(--t-sm);
   font-family: var(--dato);
-  color: #9dc9b0;
+  color: #c6aec0;
   white-space: nowrap;
 }
 .guardado::before {
   content: "";
   width: 9px; height: 9px;
   border-radius: 50%;
-  background: #5fb98a;
+  background: #6fca9c;
   flex: none;
 }
 .guardado[data-estado="guardando"]::before { background: var(--amarillo); }
@@ -245,7 +251,7 @@ a { color: var(--verde); }
   content: "";
   flex: 1 0 100%;
   height: 3px;
-  background: linear-gradient(90deg, var(--verde) 0 90px, var(--borde) 90px);
+  background: linear-gradient(90deg, var(--mora) 0 90px, var(--borde) 90px);
   margin-top: var(--e3);
 }
 
@@ -299,10 +305,10 @@ textarea {
   width: 100%;
   transition: border-color 0.12s, box-shadow 0.12s;
 }
-input:hover, select:hover { border-color: var(--verde); }
+input:hover, select:hover { border-color: var(--mora); }
 input:focus, select:focus, textarea:focus {
-  border-color: var(--verde);
-  box-shadow: 0 0 0 3px var(--verde-claro);
+  border-color: var(--mora);
+  box-shadow: 0 0 0 3px var(--azul-claro);
   outline: none;
 }
 input[type="number"] { font-family: var(--dato); text-align: right; }
@@ -317,7 +323,7 @@ input[aria-invalid="true"] { border-color: var(--rojo); background: var(--rojo-c
   align-items: flex-end;
   background: var(--papel);
   border: 1px solid var(--borde);
-  border-left: 5px solid var(--verde);
+  border-left: 5px solid var(--mora);
   border-radius: var(--radio-g);
   box-shadow: var(--sombra);
   padding: var(--e4);
@@ -354,16 +360,16 @@ button, .boton {
   transition: background 0.12s, border-color 0.12s, transform 0.06s;
   white-space: nowrap;
 }
-button:hover, .boton:hover { background: var(--papel-raya); border-color: var(--verde); }
+button:hover, .boton:hover { background: var(--papel-raya); border-color: var(--mora); }
 button:active { transform: translateY(1px); }
 button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 
 .principal {
-  background: var(--achiote);
-  border-color: var(--achiote-oscuro);
+  background: var(--mora);
+  border-color: var(--mora-oscuro);
   color: #fff;
 }
-.principal:hover { background: var(--achiote-oscuro); border-color: var(--achiote-oscuro); }
+.principal:hover { background: var(--mora-oscuro); border-color: var(--mora-oscuro); }
 
 .verde { background: var(--verde); border-color: var(--verde-hondo); color: #fff; }
 .verde:hover { background: var(--verde-hondo); border-color: var(--verde-hondo); }
@@ -372,7 +378,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 .peligro:hover { background: var(--rojo-claro); border-color: var(--rojo); }
 
 .plano { border-color: transparent; background: transparent; padding: 0 var(--e2); }
-.plano:hover { background: var(--verde-claro); border-color: transparent; }
+.plano:hover { background: var(--mora-claro); border-color: transparent; }
 
 .chico { min-height: 36px; font-size: var(--t-sm); padding: 0 var(--e3); }
 .grande { min-height: 60px; font-size: var(--t-md); padding: 0 var(--e5); }
@@ -397,8 +403,8 @@ table {
 }
 
 thead th {
-  background: var(--verde-hondo);
-  color: #eaf3ed;
+  background: var(--mora-hondo);
+  color: #f6ecf3;
   font-family: var(--display);
   font-weight: 600;
   font-size: var(--t-sm);
@@ -419,7 +425,7 @@ tbody td {
   vertical-align: top;
 }
 tbody tr:nth-child(even) { background: var(--papel-raya); }
-tbody tr:hover { background: var(--verde-claro); }
+tbody tr:hover { background: var(--azul-suave); }
 
 td.n, th.n { text-align: right; }
 .plata, td.n, .num {
@@ -429,7 +435,7 @@ td.n, th.n { text-align: right; }
 }
 
 tfoot td {
-  border-top: 2.5px solid var(--verde-hondo);
+  border-top: 2.5px solid var(--mora-hondo);
   padding: 0.7rem var(--e3);
   font-family: var(--display);
   font-weight: 700;
@@ -459,7 +465,7 @@ tfoot td.n { font-family: var(--dato); }
 }
 
 .comanda {
-  --cinta: var(--verde);
+  --cinta: var(--mora);
   background: var(--papel);
   border: 1px solid var(--borde);
   border-top: 4px solid var(--cinta);
@@ -573,7 +579,7 @@ tfoot td.n { font-family: var(--dato); }
   line-height: 1.1;
   overflow-wrap: anywhere;
 }
-.cifra.destacada { background: var(--verde-hondo); border-color: var(--verde-hondo); }
+.cifra.destacada { background: var(--mora-hondo); border-color: var(--mora-hondo); }
 .cifra.destacada dt { color: #9dc9b0; }
 .cifra.destacada dd { color: #fff; }
 
@@ -592,7 +598,7 @@ tfoot td.n { font-family: var(--dato); }
   padding: 0.16rem 0.5rem;
   border-radius: 3px;
   color: #fff;
-  background: var(--verde);
+  background: var(--mora);
   white-space: nowrap;
 }
 
@@ -632,7 +638,7 @@ tfoot td.n { font-family: var(--dato); }
   max-width: min(420px, calc(100vw - 2rem));
 }
 .mensaje {
-  background: var(--verde-hondo);
+  background: var(--mora-hondo);
   color: #fff;
   padding: var(--e3) var(--e4);
   border-radius: var(--radio-g);
@@ -657,7 +663,7 @@ tfoot td.n { font-family: var(--dato); }
   right: 0;
   z-index: 30;
   background: var(--papel);
-  border: 1.5px solid var(--verde);
+  border: 1.5px solid var(--mora);
   border-radius: var(--radio);
   box-shadow: var(--sombra-alta);
   max-height: 320px;
@@ -676,13 +682,13 @@ tfoot td.n { font-family: var(--dato); }
   gap: var(--e3);
   align-items: center;
 }
-.buscador-lista li[aria-selected="true"] { background: var(--verde-hondo); color: #fff; }
+.buscador-lista li[aria-selected="true"] { background: var(--mora-hondo); color: #fff; }
 .buscador-lista li[aria-selected="true"] .apunte { color: #a9d3bc; }
-.buscador-lista li:hover { background: var(--verde-claro); }
-.buscador-lista li[aria-selected="true"]:hover { background: var(--verde-hondo); }
+.buscador-lista li:hover { background: var(--azul-suave); }
+.buscador-lista li[aria-selected="true"]:hover { background: var(--mora-hondo); }
 .buscador-lista .apunte { font-family: var(--dato); font-size: var(--t-xs); color: var(--tinta-suave); }
-.buscador-lista .crear { color: var(--achiote); font-weight: 600; font-family: var(--display); }
-.buscador-lista li[aria-selected="true"].crear { background: var(--achiote); color: #fff; }
+.buscador-lista .crear { color: var(--mora); font-weight: 600; font-family: var(--display); }
+.buscador-lista li[aria-selected="true"].crear { background: var(--mora); color: #fff; }
 
 /* --------------------------------------------------------------------- */
 /*  Ventanas                                                               */
@@ -690,7 +696,7 @@ tfoot td.n { font-family: var(--dato); }
 
 dialog {
   border: 1px solid var(--borde-fuerte);
-  border-top: 5px solid var(--verde);
+  border-top: 5px solid var(--mora);
   border-radius: var(--radio-g);
   padding: 0;
   max-width: min(560px, calc(100vw - 2rem));
@@ -732,7 +738,7 @@ tr[data-estado="cuadra"] .diferencia { color: var(--verde); }
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding-bottom: var(--e3);
-  border-bottom: 3px solid var(--verde-hondo);
+  border-bottom: 3px solid var(--mora-hondo);
   margin-bottom: var(--e4);
 }
 .documento .partes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--e4); margin-bottom: var(--e5); }
@@ -781,8 +787,8 @@ tr[data-estado="cuadra"] .diferencia { color: var(--verde); }
   .hoja { padding: 0; max-width: none; }
   .tarjeta, .marco-tabla, .documento { box-shadow: none; border: none; padding: 0; }
   .documento { max-width: none; }
-  thead th { background: #123c29 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  tbody tr:nth-child(even) { background: #f2f5f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  thead th { background: #3b1b34 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  tbody tr:nth-child(even) { background: #f8f2f6 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   tbody tr:hover { background: transparent !important; }
   table { page-break-inside: auto; }
   tr { page-break-inside: avoid; }

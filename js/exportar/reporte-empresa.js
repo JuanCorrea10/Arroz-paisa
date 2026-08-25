@@ -74,14 +74,14 @@ export function generarReporteEmpresa(datos, codigoEmpresa, anio, mes) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(empresa.razonSocial || empresa.codigo)} · Almuerzos ${esc(nombreMes(mes))} ${anio}</title>
 <style>
-  :root{--verde:#123c29;--verde2:#23684a;--achiote:#bc4318;--tinta:#16211b;--suave:#6d7d74;--borde:#cfdbcb;--raya:#f4f8f2;--papel:#fff;--fondo:#e9efe6}
+  :root{--verde:#3b1b34;--verde2:#7c3568;--achiote:#7c3568;--tinta:#241b21;--suave:#80727b;--borde:#e2d5de;--raya:#fbf6f9;--papel:#fff;--fondo:#f6f0f4}
   *{box-sizing:border-box}
   body{margin:0;background:var(--fondo);color:var(--tinta);font:16px/1.5 "Segoe UI",system-ui,-apple-system,sans-serif}
   header{background:var(--verde);color:#fff;padding:24px 20px}
   .caja{max-width:960px;margin:0 auto}
   header h1{margin:0;font-size:1.5rem;letter-spacing:-.01em}
-  header .sub{color:#9dc9b0;font-size:.92rem;margin-top:4px}
-  header .prov{margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.2);font-size:.85rem;color:#bcd8c8}
+  header .sub{color:#c6aec0;font-size:.92rem;margin-top:4px}
+  header .prov{margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.2);font-size:.85rem;color:#d9c3d3}
   main{max-width:960px;margin:0 auto;padding:22px 20px 60px}
   section{background:var(--papel);border:1px solid var(--borde);border-radius:8px;padding:18px;margin-bottom:20px}
   h2{font-size:1.15rem;margin:0 0 14px;padding-bottom:8px;border-bottom:2px solid var(--verde)}
@@ -90,21 +90,21 @@ export function generarReporteEmpresa(datos, codigoEmpresa, anio, mes) {
   .cifra dt{font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:var(--suave);font-weight:600}
   .cifra dd{margin:4px 0 0;font-size:1.35rem;font-weight:700;font-variant-numeric:tabular-nums}
   .cifra.total{background:var(--verde);border-color:var(--verde)}
-  .cifra.total dt{color:#9dc9b0}.cifra.total dd{color:#fff}
+  .cifra.total dt{color:#c6aec0}.cifra.total dd{color:#fff}
   .marco{overflow-x:auto;border:1px solid var(--borde);border-radius:6px}
   table{width:100%;border-collapse:collapse;font-size:.92rem}
   th{background:var(--verde);color:#fff;text-align:left;padding:9px 10px;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
   td{padding:8px 10px;border-top:1px solid var(--borde);vertical-align:top}
   tr:nth-child(even) td{background:var(--raya)}
   .n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-  tfoot td{border-top:2px solid var(--verde);font-weight:700;background:#fbfcfa}
+  tfoot td{border-top:2px solid var(--verde);font-weight:700;background:#fdfafc}
   .dia{margin-bottom:18px}
   .dia h3{font-size:1rem;margin:0 0 8px;display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap}
   .dia h3 span{font-weight:400;color:var(--suave);font-size:.85rem}
   .nocobra{color:var(--suave);font-style:italic}
   footer{max-width:960px;margin:0 auto;padding:0 20px 40px;color:var(--suave);font-size:.82rem}
-  .aviso{background:#fdf1d8;border:1px solid #ecd9ac;border-left:4px solid #b47500;border-radius:6px;padding:12px 14px;font-size:.88rem;margin-bottom:20px}
-  @media print{body{background:#fff}section{border:none;padding:0;margin-bottom:24px;break-inside:avoid}header{background:#123c29!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}th{background:#123c29!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  .aviso{background:#fbefd8;border:1px solid #ecd9ac;border-left:4px solid #a9700b;border-radius:6px;padding:12px 14px;font-size:.88rem;margin-bottom:20px}
+  @media print{body{background:#fff}section{border:none;padding:0;margin-bottom:24px;break-inside:avoid}header{background:#3b1b34!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}th{background:#3b1b34!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 </style>
 </head>
 <body>

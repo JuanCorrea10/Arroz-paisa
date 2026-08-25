@@ -20,7 +20,7 @@
   left: -9999px;
   top: 0;
   z-index: 100;
-  background: var(--achiote);
+  background: var(--mora);
   color: #fff;
   padding: var(--e2) var(--e4);
   border-radius: 0 0 var(--radio) 0;
@@ -89,9 +89,9 @@
 .tarjeta-enlace:hover {
   transform: translateY(-2px);
   box-shadow: var(--sombra-alta);
-  border-color: var(--verde);
+  border-color: var(--mora);
 }
-.tarjeta-enlace h2 { color: var(--verde); margin-bottom: var(--e2); }
+.tarjeta-enlace h2 { color: var(--mora); margin-bottom: var(--e2); }
 .tarjeta-enlace p { color: var(--tinta-media); margin-bottom: var(--e2); }
 
 .etiqueta.pendiente {
@@ -173,7 +173,7 @@
   width: 22px;
   height: 22px;
   min-height: auto;
-  accent-color: var(--achiote);
+  accent-color: var(--mora);
   cursor: pointer;
 }
 .nombre-opcion {
@@ -185,8 +185,8 @@
   font-weight: inherit;
 }
 .etiqueta.sugerida {
-  background: var(--verde-claro);
-  color: var(--verde-hondo);
+  background: var(--azul-claro);
+  color: var(--azul-hondo);
   border: 1px solid var(--borde-fuerte);
 }
 
@@ -217,8 +217,8 @@
   font-family: var(--cuerpo);
 }
 .opcion-parecida:hover {
-  border-color: var(--verde);
-  background: var(--verde-claro);
+  border-color: var(--mora);
+  background: var(--mora-claro);
 }
 .opcion-parecida strong {
   font-family: var(--display);
@@ -235,8 +235,8 @@
   margin-top: var(--e2);
 }
 .opcion-parecida.es-otra:hover {
-  border-color: var(--achiote);
-  background: var(--achiote-claro);
+  border-color: var(--mora);
+  background: var(--mora-claro);
 }
 
 /* --------------------------------------------------------------------- */
@@ -255,7 +255,7 @@ input.precio {
   border-radius: var(--radio);
   background: var(--papel-hueso);
 }
-input.precio:focus { background: #fff; border-color: var(--verde); }
+input.precio:focus { background: #fff; border-color: var(--mora); }
 /* Un plato sin precio entra en $ 0 a la cuenta de cobro. Se tiene que ver. */
 input.precio.falta {
   background: var(--rojo-claro);
@@ -267,14 +267,14 @@ input.precio.falta::placeholder { color: #7d1a10; opacity: 1; }
 /*  Compartir con las empresas                                            */
 /* --------------------------------------------------------------------- */
 
-.garantia { border-left: 5px solid var(--verde); background: var(--papel-hueso); }
-.garantia h2 { color: var(--verde-hondo); }
+.garantia { border-left: 5px solid var(--mora); background: var(--papel-hueso); }
+.garantia h2 { color: var(--mora-hondo); }
 
 .empresa-compartir h3 {
   font-size: var(--t-md);
   margin-top: var(--e5);
   margin-bottom: var(--e1);
-  color: var(--verde-hondo);
+  color: var(--mora-hondo);
 }
 
 /* La vista previa del archivo, tal como lo va a ver el supervisor. */
@@ -308,15 +308,15 @@ input.precio.falta::placeholder { color: #7d1a10; opacity: 1; }
 /*  La lista de personal de la empresa                                     */
 /* --------------------------------------------------------------------- */
 
-.tarjeta-personal { border-left: 5px solid var(--verde); }
-.tarjeta-personal h2 { color: var(--verde-hondo); }
+.tarjeta-personal { border-left: 5px solid var(--mora); }
+.tarjeta-personal h2 { color: var(--mora-hondo); }
 
 /* El documento se muestra siempre cortado: solo los ultimos numeros. */
 .documento-corto {
   font-family: var(--dato);
   font-size: var(--t-sm);
-  background: var(--verde-claro);
-  color: var(--verde-hondo);
+  background: var(--azul-claro);
+  color: var(--azul-hondo);
   padding: 2px 7px;
   border-radius: 3px;
   white-space: nowrap;
@@ -324,7 +324,7 @@ input.precio.falta::placeholder { color: #7d1a10; opacity: 1; }
 
 /* Cuando el documento lo prueba, no es una opinion: es un hecho. */
 .seguro-probado {
-  background: var(--verde-hondo);
+  background: var(--mora-hondo);
   color: #fff;
 }
 
@@ -333,12 +333,12 @@ input.precio.falta::placeholder { color: #7d1a10; opacity: 1; }
   margin-top: var(--e4);
   padding-top: var(--e4);
 }
-.fusiones-halladas h4 { color: var(--verde-hondo); margin-bottom: var(--e2); }
+.fusiones-halladas h4 { color: var(--mora-hondo); margin-bottom: var(--e2); }
 
 .fusion {
   background: var(--papel-hueso);
   border: 1px solid var(--borde);
-  border-left: 4px solid var(--verde);
+  border-left: 4px solid var(--mora);
   border-radius: var(--radio);
   padding: var(--e3);
   margin-bottom: var(--e3);
@@ -366,7 +366,7 @@ input.precio.falta::placeholder { color: #7d1a10; opacity: 1; }
   font-weight: 600;
   font-size: var(--t-sm);
 }
-.boton-enlace:hover { border-color: var(--verde); background: var(--verde-claro); }
+.boton-enlace:hover { border-color: var(--mora); background: var(--mora-claro); }
 
 .manual-adentro {
   background: var(--papel);
@@ -387,4 +387,84 @@ input.precio.falta::placeholder { color: #7d1a10; opacity: 1; }
 @media print {
   /* Al imprimir esta pantalla queremos el manual solo, sin marco. */
   .manual-adentro { border: none; box-shadow: none; padding: 0; max-width: none; }
+}
+
+/* --------------------------------------------------------------------- */
+/*  El numerito del menu: lo que esta esperando decision                   */
+/* --------------------------------------------------------------------- */
+
+.menu a { gap: var(--e2); }
+.contador {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 21px;
+  height: 21px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--rojo);
+  color: #fff;
+  font-family: var(--dato);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  line-height: 1;
+}
+/* En la pagina donde ya esta parada, el numerito no tiene que gritar. */
+.menu a[aria-current="page"] .contador { background: var(--mora); }
+
+/* --------------------------------------------------------------------- */
+/*  "Posibles errores": una tarjeta por cosa que hay que decidir           */
+/* --------------------------------------------------------------------- */
+
+.suelto { border-left: 5px solid var(--amarillo); }
+.suelto h3 { font-size: var(--t-md); }
+.suelto-persona { border-left-color: var(--azul); }
+.suelto-plato { border-left-color: var(--amarillo); }
+
+/* Los tres botones, siempre en el mismo orden y con el mismo peso visual,
+   para que la decision se vuelva costumbre y no haya que leerla cada vez. */
+.decision { margin-top: var(--e4); flex-wrap: wrap; gap: var(--e2); }
+.decision .suave {
+  color: var(--tinta-suave);
+  border-color: transparent;
+  margin-left: auto;
+}
+.decision .suave:hover { background: var(--papel-raya); border-color: var(--borde); }
+
+/* Aqui la opcion es una etiqueta con boton redondo adentro, no un boton. */
+label.opcion-parecida {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--e3);
+}
+label.opcion-parecida input[type="radio"] {
+  width: 21px;
+  height: 21px;
+  min-height: auto;
+  flex: none;
+  accent-color: var(--mora);
+}
+label.opcion-parecida span {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+/* La que es casi segura se marca, para que solo tenga que confirmar. */
+label.opcion-parecida.obvia {
+  border-color: var(--mora);
+  background: var(--mora-claro);
+}
+
+/* Plata que sube o que baja al unir dos platos. */
+.sube { color: var(--rojo); font-weight: 700; }
+.baja { color: var(--verde); font-weight: 700; }
+
+.etiqueta.malo {
+  background: var(--rojo-claro);
+  color: var(--rojo);
+  border: 1px solid #e8bfc5;
+}
+
+@media (max-width: 720px) {
+  .decision .suave { margin-left: 0; }
 }

@@ -87,6 +87,22 @@ try {
   }
   if (grupos.length > 6) anotar(`   ...y ${grupos.length - 6} grupos más`);
 
+  // ---- 2.5 Qué va a encontrar la pantalla de Posibles errores ------------
+  const { personasSueltas, platosSueltos } = await import("../js/nucleo/sueltos.js");
+  const pers = personasSueltas(datos);
+  const plat = platosSueltos(datos);
+  anotar(`sueltos: ${pers.length} personas y ${plat.length} platos`);
+  for (const p of pers) {
+    const s = p.sugerencias[0];
+    anotar(`   ${p.empresa} · ${p.nombre} (${p.renglones} rengl.) -> ` +
+           (s ? `${s.nombre} — ${s.razon}` : "sin parecido"));
+  }
+  for (const p of plat.slice(0, 20)) {
+    const s = p.sugerencias[0];
+    anotar(`   ${p.nombre} (${p.renglones} rengl.) -> ` +
+           (s ? `${s.nombre} — ${s.razon}${s.obvio ? "  [OBVIO]" : ""}` : "sin parecido"));
+  }
+
   // ---- 3. Abrir la app entera y recorrer todas las pantallas --------------
   const marco = document.createElement("iframe");
   marco.src = "../index.html";
@@ -102,7 +118,7 @@ try {
 
   const menu = doc.getElementById("menu");
   anotar(`el menú tiene ${menu.children.length} enlaces`,
-         menu.children.length === 9 ? "ok" : "mal");
+         menu.children.length === 10 ? "ok" : "mal");
 
   if (pantalla().querySelector(".cargando")) {
     anotar("la app se quedó pegada en 'Abriendo...'", "mal");
@@ -121,7 +137,7 @@ try {
   // Todas las pantallas, incluidas las que viven dentro de Ajustes.
   const TODAS = [
     "#registrar", "#cocina", "#resumen", "#persona", "#cobro", "#cuadre",
-    "#compartir", "#ajustes", "#personas", "#nombres", "#catalogo",
+    "#compartir", "#revisar", "#ajustes", "#personas", "#nombres", "#catalogo",
     "#empresas", "#datos", "#ayuda",
   ];
 

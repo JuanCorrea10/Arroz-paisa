@@ -3,6 +3,7 @@
 import "./calculos.test.mjs";
 import "./nombres.test.mjs";
 import "./personal.test.mjs";
+import "./sueltos.test.mjs";
 import "./aceptacion.test.mjs";
 import { correrTodo } from "./probar.mjs";
 await correrTodo();

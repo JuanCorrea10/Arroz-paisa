@@ -23,6 +23,8 @@ import { pintarEmpresas, pintarCatalogo, pintarPersonas } from "./ui/mantenimien
 import { pintarNombres } from "./ui/nombres.js";
 import { pintarDatos } from "./ui/datos.js";
 import { pintarAyuda } from "./ui/ayuda.js";
+import { pintarErrores } from "./ui/errores.js";
+import { cuantosSueltos } from "./nucleo/sueltos.js";
 import { gruposParaRevisar, nombresSucios } from "./nucleo/nombres.js";
 import { revisarTodo } from "./nucleo/calculos.js";
 
@@ -42,6 +44,9 @@ const PANTALLAS = {
   cobro:     { titulo: "Cuenta de cobro",  pintar: pintarCobro,     menu: true },
   cuadre:    { titulo: "Cuadre",           pintar: pintarCuadre,    menu: true },
   compartir: { titulo: "Compartir",        pintar: pintarCompartir, menu: true },
+  revisar:   { titulo: "Revisar",          pintar: pintarErrores,   menu: true,
+               // El numerito rojo del menu: lo que esta esperando decision.
+               contar: () => cuantosSueltos(estado.datos).total },
   ajustes:   { titulo: "Ajustes",          pintar: pintarAjustes,   menu: true },
   ayuda:     { titulo: "Cómo se usa",      pintar: pintarAyuda,     menu: true },
 
@@ -194,7 +199,35 @@ function construirMenu() {
   vaciar(menu);
   for (const [nombre, p] of Object.entries(PANTALLAS)) {
     if (!p.menu) continue;
-    menu.append(el("a", { href: "#" + nombre, texto: p.titulo }));
+    menu.append(
+      el("a", { href: "#" + nombre },
+        p.titulo,
+        p.contar ? el("span", { clase: "contador oculto" }) : null
+      )
+    );
+  }
+  refrescarContadores();
+}
+
+/**
+ * Pone el numerito al lado de "Revisar". Se vuelve a calcular cada vez que
+ * cambian los datos: si ella arregla el ultimo, el numerito tiene que
+ * desaparecer solo, sin recargar la pagina.
+ */
+function refrescarContadores() {
+  for (const [nombre, p] of Object.entries(PANTALLAS)) {
+    if (!p.menu || !p.contar) continue;
+    const enlace = document.querySelector(`.menu a[href="#${nombre}"]`);
+    const globo = enlace && enlace.querySelector(".contador");
+    if (!globo) continue;
+    let cuantos = 0;
+    try {
+      cuantos = p.contar();
+    } catch {
+      cuantos = 0; // un contador roto no puede tumbar el menu
+    }
+    globo.textContent = String(cuantos);
+    globo.classList.toggle("oculto", cuantos === 0);
   }
 }
 
@@ -292,7 +325,7 @@ async function arrancar() {
   construirPeriodo();
 
   // Cuando cambian los datos, el mes de la barra puede haber cambiado también.
-  alCambiar(() => construirPeriodo());
+  alCambiar(() => { construirPeriodo(); refrescarContadores(); });
 
   // Primera vez y de verdad vacía: la mandamos derecho a traer el Excel.
   const vacia = !estado.datos.consumos.length && !estado.datos.empresas.length;

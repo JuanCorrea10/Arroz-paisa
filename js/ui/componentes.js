@@ -316,7 +316,15 @@ export function buscador({
 // ---------------------------------------------------------------------------
 
 /** Un color estable por empresa: el mismo código siempre da el mismo color. */
-const COLORES_CINTA = ["#23684a", "#bc4318", "#1c5878", "#7a4a86", "#8a6a12", "#0e6f6f", "#a03360"];
+const COLORES_CINTA = [
+  "#7c3568", // mora
+  "#3d6e9c", // azul
+  "#5b4a86", // violeta
+  "#a03360", // frambuesa
+  "#26496b", // azul hondo
+  "#8a4d7a", // mora clara
+  "#2f6f7a", // petroleo
+];
 export function colorDeEmpresa(codigo) {
   let n = 0;
   for (const c of String(codigo || "")) n = (n * 31 + c.charCodeAt(0)) % 100000;
