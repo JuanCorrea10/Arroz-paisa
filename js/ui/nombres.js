@@ -102,8 +102,8 @@ export function pintarNombres(raiz) {
 //
 //  Es lo más potente de esta pantalla, porque es lo único que no adivina.
 //  Con la lista de la empresa se descubren duplicados que por nombre son
-//  imposibles de ver: en MGP, "LEIDY OROZCO" y "VALENTINA OSPITIA" resultaron
-//  ser la misma señora (OROZCO OSPITIA LEIDY VALENTINA), y esos dos nombres no
+//  imposibles de ver: en MGP, "MARTA SALGADO" y "ELENA QUINTERO" resultaron
+//  ser la misma señora (SALGADO QUINTERO MARTA ELENA), y esos dos nombres no
 //  comparten ni una letra.
 // ---------------------------------------------------------------------------
 

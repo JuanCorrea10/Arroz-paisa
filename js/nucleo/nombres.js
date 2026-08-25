@@ -71,8 +71,8 @@ const GUIONES = /[-‐‑‒–—]/g;
  *
  *     "  juan.  perez_  "   ->   "JUAN PEREZ"
  *
- * Ojo con lo que NO quita: las tildes y la Ñ se respetan, porque "QUIÑONES" y
- * "QUINONES" podrían ser dos personas distintas. Para COMPARAR sí las
+ * Ojo con lo que NO quita: las tildes y la Ñ se respetan, porque "MUÑOZ" y
+ * "MUNOZ" podrían ser dos personas distintas. Para COMPARAR sí las
  * ignoramos (ver esqueleto()), pero para GUARDAR se respeta lo que escribió.
  */
 export function limpiarNombre(txt) {

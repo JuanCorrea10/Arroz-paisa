@@ -86,14 +86,14 @@ function datosDePrueba() {
       "AGUA GAS|MGP": 3000, "AGUA GAS|AGRO": 3000,
     },
     personas: [
-      { nombre: "LEIDY ACOSTA", empresaCome: "MGP", empresaFactura: "MGP", activa: true },
+      { nombre: "MARTA SALGADO", empresaCome: "MGP", empresaFactura: "MGP", activa: true },
       { nombre: "PEDRO SOLO", empresaCome: "AGRO", empresaFactura: "AGRO", activa: true },
     ],
     consumos: [
-      renglon("2026-08-03", "MGP", "LEIDY ACOSTA", "ALMUERZO", 12000),
-      // Esta persona NO está en la lista: es LEIDY mal escrita.
-      renglon("2026-08-04", "MGP", "LADY ACOSTA", "ALMUERZO", 12000),
-      renglon("2026-08-05", "MGP", "LADY ACOSTA", "ALMUERZO", 12000),
+      renglon("2026-08-03", "MGP", "MARTA SALGADO", "ALMUERZO", 12000),
+      // Esta persona NO está en la lista: es MARTA mal escrita.
+      renglon("2026-08-04", "MGP", "MARTHA SALGADO", "ALMUERZO", 12000),
+      renglon("2026-08-05", "MGP", "MARTHA SALGADO", "ALMUERZO", 12000),
       // Este plato NO está en el catálogo y entró en $ 0.
       renglon("2026-08-06", "AGRO", "PEDRO SOLO", "AGUA CON GAS", 0, 2),
       renglon("2026-08-07", "AGRO", "PEDRO SOLO", "AGUA CON GAS", 0, 1),
@@ -107,15 +107,15 @@ function datosDePrueba() {
 prueba("encuentra a la persona que no está en su empresa", () => {
   const sueltas = personasSueltas(datosDePrueba());
   igual(sueltas.length, 1);
-  igual(sueltas[0].nombre, "LADY ACOSTA");
+  igual(sueltas[0].nombre, "MARTHA SALGADO");
   igual(sueltas[0].empresa, "MGP");
   igual(sueltas[0].renglones, 2);
 });
 
 prueba("y le propone a quién se parece, de la misma empresa", () => {
   const sueltas = personasSueltas(datosDePrueba());
-  cierto(sueltas[0].sugerencias.length >= 1, "tenía que sugerir a LEIDY");
-  igual(sueltas[0].sugerencias[0].nombre, "LEIDY ACOSTA");
+  cierto(sueltas[0].sugerencias.length >= 1, "tenía que sugerir a MARTA");
+  igual(sueltas[0].sugerencias[0].nombre, "MARTA SALGADO");
 });
 
 prueba("encuentra el plato que no está en el catálogo", () => {
@@ -169,17 +169,17 @@ grupo("Decidir: es la misma persona");
 prueba("mueve los renglones a la persona que sí existe", () => {
   const datos = datosDePrueba();
   const antes = datos.consumos.length;
-  const r = unirPersonaSuelta(datos, "MGP", "LADY ACOSTA", "LEIDY ACOSTA");
+  const r = unirPersonaSuelta(datos, "MGP", "MARTHA SALGADO", "MARTA SALGADO");
 
   igual(r.movidos, 2);
   igual(datos.consumos.length, antes, "no se puede perder ningún renglón");
-  const deLeidy = datos.consumos.filter((c) => c.persona === "LEIDY ACOSTA");
-  igual(deLeidy.length, 3, "el suyo más los dos que llegaron");
+  const deMarta = datos.consumos.filter((c) => c.persona === "MARTA SALGADO");
+  igual(deMarta.length, 3, "el suyo más los dos que llegaron");
 });
 
 prueba("después de unir, ya no queda nada suelto de personas", () => {
   const datos = datosDePrueba();
-  unirPersonaSuelta(datos, "MGP", "LADY ACOSTA", "LEIDY ACOSTA");
+  unirPersonaSuelta(datos, "MGP", "MARTHA SALGADO", "MARTA SALGADO");
   igual(personasSueltas(datos).length, 0);
 });
 
@@ -187,17 +187,17 @@ prueba("no deja unir con alguien que no existe", () => {
   const datos = datosDePrueba();
   let exploto = false;
   try {
-    unirPersonaSuelta(datos, "MGP", "LADY ACOSTA", "NADIE AQUI");
+    unirPersonaSuelta(datos, "MGP", "MARTHA SALGADO", "NADIE AQUI");
   } catch { exploto = true; }
   cierto(exploto, "tenía que rechazarlo");
 });
 
 prueba("es otra persona: se crea y los renglones quedan válidos", () => {
   const datos = datosDePrueba();
-  const r = crearPersonaSuelta(datos, "MGP", "LADY ACOSTA", "MGP");
+  const r = crearPersonaSuelta(datos, "MGP", "MARTHA SALGADO", "MGP");
   igual(r.arreglados, 2);
   igual(personasSueltas(datos).length, 0);
-  cierto(datos.personas.some((p) => p.nombre === "LADY ACOSTA" && p.empresaCome === "MGP"));
+  cierto(datos.personas.some((p) => p.nombre === "MARTHA SALGADO" && p.empresaCome === "MGP"));
 });
 
 // ---------------------------------------------------------------------------
@@ -257,7 +257,7 @@ grupo("Decidir: déjelo así");
 prueba("lo que se deja así no vuelve a aparecer", () => {
   const datos = datosDePrueba();
   igual(personasSueltas(datos).length, 1);
-  dejarComoEsta(datos, "PERSONA", "MGP", "LADY ACOSTA");
+  dejarComoEsta(datos, "PERSONA", "MGP", "MARTHA SALGADO");
   igual(personasSueltas(datos).length, 0);
 });
 

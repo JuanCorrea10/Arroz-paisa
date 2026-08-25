@@ -85,7 +85,7 @@ export function hoyISO() {
 
 /**
  * Normaliza para GUARDAR e IDENTIFICAR: mayúsculas, sin espacios de sobra.
- * Ojo: NO quita las tildes ni la Ñ, porque "QUIÑONES" y "QUINONES" podrían
+ * Ojo: NO quita las tildes ni la Ñ, porque "MUÑOZ" y "MUNOZ" podrían
  * ser dos personas distintas y no queremos mezclarlas por error.
  */
 export function normalizar(txt) {
@@ -95,7 +95,7 @@ export function normalizar(txt) {
 
 /**
  * Normaliza para BUSCAR: además quita tildes y Ñ.
- * Así ella escribe "quinones" y igual encuentra a "ALEJANDRO QUIÑONES".
+ * Así ella escribe "munoz" y igual encuentra a "CAMILO MUÑOZ".
  */
 export function paraBuscar(txt) {
   return normalizar(txt)

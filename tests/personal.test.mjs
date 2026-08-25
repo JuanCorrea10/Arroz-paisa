@@ -16,17 +16,17 @@ import {
 grupo("Reconocer un número de documento");
 
 prueba("una cédula normal", () => {
-  igual(comoDocumento("1006128901"), "1006128901");
+  igual(comoDocumento("1099000222"), "1099000222");
 });
 
 prueba("una cédula con puntos de miles", () => {
-  igual(comoDocumento("1.110.583.077"), "1110583077");
+  igual(comoDocumento("1.099.000.666"), "1099000666");
 });
 
 prueba("un permiso temporal, que viene con las letras pegadas", () => {
-  // En la lista de AGRO hay varios "PT 6834361": son permisos de venezolanos.
-  igual(comoDocumento("PT 6834361"), "6834361");
-  igual(comoDocumento("CC 52376870"), "52376870");
+  // En la lista de AGRO hay varios "PT 8800111": son permisos de venezolanos.
+  igual(comoDocumento("PT 8800111"), "8800111");
+  igual(comoDocumento("CC 51000222"), "51000222");
 });
 
 prueba("el número de fila NO es un documento", () => {
@@ -43,8 +43,8 @@ prueba("un nombre no es un documento", () => {
 });
 
 prueba("de todo el documento solo se guardan los últimos 5", () => {
-  igual(ultimos5("1006128901"), "28901");
-  igual(ultimos5("6834361"), "34361");
+  igual(ultimos5("1099000222"), "00222");
+  igual(ultimos5("8800111"), "00111");
   igual(ultimos5(""), "");
 });
 
@@ -56,14 +56,14 @@ prueba("lee la lista de MGP: nombre partido en 4 columnas y el ID aparte", () =>
     Hoja1: [
       ["PERSONAL DE INDUSTRIAS MGP"],
       ["Nº", "1 APELLIDO", "2 APELLIDO", "1 NOMBRE", "2 NOMBRE", "TIPO DE ID", "NUMERO DE ID"],
-      ["1", "ACOSTA", "MANRIQUE", "LEIDY", "LORENA", "CC", "1006128414"],
-      ["2", "BAUTISTA", "", "CAROLINA", "", "CC", "1110533974"],
+      ["1", "SALGADO", "MANRIQUE", "MARTA", "LORENA", "CC", "1099000111"],
+      ["2", "BAUTISTA", "", "CAROLINA", "", "CC", "1099000333"],
     ],
   };
   const { gente } = leerListaDePersonal(hojas);
   igual(gente.length, 2);
-  igual(gente[0].nombre, "ACOSTA MANRIQUE LEIDY LORENA");
-  igual(gente[0].documento, "1006128414");
+  igual(gente[0].nombre, "SALGADO MANRIQUE MARTA LORENA");
+  igual(gente[0].documento, "1099000111");
   igual(gente[1].nombre, "BAUTISTA CAROLINA");
 });
 
@@ -84,14 +84,14 @@ prueba("lee la lista de BASARILI: apellidos y nombres, sin documento", () => {
 prueba("lee una lista de dos columnas: nombre completo y número", () => {
   const hojas = {
     Hoja1: [
-      ["ACOSTA GARCIA LUIS FELIPE", "1006128901"],
-      ["CARPINTERO MEDINA ELIMAR DEL CARMEN", "PT 6834361"],
+      ["SALGADO GARCIA LUIS FELIPE", "1099000222"],
+      ["CARPINTERO MEDINA ELIMAR DEL CARMEN", "PT 8800111"],
     ],
   };
   const { gente } = leerListaDePersonal(hojas);
   igual(gente.length, 2);
   igual(gente[1].nombre, "CARPINTERO MEDINA ELIMAR DEL CARMEN");
-  igual(gente[1].documento, "6834361");
+  igual(gente[1].documento, "8800111");
 });
 
 prueba("las filas de título no se cuelan como personas", () => {
@@ -104,18 +104,18 @@ prueba("las filas de título no se cuelan como personas", () => {
 grupo("Cruzar el nombre corto de la app con el nombre largo de la empresa");
 
 prueba("el nombre corto cabe en el largo aunque cambie el orden", () => {
-  // En la app: "LEIDY ACOSTA". En la empresa: "ACOSTA MANRIQUE LEIDY LORENA".
-  cierto(nombreCortoCabeEn("LEIDY ACOSTA", "ACOSTA MANRIQUE LEIDY LORENA"));
+  // En la app: "MARTA SALGADO". En la empresa: "SALGADO MANRIQUE MARTA LORENA".
+  cierto(nombreCortoCabeEn("MARTA SALGADO", "SALGADO MANRIQUE MARTA LORENA"));
   cierto(nombreCortoCabeEn("CAMILO GARZON", "GARZON MORALES JUAN CAMILO"));
 });
 
 prueba("no cabe si le falta una palabra", () => {
-  cierto(!nombreCortoCabeEn("PEDRO ACOSTA", "ACOSTA MANRIQUE LEIDY LORENA"));
+  cierto(!nombreCortoCabeEn("PEDRO SALGADO", "SALGADO MANRIQUE MARTA LORENA"));
 });
 
 prueba("con una sola palabra NO se arriesga a cruzar", () => {
-  // "ACOSTA" solo cabría en media empresa. Muy peligroso.
-  cierto(!nombreCortoCabeEn("ACOSTA", "ACOSTA MANRIQUE LEIDY LORENA"));
+  // "SALGADO" solo cabría en media empresa. Muy peligroso.
+  cierto(!nombreCortoCabeEn("SALGADO", "SALGADO MANRIQUE MARTA LORENA"));
 });
 
 prueba("no se deja engañar por una palabra repetida", () => {
@@ -138,15 +138,15 @@ function datosMGP() {
     productos: [{ nombre: "ALMUERZO", activo: true }],
     precios: { "ALMUERZO|MGP": 10000 },
     personas: [
-      { nombre: "LEIDY OROZCO", empresaCome: "MGP", empresaFactura: "MGP", activa: true },
-      { nombre: "VALENTINA OSPITIA", empresaCome: "MGP", empresaFactura: "MGP", activa: true },
+      { nombre: "MARTA SALGADO", empresaCome: "MGP", empresaFactura: "MGP", activa: true },
+      { nombre: "ELENA QUINTERO", empresaCome: "MGP", empresaFactura: "MGP", activa: true },
       { nombre: "CAMILO GARZON", empresaCome: "MGP", empresaFactura: "MGP", activa: true },
       { nombre: "PEDRO INEXISTENTE", empresaCome: "MGP", empresaFactura: "MGP", activa: true },
     ],
     consumos: [
-      consumo("LEIDY OROZCO", "03"),
-      consumo("LEIDY OROZCO", "04"),
-      consumo("VALENTINA OSPITIA", "05"),
+      consumo("MARTA SALGADO", "03"),
+      consumo("MARTA SALGADO", "04"),
+      consumo("ELENA QUINTERO", "05"),
       consumo("CAMILO GARZON", "06"),
     ],
     cuadres: {},
@@ -155,32 +155,32 @@ function datosMGP() {
 }
 
 const LISTA_MGP = [
-  { nombre: "OROZCO OSPITIA LEIDY VALENTINA", documento: "1110527314" },
-  { nombre: "GARZON MORALES JUAN CAMILO", documento: "1006156101" },
-  { nombre: "ACOSTA MANRIQUE LEIDY LORENA", documento: "1006128414" },
+  { nombre: "SALGADO QUINTERO MARTA ELENA", documento: "1099000555" },
+  { nombre: "GARZON MORALES JUAN CAMILO", documento: "1099000444" },
+  { nombre: "BAUTISTA MANRIQUE LUISA LORENA", documento: "1099000111" },
 ];
 
 prueba("le pone el documento a quien cruza sin dudas", () => {
   const plan = cruzarConPersonal(datosMGP(), "MGP", LISTA_MGP);
   const camilo = plan.asignaciones.find((a) => a.persona.nombre === "CAMILO GARZON");
   cierto(camilo, "CAMILO GARZON tenía que cruzar");
-  igual(camilo.documento, "56101", "solo los últimos 5");
+  igual(camilo.documento, "00444", "solo los últimos 5");
   igual(camilo.nombreCompleto, "GARZON MORALES JUAN CAMILO");
 });
 
 prueba("DESCUBRE el duplicado que por nombre es invisible", () => {
-  // Este es el hallazgo grande: LEIDY OROZCO y VALENTINA OSPITIA son la misma
+  // Este es el hallazgo grande: MARTA SALGADO y ELENA QUINTERO son la misma
   // señora. No comparten ni una letra, así que compararlas por parecido de
   // nombre nunca las iba a encontrar. Solo la lista de la empresa lo dice.
   const plan = cruzarConPersonal(datosMGP(), "MGP", LISTA_MGP);
   igual(plan.fusiones.length, 1);
 
   const f = plan.fusiones[0];
-  igual(f.nombreCompleto, "OROZCO OSPITIA LEIDY VALENTINA");
-  igual(f.documento, "27314");
+  igual(f.nombreCompleto, "SALGADO QUINTERO MARTA ELENA");
+  igual(f.documento, "00555");
   igual(f.integrantes.length, 2);
-  // La sugerida es la que tiene más renglones: LEIDY OROZCO tiene 2.
-  igual(f.sugerido, "LEIDY OROZCO");
+  // La sugerida es la que tiene más renglones: MARTA SALGADO tiene 2.
+  igual(f.sugerido, "MARTA SALGADO");
 });
 
 prueba("las que no salen en la lista se quedan quietas", () => {
@@ -192,7 +192,7 @@ prueba("las que no salen en la lista se quedan quietas", () => {
 prueba("los de la lista que no comen aquí no estorban", () => {
   const plan = cruzarConPersonal(datosMGP(), "MGP", LISTA_MGP);
   igual(plan.sobrantes.length, 1);
-  igual(plan.sobrantes[0].nombre, "ACOSTA MANRIQUE LEIDY LORENA");
+  igual(plan.sobrantes[0].nombre, "BAUTISTA MANRIQUE LUISA LORENA");
 });
 
 prueba("cuando hay dos candidatos NO adivina: lo deja como dudoso", () => {
@@ -224,7 +224,7 @@ prueba("aplicar guarda el documento en la persona", () => {
   const r = aplicarDocumentos(datos, plan.asignaciones);
   igual(r.puestos, 1);
   const camilo = datos.personas.find((p) => p.nombre === "CAMILO GARZON");
-  igual(camilo.documento, "56101");
+  igual(camilo.documento, "00444");
 });
 
 prueba("cuenta bien cuántas personas tienen documento", () => {

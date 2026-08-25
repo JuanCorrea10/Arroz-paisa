@@ -8,7 +8,7 @@
 //
 //  Casi siempre no son cosas nuevas, son cosas MAL ESCRITAS:
 //
-//      LADY ACOSTA      cuando en MGP existe LEIDY ACOSTA
+//      MARTHA SALGADO   cuando en MGP existe MARTA SALGADO
 //      AGUA CON GAS     cuando en el catálogo existe AGUA GAS
 //
 //  Este archivo los encuentra y propone a qué se parecen. NO decide: para eso
@@ -163,7 +163,7 @@ export function volverARevisar(datos, tipo, empresa, nombre) {
  * que no existe, ya SABEMOS que algo está mal. Entonces cualquier pista ayuda,
  * y para descartarla están los botones "No, es otra" y "Déjelo así".
  *
- * El caso que obligó a esto es real: LADY ACOSTA contra LEIDY ACOSTA. Se
+ * El caso que obligó a esto es real: MARTHA SALGADO contra MARTA SALGADO. Se
  * diferencian en dos letras, o sea la categoría más floja, y sin embargo es
  * justo la respuesta correcta.
  */

@@ -43,7 +43,7 @@ prueba("convierte los guiones en espacios", () => {
 });
 
 prueba("RESPETA las tildes y la ñ, porque distinguen personas", () => {
-  igual(limpiarNombre("alejandro quiñones"), "ALEJANDRO QUIÑONES");
+  igual(limpiarNombre("alejandro muñoz"), "ALEJANDRO MUÑOZ");
   igual(limpiarNombre("josé pérez"), "JOSÉ PÉREZ");
 });
 
@@ -67,7 +67,7 @@ prueba("no le importa el orden de las palabras", () => {
 
 prueba("no le importan las tildes ni la ñ", () => {
   igual(esqueleto("JOSÉ PÉREZ"), esqueleto("JOSE PEREZ"));
-  igual(esqueleto("QUIÑONES"), esqueleto("QUINONES"));
+  igual(esqueleto("MUÑOZ"), esqueleto("MUNOZ"));
 });
 
 prueba("no le importan los puntos", () => {
@@ -314,16 +314,16 @@ prueba("dos nombres calcados NO se proponen si el documento dice que son dos", (
 });
 
 prueba("dos nombres que no se parecen SÍ se proponen si el documento es el mismo", () => {
-  // El caso real de MGP: LEIDY OROZCO y VALENTINA OSPITIA eran la misma señora
-  // (OROZCO OSPITIA LEIDY VALENTINA). No comparten ni una letra.
+  // El caso real de MGP: MARTA SALGADO y ELENA QUINTERO eran la misma señora
+  // (SALGADO QUINTERO MARTA ELENA). No comparten ni una letra.
   const datos = datosDePrueba();
   datos.personas = [
-    { nombre: "LEIDY OROZCO", empresaCome: "AGRO", empresaFactura: "AGRO", activa: true, documento: "77777" },
-    { nombre: "VALENTINA OSPITIA", empresaCome: "AGRO", empresaFactura: "AGRO", activa: true, documento: "77777" },
+    { nombre: "MARTA SALGADO", empresaCome: "AGRO", empresaFactura: "AGRO", activa: true, documento: "77777" },
+    { nombre: "ELENA QUINTERO", empresaCome: "AGRO", empresaFactura: "AGRO", activa: true, documento: "77777" },
   ];
   datos.consumos = [
-    renglon("2026-08-03", "AGRO", "LEIDY OROZCO", 1),
-    renglon("2026-08-04", "AGRO", "VALENTINA OSPITIA", 1),
+    renglon("2026-08-03", "AGRO", "MARTA SALGADO", 1),
+    renglon("2026-08-04", "AGRO", "ELENA QUINTERO", 1),
   ];
   const grupos = gruposParaRevisar(datos);
   igual(grupos.length, 1, "el documento las tiene que juntar");

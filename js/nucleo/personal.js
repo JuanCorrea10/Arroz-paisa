@@ -11,9 +11,9 @@
 //     mismo documento = misma persona, documento distinto = personas distintas.
 //
 //  2. DESCUBRIR DUPLICADOS QUE POR NOMBRE SON IMPOSIBLES DE VER.
-//     Ejemplo real de MGP: en la app estaban "LEIDY OROZCO" y
-//     "VALENTINA OSPITIA" como dos personas. En la lista de la empresa hay una
-//     sola: "OROZCO OSPITIA LEIDY VALENTINA". Es la misma señora, anotada unas
+//     Ejemplo real de MGP: en la app estaban "MARTA SALGADO" y
+//     "ELENA QUINTERO" como dos personas. En la lista de la empresa hay una
+//     sola: "SALGADO QUINTERO MARTA ELENA". Es la misma señora, anotada unas
 //     veces por el primer apellido y otras por el segundo. Esos dos nombres no
 //     comparten NI UNA LETRA, así que compararlos por parecido nunca los iba a
 //     encontrar. Solo se ven cruzando contra la lista de la empresa.
@@ -142,13 +142,13 @@ export function leerListaDePersonal(hojas) {
 // ---------------------------------------------------------------------------
 //  2. Cruzar la lista con las personas que ya están en la app
 //
-//  En la app los nombres son cortos ("LEIDY OROZCO") y en la lista de la
-//  empresa son completos ("OROZCO OSPITIA LEIDY VALENTINA"). La regla es:
+//  En la app los nombres son cortos ("MARTA SALGADO") y en la lista de la
+//  empresa son completos ("SALGADO QUINTERO MARTA ELENA"). La regla es:
 //
 //     todas las palabras del nombre corto tienen que estar en el largo.
 //
 //  Se comparan las palabras SUELTAS y sin orden, porque a veces se anota
-//  "LEIDY OROZCO" y a veces "OROZCO LEIDY", y las dos son la misma.
+//  "MARTA SALGADO" y a veces "SALGADO MARTA", y las dos son la misma.
 // ---------------------------------------------------------------------------
 
 /** Las palabras de un nombre, sin tildes y sin repetir. */

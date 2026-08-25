@@ -58,17 +58,17 @@ prueba("los meses saben cuántos días tienen, hasta en año bisiesto", () => {
 
 prueba("normalizar limpia pero NO borra tildes ni la eñe", () => {
   igual(normalizar("  juan   perez  "), "JUAN PEREZ");
-  igual(normalizar("Alejandro Quiñones"), "ALEJANDRO QUIÑONES");
+  igual(normalizar("Alejandro Muñoz"), "ALEJANDRO MUÑOZ");
   igual(normalizar(null), "");
   igual(normalizar(42), "42");
 });
 
 prueba("para buscar sí quitamos tildes, para que encuentre escribiendo rápido", () => {
-  igual(paraBuscar("Alejandro Quiñones"), "ALEJANDRO QUINONES");
-  cierto(coincide("ALEJANDRO QUIÑONES", "quinones"), "escribe sin eñe y lo encuentra");
-  cierto(coincide("ALEJANDRO QUIÑONES", "alej qui"), "escribe pedazos sueltos");
+  igual(paraBuscar("Alejandro Muñoz"), "ALEJANDRO MUNOZ");
+  cierto(coincide("ALEJANDRO MUÑOZ", "munoz"), "escribe sin eñe y lo encuentra");
+  cierto(coincide("ALEJANDRO MUÑOZ", "alej mun"), "escribe pedazos sueltos");
   cierto(coincide("MARÍA JOSÉ GÓMEZ", "maria jose"));
-  cierto(!coincide("ALEJANDRO QUIÑONES", "pedro"));
+  cierto(!coincide("ALEJANDRO MUÑOZ", "pedro"));
   cierto(coincide("CUALQUIERA", ""), "sin búsqueda, sale todo");
 });
 
