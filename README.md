@@ -118,6 +118,20 @@ empresas.
 
 ---
 
+## Publicar los cambios
+
+Los cambios **no se suben solos**. Cada vez que se arregle algo:
+
+```
+.\publicar.ps1 "lo que cambio"
+```
+
+Eso revisa que no se vaya ningun dato de las personas, guarda el cambio y lo
+sube. Al minuto se ve en <https://juancorrea10.github.io/Arroz-paisa/>.
+
+La revision de datos la hace el script y no uno a mano, porque es la clase de
+cosa que se olvida justo el dia que importa.
+
 ## Publicar en GitHub Pages
 
 La app queda en una dirección pública, pero **no publica ningún dato**: los
