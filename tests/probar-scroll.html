@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<title>Probar el header al bajar</title>
+<style>
+  body { font-family: system-ui, sans-serif; padding: 1rem; background: #f6f0f4; margin: 0; }
+  h1 { font-size: 1.2rem; margin: 0 0 .5rem; }
+  p { margin: 0 0 1rem; font-size: .9rem; color: #574a53; }
+  iframe { width: 1200px; height: 320px; border: 1px solid #c6b2c0; display: block; margin-bottom: 1rem; }
+  .rotulo { font-family: ui-monospace, Consolas, monospace; font-size: .85rem;
+            font-weight: 700; margin: .5rem 0 .3rem; }
+</style>
+</head>
+<body>
+<h1>El header, arriba del todo y después de bajar</h1>
+<p>
+  Los dos marcos muestran la misma app. El de abajo ya bajó 400 px, así que
+  el header debería estar encogido y con sombra &mdash; pero con las letras
+  del mismo tamaño de siempre, no aplastadas.
+</p>
+
+<div class="rotulo">1. Arriba del todo</div>
+<iframe id="arriba" src="../index.html#personas"></iframe>
+
+<div class="rotulo">2. Después de bajar 400 px</div>
+<iframe id="abajo" src="../index.html#personas"></iframe>
+
+<script type="module">
+const esperar = (ms) => new Promise((l) => setTimeout(l, ms));
+
+// Se espera a que la app cargue, se baja el segundo marco y se deja quieto.
+await esperar(6000);
+const abajo = document.getElementById("abajo");
+abajo.contentWindow.scrollTo({ top: 400, behavior: "instant" });
+await esperar(1200);
+
+// Se miden los dos para poder comparar sin ojo.
+const medir = (marco) => {
+  const doc = marco.contentDocument;
+  const barra = doc.querySelector(".barra");
+  const piso = doc.querySelector(".barra-piso-alto");
+  const marca = doc.querySelector(".marca");
+  const caja = marca.getBoundingClientRect();
+  return {
+    encogida: barra.classList.contains("encogida"),
+    altoDelPiso: Math.round(piso.getBoundingClientRect().height),
+    altoDeLaMarca: Math.round(caja.height),
+    // Si scaleY estuviera aplastando, esto no daria 1.
+    escalaY: doc.defaultView.getComputedStyle(piso).transform,
+  };
+};
+
+/**
+ * ¿El encabezado de la tabla está tapando alguna fila?
+ *
+ * Un encabezado pegajoso mal puesto se queda flotando en la mitad de la
+ * tabla, encima de los datos. Se ve raro pero es facil de pasar por alto en
+ * una captura, asi que se mide: ninguna fila puede empezar por encima del
+ * borde de abajo del encabezado.
+ */
+function encabezadoTapaFilas(marco) {
+  const doc = marco.contentDocument;
+  for (const tabla of doc.querySelectorAll("table")) {
+    const th = tabla.querySelector("thead th");
+    const filas = tabla.querySelectorAll("tbody tr");
+    if (!th || !filas.length) continue;
+    const abajoDelTh = th.getBoundingClientRect().bottom;
+    for (const fila of filas) {
+      const caja = fila.getBoundingClientRect();
+      if (caja.height === 0) continue;
+      // Una fila visible que empieza ARRIBA del borde inferior del
+      // encabezado esta quedando tapada.
+      if (caja.top < abajoDelTh - 2 && caja.bottom > abajoDelTh) return true;
+    }
+  }
+  return false;
+}
+
+const a = medir(document.getElementById("arriba"));
+const b = medir(abajo);
+
+const salida = [
+  `arriba:  encogida=${a.encogida}  piso=${a.altoDelPiso}px  marca=${a.altoDeLaMarca}px  transform=${a.escalaY}`,
+  `abajo:   encogida=${b.encogida}  piso=${b.altoDelPiso}px  marca=${b.altoDeLaMarca}px  transform=${b.escalaY}`,
+  ``,
+  b.encogida ? "OK   el header se encogio al bajar" : "MAL  no se encogio",
+  a.altoDelPiso > b.altoDelPiso ? "OK   el piso de arriba mide menos" : "MAL  no cambio de alto",
+  a.altoDeLaMarca === b.altoDeLaMarca
+    ? "OK   la marca mide IGUAL: no esta aplastada"
+    : `MAL  la marca cambio de alto (${a.altoDeLaMarca} -> ${b.altoDeLaMarca}): se esta aplastando`,
+  encabezadoTapaFilas(abajo)
+    ? "MAL  el encabezado de la tabla esta tapando filas"
+    : "OK   el encabezado no tapa ninguna fila",
+].join("\n");
+
+document.body.insertAdjacentHTML("beforeend", `<pre>${salida}</pre>`);
+try { await fetch("/diagnostico", { method: "POST", body: salida }); } catch {}
+</script>
+</body>
+</html>

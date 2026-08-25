@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20260825-1639";
+  --version: "20260825-1653";
 }
 
 /* ===========================================================================
@@ -1171,19 +1171,29 @@ thead th {
   box-shadow: 0 4px 16px rgba(24, 10, 21, 0.28);
 }
 
-/* Se encoge moviendo el contenido, no cambiando la altura de la caja:
-   animar altura obliga a recalcular la pagina entera en cada cuadro. */
+/* Como se encoge el header, y por que NO con scaleY.
+   ------------------------------------------------------------------------
+   El primer intento fue "transform: scaleY(0.86)", para respetar la regla de
+   animar solo transform. Salio mal: scaleY no encoge la caja, APLASTA todo lo
+   que hay adentro. Las letras quedaban chatas, como una foto estirada.
+
+   La regla de "solo transform" existe para no obligar al navegador a
+   recalcular la posicion de TODA la pagina en cada cuadro. Aqui se anima el
+   min-height de UN elemento que ademas esta fijo arriba y no empuja a nadie:
+   el costo es cero y el texto no se deforma.
+
+   Una regla se sigue por lo que evita, no porque si. Cuando seguirla al pie
+   de la letra produce algo peor de lo que evita, no era la regla que tocaba.
+   ------------------------------------------------------------------------ */
+
 .barra-piso-alto {
-  transition: transform 200ms cubic-bezier(0.2, 0, 0, 1),
-              opacity 180ms ease-out;
-  transform-origin: top center;
+  transition: min-height 200ms cubic-bezier(0.2, 0, 0, 1);
 }
-.barra.encogida .barra-piso-alto {
-  transform: scaleY(0.86);
-}
-.barra.encogida .marca { font-size: var(--t-sm); }
-.barra.encogida .marca span { opacity: 0; }
-.marca, .marca span { transition: font-size 200ms ease-out, opacity 180ms ease-out; }
+.barra.encogida .barra-piso-alto { min-height: 40px; }
+
+/* La ciudad se desvanece: es lo unico que sobra cuando falta espacio. */
+.marca span { transition: opacity 180ms ease-out, max-width 200ms ease-out; }
+.barra.encogida .marca span { opacity: 0; max-width: 0; overflow: hidden; }
 
 /* ===========================================================================
    BLOQUE C - Tablas
@@ -1195,11 +1205,32 @@ thead th {
   --alto-header: 98px;
 }
 
-/* El encabezado se queda pegado bajo la barra al bajar. Con 300 personas en
-   la lista, sin esto uno se pierde y no sabe que columna esta mirando. */
+/* El encabezado pegajoso, DENTRO del contenedor de la tabla.
+   ------------------------------------------------------------------------
+   Primero le puse "top: var(--alto-header)" para que se pegara bajo la barra
+   de arriba. Salio mal, y la razon es una regla que sorprende:
+
+     position:sticky no se pega a la VENTANA, se pega al contenedor que tenga
+     scroll mas cercano.
+
+   Y .marco-tabla tiene overflow-x:auto (para poder deslizar las tablas
+   anchas en el celular), asi que ESE es su contenedor. El encabezado se
+   quedaba flotando 98 px adentro de la tabla, tapando sus propias filas.
+
+   El arreglo correcto es el que pedia la idea original: que la tabla tenga su
+   propia altura y su propio scroll, y el encabezado se pegue arriba de ELLA.
+   Asi ademas la fila de TOTAL se puede quedar abajo, que es justo lo que uno
+   quiere mirando una cuenta larga.
+   ------------------------------------------------------------------------ */
+
+.marco-tabla {
+  max-height: 72vh;
+  overflow: auto;
+}
+
 thead th {
   position: sticky;
-  top: var(--alto-header);
+  top: 0;
   z-index: 3;
 }
 
