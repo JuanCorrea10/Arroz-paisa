@@ -7,7 +7,8 @@
 //  y de ninguna otra.
 // ============================================================================
 
-import { el, vaciar, tabla, cifra, cifraPlata, acciones, vacio, mensaje, confirmar, poner } from "./componentes.js";
+import { el, vaciar, tabla, cifra, cifraPlata, acciones, vacio, mensaje, confirmar, poner, botonQueTrabaja,
+} from "./componentes.js";
 import { estado, empresas, empresaPorCodigo, asegurarEmpresa } from "./estado.js";
 import { pesos, nombreMes, fechaCorta } from "../nucleo/formato.js";
 import { cuentaDeCobro, deQuincena, sumar } from "../nucleo/calculos.js";
@@ -50,13 +51,10 @@ export function pintarCobro(raiz) {
       ),
       acciones(
         el("button", { clase: "chico", alHacerClic: () => window.print() }, "Imprimir"),
-        el("button", {
-          clase: "principal chico",
-          alHacerClic: () => {
+        botonQueTrabaja("Bajar PDF", () => {
             try { pdfCuentaDeCobro(cuenta, acreedor); mensaje("PDF descargado.", "bien"); }
             catch (e) { mensaje(e.message, "malo", 8); }
-          },
-        }, "Bajar PDF")
+          })
       )
     ),
     el("div", { clase: "mando" },

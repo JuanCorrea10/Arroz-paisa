@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20260825-1619";
+  --version: "20260825-1639";
 }
 
 /* ===========================================================================
@@ -1122,10 +1122,259 @@ thead th {
    Un campo debe medir lo que necesita su contenido, no lo que sobre.
    --------------------------------------------------------------------- */
 
+/* Crecen para repartirse la fila, pero con tope: sin el tope, un solo campo
+   se comia los 1300 px de ancho; sin el crecer, con cuatro campos el ultimo
+   se caia solo a una segunda fila y se veia desbalanceado. */
 .mando .campo {
-  flex: 0 1 300px;
+  flex: 1 1 210px;
+  max-width: 380px;
+}
+
+/* ===========================================================================
+   BLOQUE A - El indicador del menu que se desliza
+   =========================================================================== */
+
+.menu { position: relative; }
+
+.indicador-nav {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 1px;              /* mide 1 px y se estira con scaleX */
+  height: 3px;
+  background: var(--azul-claro);
+  border-radius: 2px 2px 0 0;
+  transform-origin: left center;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 220ms cubic-bezier(0.2, 0, 0, 1),
+    opacity 150ms ease-out;
+}
+
+/* Ya no hace falta la linea de cada pestana: ahora la pone el indicador. */
+.menu a[aria-current="page"] { border-bottom-color: transparent; }
+
+/* ===========================================================================
+   BLOQUE B - El header que se encoge al bajar
+   =========================================================================== */
+
+/* El centinela: existe pero no ocupa ni se ve. */
+#tope-pagina { position: absolute; top: 0; height: 1px; width: 1px; }
+
+.barra {
+  transition:
+    box-shadow 200ms ease-out,
+    background-color 200ms ease-out;
+}
+.barra.encogida {
+  box-shadow: 0 4px 16px rgba(24, 10, 21, 0.28);
+}
+
+/* Se encoge moviendo el contenido, no cambiando la altura de la caja:
+   animar altura obliga a recalcular la pagina entera en cada cuadro. */
+.barra-piso-alto {
+  transition: transform 200ms cubic-bezier(0.2, 0, 0, 1),
+              opacity 180ms ease-out;
+  transform-origin: top center;
+}
+.barra.encogida .barra-piso-alto {
+  transform: scaleY(0.86);
+}
+.barra.encogida .marca { font-size: var(--t-sm); }
+.barra.encogida .marca span { opacity: 0; }
+.marca, .marca span { transition: font-size 200ms ease-out, opacity 180ms ease-out; }
+
+/* ===========================================================================
+   BLOQUE C - Tablas
+   =========================================================================== */
+
+:root {
+  /* Alto de los dos pisos del header. Lo necesitan el encabezado pegajoso de
+     las tablas y los anclajes del manual, para no quedar tapados. */
+  --alto-header: 98px;
+}
+
+/* El encabezado se queda pegado bajo la barra al bajar. Con 300 personas en
+   la lista, sin esto uno se pierde y no sabe que columna esta mirando. */
+thead th {
+  position: sticky;
+  top: var(--alto-header);
+  z-index: 3;
+}
+
+/* La fila de TOTAL se queda abajo mientras la tabla siga a la vista, y se ve
+   distinta: es la unica fila que no es un dato, es una conclusion. */
+tfoot td, tfoot th {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: var(--papel-hueso);
+  border-top: 2px solid var(--mora);
+  font-weight: 700;
+}
+
+/* Al pasar por encima, la fila se marca. Ayuda a seguir el renglon con la
+   vista en tablas anchas, que es donde uno se salta de fila sin querer. */
+tbody tr { transition: background-color 120ms ease-out; }
+
+/* Las filas entran escalonadas, pero SOLO las primeras 15. Si se animaran
+   las 300 de la lista de personas, la ultima entraria diez segundos despues
+   y la pantalla se sentiria lenta en vez de viva. */
+@keyframes entrar-fila {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+tbody tr:nth-child(-n + 15) {
+  animation: entrar-fila 200ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+tbody tr:nth-child(1)  { animation-delay: 0ms; }
+tbody tr:nth-child(2)  { animation-delay: 20ms; }
+tbody tr:nth-child(3)  { animation-delay: 40ms; }
+tbody tr:nth-child(4)  { animation-delay: 60ms; }
+tbody tr:nth-child(5)  { animation-delay: 80ms; }
+tbody tr:nth-child(6)  { animation-delay: 100ms; }
+tbody tr:nth-child(7)  { animation-delay: 120ms; }
+tbody tr:nth-child(8)  { animation-delay: 140ms; }
+tbody tr:nth-child(9)  { animation-delay: 160ms; }
+tbody tr:nth-child(10) { animation-delay: 180ms; }
+tbody tr:nth-child(n + 11):nth-child(-n + 15) { animation-delay: 200ms; }
+
+/* ===========================================================================
+   BLOQUE F - Orden visual
+   =========================================================================== */
+
+/* Todo lo de una pantalla mide lo mismo de ancho. Antes la barra de filtros
+   era mucho mas ancha que las tarjetas y se veia como si fueran dos paginas
+   distintas pegadas. */
+.hoja > .mando,
+.hoja > .tarjeta,
+.hoja > .marco-tabla,
+.hoja > .cifras,
+.hoja > .vacio,
+.hoja > .rejilla {
   max-width: 100%;
 }
 
-/* El de empresa aguanta nombres largos ("BOTAS AGROINDUSTRIAL SAS"). */
-.mando .campo:has(select) { flex-basis: 360px; }
+/* La barra de filtros, en una fila compacta. Ocupaba el alto de una tarjeta
+   entera para tener dos casillas. */
+.mando {
+  padding: var(--e3) var(--e4);
+  gap: var(--e3) var(--e5);
+  align-items: flex-start;
+}
+.mando input, .mando select {
+  font-size: var(--t-md);
+  min-height: 44px;
+}
+.mando .campo > label { font-size: var(--t-xs); }
+.mando .campo > small { font-size: var(--t-xs); }
+
+@media print {
+  /* En papel no hay movimiento ni profundidad: solo tinta. */
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    box-shadow: none !important;
+  }
+  thead th, tfoot td, tfoot th { position: static !important; }
+  .indicador-nav, .aviso-version { display: none !important; }
+}
+
+/* ===========================================================================
+   BLOQUE D - Controles
+   =========================================================================== */
+
+button, .boton, .boton-enlace {
+  transition:
+    transform 120ms cubic-bezier(0.2, 0, 0, 1),
+    box-shadow 150ms ease-out,
+    background-color 150ms ease-out,
+    border-color 150ms ease-out,
+    color 150ms ease-out;
+}
+button:hover:not(:disabled), .boton-enlace:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(59, 27, 52, 0.14);
+}
+button:active:not(:disabled) {
+  transform: scale(0.98);
+  box-shadow: none;
+  transition-duration: 60ms;
+}
+
+/* El anillo de foco crece en vez de aparecer de golpe. Es para quien navega
+   con el teclado: ver de donde vino el foco es la mitad del asunto. */
+:focus-visible {
+  transition: outline-offset 120ms cubic-bezier(0.2, 0, 0, 1);
+  outline-offset: 3px;
+}
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 3px solid var(--azul);
+  outline-offset: 3px;
+}
+
+/* --- El boton que trabaja ---------------------------------------------- */
+
+.rueda {
+  display: none;
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  flex: none;
+  animation: girar 620ms linear infinite;
+}
+@keyframes girar { to { transform: rotate(360deg); } }
+
+.trabajando { cursor: progress; opacity: 0.85; }
+.trabajando .rueda { display: inline-block; }
+
+button:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+/* ===========================================================================
+   BLOQUE E - Ventanas
+   =========================================================================== */
+
+@keyframes abrir-ventana {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+dialog[open] {
+  animation: abrir-ventana 200ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+/* El fondo oscuro entra por su cuenta: si entrara pegado a la ventana, se
+   veria como un bloque solo y no como una capa detras. */
+dialog::backdrop {
+  animation: aparecer 260ms ease-out both;
+  background: rgba(24, 10, 21, 0.42);
+}
+
+/* Salir siempre mas rapido que entrar: al abrir uno quiere ver que llego;
+   al cerrar ya decidio y lo que quiere es que se quite. */
+dialog.cerrando { animation: cerrar-ventana 150ms ease-out both; }
+@keyframes cerrar-ventana {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: scale(0.98); }
+}
+
+/* ===========================================================================
+   BLOQUE G - Scroll
+   ===========================================================================
+
+   Suave para lo que hace la persona (los anclajes del manual, el teclado,
+   "ir arriba"). Instantaneo para lo que hace la app al cambiar de pantalla:
+   eso se hace diez veces al dia y animarlo se siente lento. Lo instantaneo
+   se pide desde el JS con scrollTo({ behavior: "instant" }).
+   =========================================================================== */
+
+html { scroll-behavior: smooth; }
+
+/* Los anclajes del manual quedaban debajo del header pegajoso: uno hacia
+   clic en "Si algo sale mal" y el titulo quedaba tapado. */
+[id] { scroll-margin-top: calc(var(--alto-header) + var(--e4)); }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}

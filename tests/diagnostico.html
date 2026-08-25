@@ -121,9 +121,11 @@ try {
   const doc = marco.contentDocument;
   const pantalla = () => doc.getElementById("pantalla");
 
+  // Se cuentan los enlaces, no los hijos: adentro del menu vive tambien el
+  // indicador que se desliza, que no es un enlace.
   const menu = doc.getElementById("menu");
-  anotar(`el menú tiene ${menu.children.length} enlaces`,
-         menu.children.length === 10 ? "ok" : "mal");
+  const enlaces = menu.querySelectorAll("a").length;
+  anotar(`el menú tiene ${enlaces} enlaces`, enlaces === 10 ? "ok" : "mal");
 
   if (pantalla().querySelector(".cargando")) {
     anotar("la app se quedó pegada en 'Abriendo...'", "mal");

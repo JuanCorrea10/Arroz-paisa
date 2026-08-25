@@ -15,12 +15,12 @@
   nueva y el navegador no tiene de donde sacar el viejo. Lo cambia solo el
   script de publicar; a mano no se toca.
 -->
-<meta name="version" content="20260825-1619">
+<meta name="version" content="20260825-1639">
 <title>Arroz Paisa — Control de almuerzos</title>
 
-<link rel="stylesheet" href="css/fuentes.css?v=20260825-1619">
-<link rel="stylesheet" href="css/estilos.css?v=20260825-1619">
-<link rel="stylesheet" href="css/pantallas.css?v=20260825-1619">
+<link rel="stylesheet" href="css/fuentes.css?v=20260825-1639">
+<link rel="stylesheet" href="css/estilos.css?v=20260825-1639">
+<link rel="stylesheet" href="css/pantallas.css?v=20260825-1639">
 
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%233b1b34'/><text x='16' y='23' font-size='19' text-anchor='middle' fill='%23dfeaf6' font-family='Georgia,serif'>A</text></svg>">
 
@@ -47,6 +47,12 @@
   intencional y ademas separa dos cosas distintas: arriba DONDE estoy parado
   (que mes miro, si esta guardado) y abajo A DONDE puedo ir.
 -->
+<!-- Un centinela invisible. Mientras se vea, la pagina esta arriba del todo;
+     cuando deja de verse, el header se encoge y saca sombra. Se usa esto y no
+     un escuchador de scroll porque el scroll dispara cientos de veces por
+     segundo y esto solo avisa cuando de verdad cambia algo. -->
+<div id="tope-pagina" aria-hidden="true"></div>
+
 <header class="barra">
   <div class="barra-piso barra-piso-alto">
     <div class="marca">Arroz Paisa <span>Ibagué</span></div>
@@ -77,7 +83,7 @@
   </div>
 </noscript>
 
-<script type="module" src="js/app.js?v=20260825-1619"></script>
+<script type="module" src="js/app.js?v=20260825-1639"></script>
 
 <script>
   // Si el navegador es muy viejo y no entiende módulos, el script de arriba ni

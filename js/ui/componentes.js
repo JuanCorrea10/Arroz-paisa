@@ -126,9 +126,17 @@ export function ventana({ titulo, cuerpo, botones = [], alCerrar }) {
   document.body.append(dialogo);
 
   function cerrar() {
-    dialogo.close();
-    dialogo.remove();
-    if (alCerrar) alCerrar();
+    // Se deja salir la animacion antes de quitarla del todo. Si se borrara
+    // de una, la ventana desapareceria de golpe y se sentiria brusco.
+    const sinMovimiento = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const rematar = () => {
+      dialogo.close();
+      dialogo.remove();
+      if (alCerrar) alCerrar();
+    };
+    if (sinMovimiento) return rematar();
+    dialogo.classList.add("cerrando");
+    setTimeout(rematar, 150);
   }
   dialogo.addEventListener("cancel", (e) => { e.preventDefault(); cerrar(); });
   dialogo.showModal();
@@ -398,6 +406,40 @@ export function tabla(columnas, filas, pie = null) {
   const tbody = el("tbody", {}, ...filas);
   const t = el("table", {}, thead, tbody, pie ? el("tfoot", {}, pie) : null);
   return el("div", { clase: "marco-tabla" }, t);
+}
+
+/**
+ * Un boton que se queda "trabajando" mientras hace lo suyo.
+ *
+ * Hace falta de verdad: armar el PDF de la lista por persona son 268 filas y
+ * el navegador se queda quieto un segundo largo. Sin aviso, ella cree que no
+ * funciono y vuelve a tocar, y entonces se bajan dos archivos.
+ *
+ * Mientras trabaja se apaga, para que no se pueda tocar dos veces.
+ */
+export function botonQueTrabaja(texto, alHacerClic, clase = "principal chico") {
+  const rueda = el("span", { clase: "rueda", "aria-hidden": "true" });
+  const letras = el("span", { texto });
+
+  const boton = el("button", {
+    clase,
+    alHacerClic: async () => {
+      if (boton.disabled) return;
+      boton.disabled = true;
+      boton.classList.add("trabajando");
+      // Un respiro para que el navegador alcance a pintar el boton apagado
+      // antes de ponerse a trabajar. Sin esto, el aviso nunca se ve.
+      await new Promise((listo) => setTimeout(listo, 30));
+      try {
+        await alHacerClic();
+      } finally {
+        boton.disabled = false;
+        boton.classList.remove("trabajando");
+      }
+    },
+  }, rueda, letras);
+
+  return boton;
 }
 
 /** Botón que descarga o imprime, para las pantallas de informes. */

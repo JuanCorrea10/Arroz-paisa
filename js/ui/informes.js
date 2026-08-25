@@ -5,7 +5,8 @@
 //  una tabla, y botones para imprimir o bajar el PDF.
 // ============================================================================
 
-import { el, vaciar, tabla, cifra, cifraPlata, acciones, vacio, mensaje, cinta, poner } from "./componentes.js";
+import { el, vaciar, tabla, cifra, cifraPlata, acciones, vacio, mensaje, cinta, poner, botonQueTrabaja,
+} from "./componentes.js";
 import { estado, cambio, empresas, empresaPorCodigo } from "./estado.js";
 import { pesos, fechaLarga, fechaCorta, nombreMes, diasDelMes, hoyISO } from "../nucleo/formato.js";
 import {
@@ -82,13 +83,10 @@ export function pintarCocina(raiz) {
       ),
       acciones(
         botonImprimir(),
-        el("button", {
-          clase: "principal chico",
-          alHacerClic: () => {
+        botonQueTrabaja("Bajar PDF", () => {
             try { pdfCocina(filas, estado.fecha, codigos, estado.datos.config.acreedor); }
             catch (e) { mensaje(e.message, "malo", 8); }
-          },
-        }, "Bajar PDF")
+          })
       )
     ),
     el("div", { clase: "mando" }, selectorDeDia(repintar))
@@ -143,13 +141,10 @@ export function pintarResumenDia(raiz) {
       ),
       acciones(
         botonImprimir(),
-        el("button", {
-          clase: "principal chico",
-          alHacerClic: () => {
+        botonQueTrabaja("Bajar PDF", () => {
             try { pdfResumenDia(informe, nombre, estado.datos.config.acreedor); }
             catch (e) { mensaje(e.message, "malo", 8); }
-          },
-        }, "Bajar PDF")
+          })
       )
     ),
     el("div", { clase: "mando" },
@@ -214,13 +209,10 @@ export function pintarPorPersona(raiz) {
       ),
       acciones(
         botonImprimir(),
-        el("button", {
-          clase: "principal chico",
-          alHacerClic: () => {
+        botonQueTrabaja("Bajar PDF", () => {
             try { pdfPorPersona(filas, estado.anio, estado.mes, nombre, estado.datos.config.acreedor); }
             catch (e) { mensaje(e.message, "malo", 8); }
-          },
-        }, "Bajar PDF")
+          })
       )
     ),
     el("div", { clase: "mando" },
@@ -292,13 +284,10 @@ export function pintarCuadre(raiz) {
       ),
       acciones(
         botonImprimir(),
-        el("button", {
-          clase: "principal chico",
-          alHacerClic: () => {
+        botonQueTrabaja("Bajar PDF", () => {
             try { pdfCuadre(filas, estado.anio, estado.mes, estado.datos.config.acreedor); }
             catch (e) { mensaje(e.message, "malo", 8); }
-          },
-        }, "Bajar PDF")
+          })
       )
     ),
     el("div", { clase: "mando" }, ...selectorDeMes(repintar))

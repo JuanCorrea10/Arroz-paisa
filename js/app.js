@@ -77,7 +77,10 @@ function pintar() {
 
   document.title = `${pantalla.titulo} — Arroz Paisa`;
   marcarMenu(cual);
-  window.scrollTo(0, 0);
+  // Instantáneo a propósito: con scroll-behavior suave en toda la página,
+  // cambiar de pantalla se volvería una animación de subida cada vez, y eso
+  // se usa diez veces al día. Lo suave es para lo que hace la persona.
+  window.scrollTo({ top: 0, behavior: "instant" });
 
   try {
     // Hay pantallas que tardan (la de ayuda va a buscar el manual). Si esta
@@ -118,11 +121,35 @@ function pantallaRota(donde, error) {
 }
 
 function marcarMenu(cual) {
+  let activa = null;
   for (const a of document.querySelectorAll(".menu a")) {
     const suyo = a.getAttribute("href").replace("#", "");
-    if (suyo === cual) a.setAttribute("aria-current", "page");
+    if (suyo === cual) { a.setAttribute("aria-current", "page"); activa = a; }
     else a.removeAttribute("aria-current");
   }
+  moverIndicador(activa);
+}
+
+/**
+ * La barrita de abajo se DESLIZA de una pestaña a otra, en vez de apagarse
+ * en una y prenderse en otra. Eso hace que el ojo siga el movimiento y sepa
+ * de dónde vino, que es lo que uno quiere de un menú.
+ *
+ * Se mueve con transform y se estira con scaleX, nunca cambiando "left" ni
+ * "width": esas dos obligan al navegador a recalcular el tamaño de todo en
+ * cada cuadro, y ahí es donde las animaciones se ponen a tirones.
+ */
+function moverIndicador(enlace) {
+  const barrita = document.getElementById("indicador-nav");
+  if (!barrita) return;
+  if (!enlace) { barrita.style.opacity = "0"; return; }
+
+  const menu = enlace.parentElement;
+  const izquierda = enlace.offsetLeft - menu.scrollLeft;
+  const ancho = enlace.offsetWidth;
+
+  barrita.style.opacity = "1";
+  barrita.style.transform = `translateX(${izquierda}px) scaleX(${ancho})`;
 }
 
 // ---------------------------------------------------------------------------
@@ -206,6 +233,12 @@ function construirMenu() {
       )
     );
   }
+
+  // El indicador se crea AQUI y no en el HTML, porque esta funcion vacia el
+  // menu cada vez que corre: si estuviera en el HTML, lo borraria y el
+  // indicador desapareceria para siempre. (Paso, y por eso esta escrito.)
+  menu.append(el("span", { clase: "indicador-nav", id: "indicador-nav", "aria-hidden": "true" }));
+
   refrescarContadores();
 }
 
@@ -335,9 +368,28 @@ function revisarLaVersion() {
   console.warn(`Versiones distintas: el HTML dice ${delHtml} y el CSS dice ${delCss}`);
 }
 
+/**
+ * El header se encoge y saca sombra cuando la página deja de estar arriba.
+ *
+ * Se vigila un centinela invisible en vez de escuchar el scroll: el scroll
+ * avisa cientos de veces por segundo y esto solo avisa cuando de verdad
+ * cambió algo. Menos trabajo, y no se pone a tirones al deslizar.
+ */
+function headerQueSeEncoge() {
+  const centinela = document.getElementById("tope-pagina");
+  const barra = document.querySelector(".barra");
+  if (!centinela || !barra || typeof IntersectionObserver !== "function") return;
+
+  new IntersectionObserver(
+    ([entrada]) => barra.classList.toggle("encogida", !entrada.isIntersecting),
+    { threshold: 1 }
+  ).observe(centinela);
+}
+
 async function arrancar() {
   revisarLaVersion();
   construirMenu();
+  headerQueSeEncoge();
   semaforoDeGuardado();
 
   let cargado;
@@ -393,6 +445,8 @@ async function arrancar() {
   }
 
   window.addEventListener("hashchange", pintar);
+  // Si cambia el tamaño de la ventana, la pestaña activa se movió de sitio.
+  window.addEventListener("resize", () => marcarMenu(pantallaActual()));
   pintar();
   enReposo(estado.datos.consumos.length > 0);
 

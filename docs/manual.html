@@ -15,6 +15,10 @@
     --tinta: #241b21; --tinta-suave: #80727b; --borde: #e2d5de;
   }
   * { box-sizing: border-box; }
+  /* El indice salta a los titulos: que no queden pegados al borde de arriba. */
+  html { scroll-behavior: smooth; }
+  h2[id] { scroll-margin-top: 1.5rem; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
   body {
     margin: 0; padding: 2rem 1.25rem 4rem;
     background: #f6f0f4; color: var(--tinta);
