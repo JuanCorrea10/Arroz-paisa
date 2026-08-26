@@ -27,7 +27,7 @@ export function pintarDatos(raiz) {
   vaciar(raiz);
   const datos = estado.datos;
 
-  poner(raiz, 
+  poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Datos y respaldos" }),

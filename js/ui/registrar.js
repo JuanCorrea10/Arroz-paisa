@@ -36,7 +36,7 @@ export function pintarRegistrar(raiz) {
   asegurarEmpresa();
 
   if (!empresas().length) {
-    poner(raiz, 
+    poner(raiz,
       el("div", { clase: "encabezado-pantalla" }, el("div", {}, el("h1", { texto: "Registrar el día" }))),
       vacio(
         "Todavía no hay empresas",
@@ -47,7 +47,7 @@ export function pintarRegistrar(raiz) {
     return;
   }
 
-  poner(raiz, 
+  poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Registrar el día" }),
@@ -135,7 +135,7 @@ function cajaDeCaptura(raiz) {
     textoCrear: (t) => `Crear a "${t}" en ${estado.empresa}`,
   });
 
-  poner(caja, 
+  poner(caja,
     el("h3", { texto: "Agregar pedido" }),
     buscaPersona.nodo
   );
@@ -143,7 +143,7 @@ function cajaDeCaptura(raiz) {
   if (personaActiva) {
     poner(caja, comandaEnCurso(raiz));
   } else {
-    poner(caja, 
+    poner(caja,
       el("p", {
         estilo: "margin:var(--e3) 0 0;color:var(--tinta-suave);font-size:var(--t-sm)",
         texto: "Elija una persona de la lista para empezar a anotarle los platos.",
@@ -551,7 +551,7 @@ function atajosDePedido(raiz, facturaA, yaTieneAlgo) {
         .map((p) => (p.cantidad > 1 ? `${p.cantidad} ${p.producto}` : p.producto))
         .join(" + ");
 
-      poner(caja, 
+      poner(caja,
         el("button", {
           clase: "principal lo-de-siempre",
           alHacerClic: () => {
@@ -577,7 +577,7 @@ function atajosDePedido(raiz, facturaA, yaTieneAlgo) {
     empresaFactura: facturaA,
   });
   if (frecuentes.length) {
-    poner(caja, 
+    poner(caja,
       el("div", { clase: "fila fichas-platos" },
         ...frecuentes.map((f) =>
           el("button", {

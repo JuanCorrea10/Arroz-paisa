@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20260826-1156";
+  --version: "20260826-1237";
 }
 
 /* ===========================================================================
@@ -1696,3 +1696,56 @@ button.marcado-cortesia { background: var(--beige); color: var(--tinta-suave); }
 }
 .caja-del-dia .cifras { margin: 0 0 var(--e2); }
 .caja-del-dia .nota { margin: 0; }
+
+/* ---------------------------------------------------------------------------
+   CATÁLOGO
+   Antes había una casilla de precio por empresa: cuatro columnas estrechas
+   más tres botones no cabían, así que "Borrar" se caía a un segundo renglón
+   y la tabla se veía rota. Con un solo precio sobra espacio.
+   --------------------------------------------------------------------------- */
+.acciones-fila { display: flex; gap: var(--e1); flex-wrap: nowrap; justify-content: flex-end; }
+.acciones-fila button { white-space: nowrap; }
+
+input.precio {
+  width: 10ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+input.precio.disparejo { border-color: var(--amarillo, #9c6a06); background: #fbeed4; }
+
+/* El detalle por empresa solo aparece cuando de verdad no coinciden. */
+.precios-disparejos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e1) var(--e3);
+  align-items: center;
+  margin-top: var(--e2);
+  font-size: var(--t-xs);
+  color: var(--tinta-suave);
+}
+.precio-empresa em { font-style: normal; font-weight: 700; color: var(--tinta); }
+
+.caja-aviso {
+  border-radius: 0 var(--r2) var(--r2) 0;
+  padding: var(--e3) var(--e4);
+  margin-bottom: var(--e4);
+}
+.caja-aviso.ojo { background: #fbeed4; border-left: 5px solid #9c6a06; }
+.caja-aviso p { margin: 0 0 var(--e2); }
+.caja-aviso p:last-child { margin-bottom: 0; }
+.lista-disparejos { margin: 0 0 var(--e2); padding-left: var(--e4); }
+.lista-disparejos li { margin-bottom: 2px; font-size: var(--t-sm); }
+.lista-disparejos button { font-weight: 700; text-decoration: underline; }
+
+/* El ancho de las columnas del catálogo.
+   Sin esto, la columna del plato se estira y el precio queda a media pantalla
+   de distancia del nombre: para leer "ALMUERZO ... 12000" toca cruzar un hueco
+   vacío con los ojos. Con el precio pegado al nombre se lee de un golpe. */
+.tabla-catalogo th:nth-child(1), .tabla-catalogo td:nth-child(1) { width: 42%; }
+.tabla-catalogo th:nth-child(2), .tabla-catalogo td:nth-child(2) { width: 1%; white-space: nowrap; }
+.tabla-catalogo th:nth-child(3), .tabla-catalogo td:nth-child(3) { width: auto; }
+
+/* El signo de pesos, al lado de la casilla: adentro no se puede, porque una
+   casilla de número no deja poner texto. */
+.campo-precio { display: inline-flex; align-items: center; gap: 4px; }
+.campo-precio .signo { color: var(--tinta-suave); font-weight: 700; }

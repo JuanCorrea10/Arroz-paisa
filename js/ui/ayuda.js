@@ -19,7 +19,7 @@ let manualEnMemoria = null;
 export async function pintarAyuda(raiz) {
   vaciar(raiz);
 
-  poner(raiz, 
+  poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Cómo se usa" }),
@@ -51,7 +51,7 @@ export async function pintarAyuda(raiz) {
     poner(caja, manualEnMemoria.cloneNode(true));
   } catch (error) {
     vaciar(caja);
-    poner(caja, 
+    poner(caja,
       el("section", { clase: "tarjeta" },
         el("h2", { texto: "El manual no se pudo traer" }),
         el("p", {},

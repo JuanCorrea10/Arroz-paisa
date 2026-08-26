@@ -573,6 +573,63 @@ export function precioDe(datos, producto, empresa) {
 }
 
 /** Las personas de una empresa, ordenadas alfabéticamente. */
+/**
+ * El precio de un plato, mirado como UNO solo.
+ *
+ * El catálogo guarda un precio por plato Y POR EMPRESA. Se hizo así por si
+ * alguna fábrica negociaba distinto... y en los datos de verdad eso no pasa
+ * ni una vez: los 77 platos cuestan lo mismo en las cuatro. Lo único que
+ * lograba esa columna de más era que cambiar un precio costara cuatro
+ * ediciones en vez de una, con cuatro oportunidades de escribir mal.
+ *
+ * Devuelve:
+ *   igual   -> todas las empresas cobran lo mismo (o solo hay una)
+ *   valor   -> ese precio, si igual. Si no, null.
+ *   falta   -> a cuántas empresas les falta el precio
+ *   porEmpresa -> el detalle, para cuando de verdad hay que mirarlo
+ *
+ * Que "igual" sea falso casi siempre significa que alguien escribió mal, no
+ * que la empresa cobre distinto. Por eso la pantalla lo muestra como aviso.
+ */
+export function precioDelPlato(datos, nombrePlato, codigos) {
+  const porEmpresa = {};
+  let falta = 0;
+  const vistos = new Set();
+
+  for (const codigo of codigos) {
+    const valor = precioDe(datos, nombrePlato, codigo);
+    porEmpresa[normalizar(codigo)] = valor;
+    if (valor === null) falta++;
+    else vistos.add(valor);
+  }
+
+  const igual = vistos.size <= 1;
+  return {
+    igual,
+    valor: igual && vistos.size === 1 ? [...vistos][0] : null,
+    falta,
+    porEmpresa,
+  };
+}
+
+/**
+ * ¿Este precio nuevo se ve como un error de dedo?
+ *
+ * El caso que se quiere cazar es el cero de más: un plato de $ 10.000 que
+ * queda en $ 1.000.000 porque se pasó un dedo. No da error en ninguna parte;
+ * simplemente sale una cuenta de cobro por un millón.
+ *
+ * No decide nada: solo dice "esto se ve raro" para poder preguntar antes de
+ * guardar. Un cambio de precio de verdad (subió el almuerzo de 12 a 13 mil)
+ * nunca es de cinco veces, así que no molesta.
+ */
+export function precioSeVeRaro(precioViejo, precioNuevo) {
+  const viejo = Number(precioViejo) || 0;
+  const nuevo = Number(precioNuevo) || 0;
+  if (viejo <= 0 || nuevo <= 0) return false;
+  return nuevo >= viejo * 5 || nuevo * 5 <= viejo;
+}
+
 export function personasDe(datos, codigoEmpresa, incluirInactivas) {
   const cod = normalizar(codigoEmpresa);
   return datos.personas

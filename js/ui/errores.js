@@ -36,7 +36,7 @@ export function pintarErrores(raiz) {
   const platos = platosSueltos(estado.datos);
   const parecidos = gruposParaRevisar(estado.datos).length;
 
-  poner(raiz, 
+  poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Posibles errores" }),
@@ -65,7 +65,7 @@ export function pintarErrores(raiz) {
   );
 
   if (!personas.length && !platos.length) {
-    poner(raiz, 
+    poner(raiz,
       vacio("No hay nada raro",
         el("p", {},
           "Todos los renglones apuntan a una persona y a un plato que existen. ",
@@ -79,7 +79,7 @@ export function pintarErrores(raiz) {
     return;
   }
 
-  poner(raiz, 
+  poner(raiz,
     el("p", { clase: "nota" },
       "Los platos que no están en el catálogo entran en $ 0 a la cuenta de " +
       "cobro: se vendió la comida y no se está cobrando. Las personas que no " +
@@ -104,7 +104,7 @@ export function pintarErrores(raiz) {
   }
 
   if (parecidos) {
-    poner(raiz, 
+    poner(raiz,
       el("p", { clase: "nota" },
         `Aparte de esto hay ${parecidos} grupos de nombres parecidos en `,
         el("a", { href: "#nombres", texto: "Revisar nombres" }),

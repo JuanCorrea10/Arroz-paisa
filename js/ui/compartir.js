@@ -49,7 +49,7 @@ export function pintarCompartir(raiz) {
   vaciar(raiz);
   const lista = empresas();
 
-  poner(raiz, 
+  poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Compartir con las empresas" }),

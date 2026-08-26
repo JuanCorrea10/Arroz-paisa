@@ -102,7 +102,7 @@ function pintar() {
 function pantallaRota(donde, error) {
   console.error(error);
   vaciar(donde);
-  poner(donde, 
+  poner(donde,
     el("section", { clase: "tarjeta con-problemas" },
       el("h1", { texto: "Se dañó esta pantalla" }),
       el("p", {},
@@ -198,7 +198,7 @@ function pintarAjustes(donde) {
     },
   ];
 
-  poner(donde, 
+  poner(donde,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Ajustes" }),
@@ -287,7 +287,7 @@ function construirPeriodo() {
   }, ...Array.from({ length: 7 }, (_, i) => ahora - 3 + i).map((a) =>
     el("option", { value: a, selected: a === estado.anio }, String(a))));
 
-  poner(caja, 
+  poner(caja,
     el("span", { clase: "solo-lectores", texto: "Mes que se está mirando" }),
     meses, anios
   );
@@ -499,7 +499,7 @@ arrancar().catch((error) => {
   const donde = raiz();
   if (!donde) return;
   vaciar(donde);
-  poner(donde, 
+  poner(donde,
     el("section", { clase: "tarjeta con-problemas" },
       el("h1", { texto: "La app no pudo arrancar" }),
       el("p", { texto: "Sus datos no se tocaron. Pruebe a cerrar y volver a abrir." }),

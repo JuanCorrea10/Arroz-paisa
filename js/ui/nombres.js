@@ -39,7 +39,7 @@ export function pintarNombres(raiz) {
   const sucios = nombresSucios(datos);
   const tocayos = tocayosEntreEmpresas(datos);
 
-  poner(raiz, 
+  poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Revisar nombres" }),
@@ -67,7 +67,7 @@ export function pintarNombres(raiz) {
   poner(raiz, el("h2", { texto: "Nombres que se parecen" }));
 
   if (!grupos.length) {
-    poner(raiz, 
+    poner(raiz,
       vacio(
         "Todo en orden",
         el("p", {},
@@ -76,7 +76,7 @@ export function pintarNombres(raiz) {
       )
     );
   } else {
-    poner(raiz, 
+    poner(raiz,
       el("p", { clase: "nota" },
         "Solo se comparan nombres de la MISMA empresa. Dos personas de empresas " +
         "distintas nunca se juntan, aunque se llamen igual.")
@@ -85,7 +85,7 @@ export function pintarNombres(raiz) {
       poner(raiz, tarjetaDeGrupo(raiz, grupo));
     }
     if (grupos.length > mostrando) {
-      poner(raiz, 
+      poner(raiz,
         el("button", {
           clase: "plano",
           alHacerClic: () => { mostrando += DE_A_CUANTOS; pintarNombres(raiz); },
@@ -596,7 +596,7 @@ function tarjetaDeTocayos(tocayos) {
     },
   }, `Ver los ${tocayos.length} nombres`);
 
-  poner(caja, 
+  poner(caja,
     tabla(
       [{ titulo: "Nombre" }, { titulo: "Está en" }],
       tocayos.map((t) =>

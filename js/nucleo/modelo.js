@@ -239,3 +239,26 @@ export function nuevoConsumo({
     revisar,
   };
 }
+
+
+/**
+ * Le pone el mismo precio a un plato en todas las empresas.
+ *
+ * Es la operación normal: en los datos de verdad ningún plato cuesta distinto
+ * según la fábrica. Antes había que escribirlo cuatro veces.
+ *
+ * Un precio en blanco borra el precio (queda "sin precio"), que NO es lo
+ * mismo que cero: sin precio la app avisa, y en cero cobraría $ 0 calladita.
+ */
+export function ponerPrecioEnTodas(datos, nombrePlato, codigos, valor) {
+  const limpio = valor === null || valor === undefined || valor === ""
+    ? null
+    : Math.max(0, Math.round(Number(valor) || 0));
+
+  for (const codigo of codigos) {
+    const llave = clavePrecio(nombrePlato, codigo);
+    if (limpio === null) delete datos.precios[llave];
+    else datos.precios[llave] = limpio;
+  }
+  return limpio;
+}

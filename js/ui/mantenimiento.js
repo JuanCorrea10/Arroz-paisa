@@ -13,10 +13,11 @@ import {
 } from "./componentes.js";
 import { estado, cambio, empresas } from "./estado.js";
 import { pesos, normalizar, coincide, aEntero } from "../nucleo/formato.js";
-import { clavePrecio, precioDe, indicePorCodigo, clavePersona } from "../nucleo/calculos.js";
+import { clavePrecio, precioDe, indicePorCodigo, clavePersona, precioDelPlato, precioSeVeRaro} from "../nucleo/calculos.js";
 import {
   agregarEmpresa, agregarProducto, agregarPersona,
   puedeBorrarPersona, borrarPersona, puedeBorrarProducto, borrarProducto,
+  ponerPrecioEnTodas,
 } from "../nucleo/modelo.js";
 import {
   limpiarNombre, parecidasEnEmpresa, renombrarPersona, tocayosEnOtrasEmpresas,
@@ -31,7 +32,7 @@ export function pintarEmpresas(raiz) {
   vaciar(raiz);
   const lista = estado.datos.empresas;
 
-  poner(raiz, 
+  poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Empresas" }),
@@ -48,7 +49,7 @@ export function pintarEmpresas(raiz) {
     return;
   }
 
-  poner(raiz, 
+  poner(raiz,
     el("p", { clase: "nota" },
       "La quincena 1 va del día 1 hasta el día de corte, y la quincena 2 del " +
       "siguiente hasta fin de mes. Cada empresa puede cortar en un día distinto."),
@@ -180,30 +181,75 @@ export function pintarCatalogo(raiz) {
     a.nombre.localeCompare(b.nombre, "es"));
   const visibles = productos.filter((p) => coincide(p.nombre, buscaPlato));
 
-  // Un plato sin precio en alguna empresa es un renglón que va a entrar en $0.
-  const sinPrecio = productos.filter((p) =>
-    lista.some((e) => precioDe(estado.datos, p.nombre, e.codigo) === null));
+  const codigos = lista.map((e) => e.codigo);
+  const precioDeCada = new Map(
+    productos.map((p) => [p.nombre, precioDelPlato(estado.datos, p.nombre, codigos)]));
 
-  poner(raiz, 
+  // Un plato sin precio es un renglón que va a entrar en $ 0.
+  const sinPrecio = productos.filter((p) => precioDeCada.get(p.nombre).falta > 0);
+
+  // Y uno donde las empresas no coinciden. En los datos de verdad esto NUNCA
+  // pasa a propósito: los 77 platos cuestan lo mismo en las cuatro fábricas.
+  // Así que un plato "con precios distintos" es, casi seguro, un dedo mal
+  // puesto -- el cero de más que convierte $ 10.000 en $ 1.000.000.
+  const disparejos = productos.filter((p) => {
+    const info = precioDeCada.get(p.nombre);
+    return !info.igual && info.falta < codigos.length;
+  });
+
+  poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Catálogo" }),
-        el("p", { texto: "Los platos y cuánto vale cada uno en cada empresa." })
+        el("p", { texto: "Los platos y cuánto vale cada uno." })
       ),
       el("button", { clase: "principal", alHacerClic: () => nuevoPlato(raiz) }, "Agregar plato")
     ),
     el("dl", { clase: "cifras" },
       cifra("Platos", String(productos.length)),
-      cifra("Sin precio en alguna empresa", String(sinPrecio.length), sinPrecio.length > 0)
+      cifra("Sin precio", String(sinPrecio.length), sinPrecio.length > 0),
+      cifra("Con precios distintos", String(disparejos.length), disparejos.length > 0)
     )
   );
 
   if (sinPrecio.length) {
-    poner(raiz, 
+    poner(raiz,
       el("p", { clase: "nota malo" },
-        `${sinPrecio.length} platos no tienen precio en alguna empresa. Si se ` +
-        "anota uno de esos, el renglón entra en $ 0 y la cuenta de cobro sale " +
-        "por menos. Están marcados en rojo abajo.")
+        `${sinPrecio.length} ` + (sinPrecio.length === 1 ? "plato no tiene" : "platos no tienen") +
+        " precio. Si se anota uno de esos, el renglón entra en $ 0 y la cuenta " +
+        "de cobro sale por menos. Están marcados en rojo abajo.")
+    );
+  }
+
+  if (disparejos.length) {
+    poner(raiz,
+      el("div", { clase: "caja-aviso ojo" },
+        el("p", {},
+          el("strong", { texto: "Revise estos precios." }), " ",
+          `${disparejos.length} ` +
+          (disparejos.length === 1 ? "plato cuesta" : "platos cuestan") +
+          " distinto según la empresa:"),
+        el("ul", { clase: "lista-disparejos" },
+          ...disparejos.slice(0, 8).map((p) => {
+            const info = precioDeCada.get(p.nombre);
+            return el("li", {},
+              el("button", {
+                clase: "plano",
+                alHacerClic: () => { buscaPlato = p.nombre; pintarCatalogo(raiz); },
+              }, p.nombre),
+              " — ",
+              codigos.map((c) => `${c} ${pesos(info.porEmpresa[normalizar(c)] || 0)}`).join(" · ")
+            );
+          }),
+          disparejos.length > 8
+            ? el("li", { clase: "nota", texto: `…y ${disparejos.length - 8} más` })
+            : null
+        ),
+        el("p", { clase: "nota" },
+          "Puede ser a propósito, pero casi nunca lo es: normalmente todas las " +
+          "empresas pagan igual, y esto es un cero de más al escribir. Toque el " +
+          "plato para buscarlo y arreglarlo.")
+      )
     );
   }
 
@@ -231,51 +277,41 @@ export function pintarCatalogo(raiz) {
     return;
   }
 
-  poner(raiz, 
-    tabla(
-      [
-        { titulo: "Plato" },
-        ...lista.map((e) => ({ titulo: e.codigo, clase: "dato" })),
-        { titulo: "", clase: "dato" },
-      ],
-      visibles.map((p) => filaDePlato(raiz, p, lista))
-    )
+  const suTabla = tabla(
+    [
+      { titulo: "Plato" },
+      { titulo: "Precio", clase: "dato" },
+      { titulo: "", clase: "dato" },
+    ],
+    visibles.map((p) => filaDePlato(raiz, p, lista))
   );
+  const laTabla = suTabla.querySelector("table") || suTabla;
+  laTabla.classList.add("tabla-catalogo");
+  poner(raiz, suTabla);
 }
 
 function filaDePlato(raiz, producto, lista) {
-  const celdas = lista.map((e) => {
-    const valor = precioDe(estado.datos, producto.nombre, e.codigo);
-    const entrada = el("input", {
-      type: "number",
-      min: 0,
-      step: 50,
-      value: valor === null ? "" : String(valor),
-      placeholder: "sin precio",
-      clase: "precio" + (valor === null ? " falta" : ""),
-      alCambiar: (ev) => {
-        const txt = ev.target.value.trim();
-        if (txt === "") {
-          delete estado.datos.precios[clavePrecio(producto.nombre, e.codigo)];
-        } else {
-          estado.datos.precios[clavePrecio(producto.nombre, e.codigo)] = aEntero(txt, 0);
-        }
-        cambio();
-        ev.target.classList.toggle("falta", txt === "");
-        mensaje(`${producto.nombre} en ${e.codigo}: ${txt === "" ? "sin precio" : pesos(aEntero(txt, 0))}`, "bien", 2);
-      },
-    });
-    return el("td", { clase: "dato" }, entrada);
-  });
+  const codigos = lista.map((e) => e.codigo);
+  const info = precioDelPlato(estado.datos, producto.nombre, codigos);
 
   return el("tr", { clase: producto.activo === false ? "apagada" : "" },
     el("td", {},
       el("strong", { texto: producto.nombre }),
-      producto.activo === false ? el("span", { clase: "etiqueta", texto: "apagado" }) : null
+      producto.activo === false ? el("span", { clase: "etiqueta", texto: "apagado" }) : null,
+      // Solo cuando de verdad hay algo raro se muestra el detalle por empresa.
+      // El otro 100 % del tiempo esa fila sobraba y llenaba la pantalla.
+      info.igual ? null : detalleDisparejo(raiz, producto, info, codigos)
     ),
-    ...celdas,
+
     el("td", { clase: "dato" },
-      el("div", { clase: "fila" },
+      el("div", { clase: "campo-precio" },
+        el("span", { clase: "signo", texto: "$" }),
+        campoDePrecio(raiz, producto, info, codigos)
+      )
+    ),
+
+    el("td", { clase: "dato" },
+      el("div", { clase: "acciones-fila" },
         el("button", {
           clase: "plano chico",
           alHacerClic: () => renombrarPlato(raiz, producto),
@@ -297,6 +333,118 @@ function filaDePlato(raiz, producto, lista) {
   );
 }
 
+/**
+ * El campo del precio. UNO solo, que se escribe en las cuatro empresas.
+ *
+ * Antes había una casilla por empresa. En los datos de verdad los 77 platos
+ * cuestan lo mismo en las cuatro, así que eso era escribir cuatro veces lo
+ * mismo -- con cuatro oportunidades de poner un cero de más.
+ */
+function campoDePrecio(raiz, producto, info, codigos) {
+  const entrada = el("input", {
+    type: "number",
+    min: 0,
+    step: 50,
+    inputmode: "numeric",
+    value: info.igual && info.valor !== null ? String(info.valor) : "",
+    placeholder: info.igual ? "sin precio" : "distinto",
+    "aria-label": `Precio de ${producto.nombre}`,
+    clase: "precio" + (info.falta > 0 ? " falta" : "") + (info.igual ? "" : " disparejo"),
+    alCambiar: async (ev) => {
+      const txt = ev.target.value.trim();
+      const nuevoValor = txt === "" ? null : aEntero(txt, 0);
+
+      // La guardia del cero de más. Un almuerzo que sube de 12 a 13 mil pasa
+      // sin preguntar; uno que pasa de 10.000 a 1.000.000, no.
+      if (nuevoValor !== null && info.valor !== null &&
+          precioSeVeRaro(info.valor, nuevoValor)) {
+        const seguro = await preguntarPorElPrecio(producto, info.valor, nuevoValor);
+        if (!seguro) { pintarCatalogo(raiz); return; }
+      }
+
+      ponerPrecioEnTodas(estado.datos, producto.nombre, codigos, nuevoValor);
+      cambio();
+      pintarCatalogo(raiz);
+      mensaje(
+        nuevoValor === null
+          ? `${producto.nombre}: sin precio.`
+          : `${producto.nombre}: ${pesos(nuevoValor)} en las ${codigos.length} empresas.`,
+        "bien", 3
+      );
+    },
+  });
+
+  return entrada;
+}
+
+/**
+ * La guardia del cero de más.
+ *
+ * Se usa ventana y no confirmar() porque confirmar solo sabe mostrar una
+ * línea de texto, y aquí lo que convence es ver los dos números juntos:
+ * "pasaría de $ 10.000 a $ 1.000.000" se entiende de un vistazo.
+ */
+function preguntarPorElPrecio(producto, viejo, nuevo) {
+  return new Promise((resolver) => {
+    let respuesta = false;
+    ventana({
+      titulo: "¿Ese precio está bien?",
+      cuerpo: el("div", {},
+        el("p", {},
+          el("strong", { texto: producto.nombre }), " pasaría de ",
+          el("strong", { texto: pesos(viejo) }), " a ",
+          el("strong", { texto: pesos(nuevo) }), "."),
+        el("p", { clase: "nota ojo" },
+          "Es un cambio muy grande. Si se pasó un cero, esto saldría en la " +
+          "próxima cuenta de cobro y nadie lo notaría hasta que la empresa " +
+          "reclame."),
+        el("p", { clase: "nota bien" },
+          "Los pedidos que ya están anotados NO cambian: cada uno se guardó con " +
+          "el precio del día en que se registró.")
+      ),
+      botones: [
+        { texto: "No, me equivoqué", alHacerClic: () => { respuesta = false; } },
+        { texto: "Sí, ese es el precio", clase: "principal", alHacerClic: () => { respuesta = true; } },
+      ],
+      alCerrar: () => resolver(respuesta),
+    });
+  });
+}
+
+/**
+ * El detalle por empresa. Solo sale cuando las empresas NO coinciden.
+ *
+ * Casi siempre que aparece es porque alguien escribió mal, no porque una
+ * fábrica cobre distinto. Por eso lo primero que ofrece es emparejarlas.
+ */
+function detalleDisparejo(raiz, producto, info, codigos) {
+  return el("div", { clase: "precios-disparejos" },
+    el("span", { clase: "etiqueta ojo", texto: "precios distintos" }),
+    ...codigos.map((c) => {
+      const valor = info.porEmpresa[normalizar(c)];
+      return el("span", { clase: "precio-empresa" },
+        el("em", { texto: c }), " ",
+        valor === null ? "sin precio" : pesos(valor));
+    }),
+    el("div", { clase: "fila" },
+      ...codigos
+        .filter((c) => info.porEmpresa[normalizar(c)] !== null)
+        .map((c) =>
+          el("button", {
+            clase: "plano chico",
+            alHacerClic: () => {
+              const valor = info.porEmpresa[normalizar(c)];
+              ponerPrecioEnTodas(estado.datos, producto.nombre, codigos, valor);
+              cambio();
+              pintarCatalogo(raiz);
+              mensaje(`${producto.nombre}: ${pesos(valor)} en todas.`, "bien", 4);
+            },
+          }, `Dejar ${pesos(info.porEmpresa[normalizar(c)])} en todas`)
+        )
+    )
+  );
+}
+
 async function nuevoPlato(raiz) {
   const lista = empresas();
   const r = await pedirDatos({
@@ -305,7 +453,7 @@ async function nuevoPlato(raiz) {
       { nombre: "nombre", etiqueta: "Nombre del plato", requerido: true },
       {
         nombre: "precio", etiqueta: "Precio", tipo: "number", min: 0, requerido: true,
-        ayuda: "Después se puede cambiar empresa por empresa en esta misma tabla.",
+        ayuda: "El mismo precio para todas las empresas. Se puede cambiar después.",
       },
     ],
     textoAceptar: "Crear",
@@ -415,7 +563,7 @@ export function pintarPersonas(raiz) {
     (p) => normalizar(p.empresaFactura) !== normalizar(p.empresaCome));
   const conDocumento = todas.filter((p) => p.documento);
 
-  poner(raiz, 
+  poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Personas" }),
@@ -465,7 +613,7 @@ export function pintarPersonas(raiz) {
     },
   });
 
-  poner(raiz, 
+  poner(raiz,
     el("div", { clase: "mando" },
       el("div", { clase: "campo crece" }, el("label", { texto: "Buscar" }), busca),
       el("div", { clase: "campo" }, el("label", { texto: "Empresa" }), filtro)
@@ -480,7 +628,7 @@ export function pintarPersonas(raiz) {
 
   poner(raiz, barraDeUnir(raiz, todas));
 
-  poner(raiz, 
+  poner(raiz,
     tabla(
       [
         { titulo: "" }, { titulo: "Nombre" }, { titulo: "Come en" },

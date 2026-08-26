@@ -80,7 +80,7 @@ export function pintarCocina(raiz) {
   const filas = informeCocina(estado.datos.consumos, estado.fecha, codigos);
   const totalPlatos = filas.reduce((a, f) => a + f.total, 0);
 
-  poner(raiz, 
+  poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Cocina" }),
@@ -102,7 +102,7 @@ export function pintarCocina(raiz) {
     return;
   }
 
-  poner(raiz, 
+  poner(raiz,
     el("dl", { clase: "cifras", estilo: "margin-bottom:var(--e5)" },
       cifra("Platos distintos", String(filas.length)),
       cifra("Unidades a preparar", String(totalPlatos), true)
@@ -164,7 +164,7 @@ export function pintarResumenDia(raiz) {
   const emp = empresaResumen ? empresaPorCodigo(empresaResumen) : null;
   const nombre = emp ? emp.razonSocial || emp.codigo : "Todas las empresas";
 
-  poner(raiz, 
+  poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Resumen del día" }),
@@ -189,7 +189,7 @@ export function pintarResumenDia(raiz) {
     return;
   }
 
-  poner(raiz, 
+  poner(raiz,
     el("div", { clase: "documento" },
       el("h2", { texto: "Resumen del día" }),
       el("p", { estilo: "text-align:center;color:var(--tinta-media);margin-bottom:var(--e5)" },
@@ -255,7 +255,7 @@ export function pintarPorPersona(raiz) {
   const emp = empresaPersonas ? empresaPorCodigo(empresaPersonas) : null;
   const nombre = emp ? emp.razonSocial || emp.codigo : "Todas las empresas";
 
-  poner(raiz, 
+  poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Consumo por persona" }),
@@ -283,7 +283,7 @@ export function pintarPorPersona(raiz) {
   const tQ1 = filas.reduce((a, f) => a + f.q1, 0);
   const tQ2 = filas.reduce((a, f) => a + f.q2, 0);
 
-  poner(raiz, 
+  poner(raiz,
     el("dl", { clase: "cifras", estilo: "margin-bottom:var(--e5)" },
       cifra("Personas", String(filas.length)),
       cifra("Facturas", String(filas.reduce((a, f) => a + f.facturas, 0))),
@@ -330,7 +330,7 @@ export function pintarCuadre(raiz) {
   const conDato = filas.filter((f) => f.declarado !== null);
   const malos = conDato.filter((f) => f.estado === "no-cuadra");
 
-  poner(raiz, 
+  poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Cuadre de facturas" }),
@@ -347,7 +347,7 @@ export function pintarCuadre(raiz) {
     el("div", { clase: "mando" }, ...selectorDeMes(repintar))
   );
 
-  poner(raiz, 
+  poner(raiz,
     malos.length
       ? el("div", { clase: "nota malo" },
           el("div", {},
@@ -392,7 +392,7 @@ export function pintarCuadre(raiz) {
     )
   );
 
-  poner(raiz, 
+  poner(raiz,
     tabla(
       [
         { titulo: "Día" }, { titulo: "Dijo el trabajador" }, { titulo: "Hay registradas", clase: "n" },

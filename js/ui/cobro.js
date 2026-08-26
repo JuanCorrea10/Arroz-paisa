@@ -27,7 +27,7 @@ export function pintarCobro(raiz) {
   const repintar = () => pintarCobro(raiz);
 
   if (!empresas().length) {
-    poner(raiz, 
+    poner(raiz,
       el("div", { clase: "encabezado-pantalla" }, el("div", {}, el("h1", { texto: "Cuenta de cobro" }))),
       vacio("Todavía no hay empresas", el("p", {}, "Cree las empresas en ", el("a", { href: "#empresas", texto: "Empresas" }), "."))
     );
@@ -48,7 +48,7 @@ export function pintarCobro(raiz) {
     (c) => !esCortesia(c) && !(c.precioUnitario > 0)
   );
 
-  poner(raiz, 
+  poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Cuenta de cobro" }),
@@ -104,7 +104,7 @@ export function pintarCobro(raiz) {
   );
 
   if (enCero.length) {
-    poner(raiz, 
+    poner(raiz,
       el("div", { clase: "nota malo no-imprimir" },
         el("div", {},
           el("strong", { texto: `${enCero.length} ${enCero.length === 1 ? "renglón está" : "renglones están"} en $ 0` }),

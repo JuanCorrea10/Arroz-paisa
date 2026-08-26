@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ver una pantalla</title>
+
+<link rel="stylesheet" href="../css/estilos.css">
+<link rel="stylesheet" href="../css/pantallas.css">
+<script src="../vendor/jspdf.umd.min.js"></script>
+<script src="../vendor/jspdf.plugin.autotable.min.js"></script>
+<script src="../vendor/xlsx.full.min.js"></script>
+<style>
+  body { margin: 0; background: var(--papel-contable, #f5eee2); }
+  .aviso-prueba {
+    background: #241b18; color: #fff; font: 12px ui-monospace, Consolas, monospace;
+    padding: 6px 12px;
+  }
+</style>
+</head>
+<body>
+<div class="aviso-prueba" id="rotulo">cargando…</div>
+<main id="pantalla" class="contenido"></main>
+
+<script type="module">
+/*
+  Pinta UNA pantalla con los datos de verdad, sin base de datos.
+
+  ¿Por qué hace falta esto? Para poder mirar una pantalla con los ojos hay que
+  sacarle una foto, y para eso Chrome necesita congelar el reloj. Pero con el
+  reloj congelado el guardián que vigila que la base de datos no se quede
+  colgada salta de una, y la app muestra "No se pudo abrir" en vez de la
+  pantalla. La foto salía siempre del mensaje de error.
+
+  Aquí los datos se cargan del JSON directamente y se le pasan al estado. Se
+  pinta el mismo módulo, con el mismo CSS, así que lo que se ve es lo que ella
+  va a ver -- pero sin nada asíncrono que dependa del reloj.
+
+  Uso:  ver-pantalla.html?p=catalogo
+*/
+const cual = new URLSearchParams(location.search).get("p") || "catalogo";
+
+const PANTALLAS = {
+  catalogo:  ["../js/ui/mantenimiento.js", "pintarCatalogo"],
+  personas:  ["../js/ui/mantenimiento.js", "pintarPersonas"],
+  empresas:  ["../js/ui/mantenimiento.js", "pintarEmpresas"],
+  registrar: ["../js/ui/registrar.js", "pintarRegistrar"],
+  cocina:    ["../js/ui/informes.js", "pintarCocina"],
+  resumen:   ["../js/ui/informes.js", "pintarResumenDia"],
+  persona:   ["../js/ui/informes.js", "pintarPorPersona"],
+  cobro:     ["../js/ui/cobro.js", "pintarCobro"],
+  cuadre:    ["../js/ui/cobro.js", "pintarCuadre"],
+  compartir: ["../js/ui/compartir.js", "pintarCompartir"],
+  revisar:   ["../js/ui/errores.js", "pintarErrores"],
+  nombres:   ["../js/ui/nombres.js", "pintarNombres"],
+};
+
+const rotulo = document.getElementById("rotulo");
+const raiz = document.getElementById("pantalla");
+
+try {
+  const { estado } = await import("../js/ui/estado.js");
+  const datos = await (await fetch("../datos/inicial.json")).json();
+
+  estado.datos = datos;
+  const fechas = datos.consumos.map((c) => c.fecha).sort();
+  estado.fecha = fechas[fechas.length - 1] || estado.fecha;
+  estado.anio = Number(estado.fecha.slice(0, 4));
+  estado.mes = Number(estado.fecha.slice(5, 7));
+  estado.empresa = datos.empresas.length ? datos.empresas[0].codigo : null;
+
+  // Un cambio pedido por la prueba, para poder ver cómo se ve el aviso.
+  const forzar = new URLSearchParams(location.search).get("forzar");
+  if (forzar === "precio-disparejo" && datos.productos.length) {
+    const plato = datos.productos.find((p) => p.nombre === "OFERTA") || datos.productos[0];
+    const empresa = datos.empresas[2] || datos.empresas[0];
+    datos.precios[`${plato.nombre}|${empresa.codigo}`] = 1000000;
+  }
+
+  const [ruta, fn] = PANTALLAS[cual] || PANTALLAS.catalogo;
+  const modulo = await import(ruta);
+  await modulo[fn](raiz);
+
+  rotulo.textContent =
+    `#${cual}  ·  ${datos.consumos.length} renglones  ·  ${datos.personas.length} personas  ` +
+    `·  ${datos.productos.length} platos  ·  ${estado.fecha}`;
+} catch (error) {
+  rotulo.textContent = "REVENTÓ: " + (error && (error.stack || error.message));
+  rotulo.style.background = "#8b1a12";
+}
+</script>
+</body>
+</html>
