@@ -253,7 +253,7 @@ export function informePorPersona(consumos, anio, mes, empresasPorCodigo, codigo
  * Un renglón por plato, con cantidad, valor unitario y total.
  * Solo entra lo facturable.
  */
-export function cuentaDeCobro(consumos, anio, mes, quincena, empresa) {
+export function cuentaDeCobro(consumos, anio, mes, quincena, empresa, fechaCuenta = null) {
   const lista = deQuincena(consumos, anio, mes, quincena, empresa).filter(
     (c) => c.facturable !== false
   );
@@ -283,7 +283,41 @@ export function cuentaDeCobro(consumos, anio, mes, quincena, empresa) {
     renglones: lista.length,
     facturas: contarFacturas(lista),
     total: filas.reduce((a, f) => a + f.total, 0),
+    // La fecha en que se pasa la cuenta. Si no la han puesto, va null y el
+    // documento no inventa ninguna.
+    fechaCuenta: esFechaISO(fechaCuenta) ? fechaCuenta : null,
   };
+}
+
+// ---------------------------------------------------------------------------
+//  La fecha en que se pasa la cuenta
+//
+//  Los dias que cubre la quincena NO cambian: eso lo manda el dia de corte de
+//  la empresa y sigue igual. Lo que cambia es CUANDO se pasa la cuenta: a
+//  veces el mismo dia del corte, a veces tres dias despues, segun cuando la
+//  reciba el cliente.
+//
+//  Por eso la fecha se guarda aparte y no se calcula. Si se calculara,
+//  estariamos inventando un dato que solo ella sabe.
+// ---------------------------------------------------------------------------
+
+export function llaveDeCobro(codigoEmpresa, anio, mes, quincena) {
+  return `${normalizar(codigoEmpresa)}|${anio}|${mes}|${quincena}`;
+}
+
+/** La fecha que ella puso, o null si todavia no ha puesto ninguna. */
+export function fechaDeCobro(datos, codigoEmpresa, anio, mes, quincena) {
+  const guardadas = datos.fechasDeCobro || {};
+  const v = guardadas[llaveDeCobro(codigoEmpresa, anio, mes, quincena)];
+  return esFechaISO(v) ? v : null;
+}
+
+export function ponerFechaDeCobro(datos, codigoEmpresa, anio, mes, quincena, fecha) {
+  if (!datos.fechasDeCobro) datos.fechasDeCobro = {};
+  const llave = llaveDeCobro(codigoEmpresa, anio, mes, quincena);
+  if (esFechaISO(fecha)) datos.fechasDeCobro[llave] = fecha;
+  else delete datos.fechasDeCobro[llave];
+  return datos;
 }
 
 /**

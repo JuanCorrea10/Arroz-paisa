@@ -77,10 +77,21 @@ function guardar(doc, nombre) {
 
 export function pdfCuentaDeCobro(cuenta, acreedor) {
   const doc = nuevoDocumento();
-  const { empresa, anio, mes, quincena, rango, filas, total, facturas } = cuenta;
+  const { empresa, anio, mes, quincena, rango, filas, total, facturas, fechaCuenta } = cuenta;
   const periodo = `Del ${rango.desde} al ${rango.hasta} de ${nombreMes(mes).toLowerCase()} de ${anio}`;
 
   let y = encabezado(doc, "CUENTA DE COBRO", `${nombreMes(mes)} ${anio} · Quincena ${quincena}`, acreedor);
+
+  // La fecha en que se pasa la cuenta, si ella la puso. No se inventa: un
+  // documento con fecha inventada es peor que uno sin fecha.
+  if (fechaCuenta) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    doc.setTextColor(...GRIS);
+    const ciudad = acreedor && acreedor.ciudad ? acreedor.ciudad + ", " : "";
+    doc.text(ciudad + fechaLarga(fechaCuenta), 196, y - 2, { align: "right" });
+    y += 4;
+  }
 
   // Quién le cobra a quién. Es lo primero que mira el contador del cliente.
   doc.setDrawColor(207, 219, 203);

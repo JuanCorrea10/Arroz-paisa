@@ -7,12 +7,12 @@
 <link rel="stylesheet" href="../css/fuentes.css">
 <style>
   :root {
-    /* Mora para el armazon, leche para el papel, y las senales de siempre. */
-    --mora-hondo: #3b1b34; --mora: #7c3568; --mora-claro: #f5e6f1;
-    --verde: #2e7d5b; --verde-claro: #dff0e7;
-    --rojo: #a8253a; --rojo-claro: #fbe3e7;
-    --amarillo: #a9700b; --amarillo-claro: #fbefd8;
-    --tinta: #241b21; --tinta-suave: #80727b; --borde: #e2d5de;
+    /* Rojo para el armazon, leche para el papel, y las senales de siempre. */
+    --marca-hondo: #a81e17; --marca: #d92b22; --marca-claro: #fbe6e3;
+    --verde: #1f7a4c; --verde-claro: #dcefe4;
+    --rojo: #8b1a12; --rojo-claro: #fbe0dc;
+    --amarillo: #9c6a06; --amarillo-claro: #fbeed4;
+    --tinta: #241b18; --tinta-suave: #85756e; --borde: #e5dccc;
   }
   * { box-sizing: border-box; }
   /* El indice salta a los titulos: que no queden pegados al borde de arriba. */
@@ -21,7 +21,7 @@
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
   body {
     margin: 0; padding: 2rem 1.25rem 4rem;
-    background: #f6f0f4; color: var(--tinta);
+    background: #f5eee2; color: var(--tinta);
     font-family: "Asap", "Segoe UI", system-ui, sans-serif;
     font-size: 17px; line-height: 1.6;
   }
@@ -30,9 +30,9 @@
           box-shadow: 0 2px 14px rgba(59,27,52,.10); }
   h1, h2, h3 { font-family: "Familjen Grotesk", "Segoe UI", system-ui, sans-serif;
                line-height: 1.15; margin: 0; }
-  h1 { font-size: 2.3rem; color: var(--mora-hondo); }
+  h1 { font-size: 2.3rem; color: var(--marca-hondo); }
   .lema { color: var(--tinta-suave); margin: .3rem 0 2rem; font-size: 1.05rem; }
-  h2 { font-size: 1.5rem; color: var(--mora); margin: 2.5rem 0 .3rem;
+  h2 { font-size: 1.5rem; color: var(--marca); margin: 2.5rem 0 .3rem;
        padding-top: 1.2rem; border-top: 2px solid var(--borde); }
   h3 { font-size: 1.12rem; margin: 1.5rem 0 .3rem; }
   p { margin: 0 0 .9rem; }
@@ -40,7 +40,7 @@
   li { margin-bottom: .45rem; }
   .paso { display: flex; gap: 1rem; align-items: flex-start; margin-bottom: 1.1rem; }
   .numero { flex: none; width: 34px; height: 34px; border-radius: 50%;
-            background: var(--mora); color: #fff; font-weight: 700;
+            background: var(--marca); color: #fff; font-weight: 700;
             display: flex; align-items: center; justify-content: center;
             font-family: "Familjen Grotesk", sans-serif; }
   .paso p { margin: 0; }
@@ -50,19 +50,19 @@
   .malo { background: var(--rojo-claro); border-left: 5px solid var(--rojo); }
   .bien { background: var(--verde-claro); border-left: 5px solid var(--verde); }
   .caja p:last-child { margin-bottom: 0; }
-  .boton { display: inline-block; background: var(--mora); color: #fff;
+  .boton { display: inline-block; background: var(--marca); color: #fff;
            padding: 1px 9px; border-radius: 4px; font-weight: 600;
            font-family: "Familjen Grotesk", sans-serif; font-size: .93em; }
-  .menu-item { background: var(--mora-hondo); color: #fff; padding: 1px 8px;
+  .menu-item { background: var(--marca-hondo); color: #fff; padding: 1px 8px;
                border-radius: 4px; font-weight: 600; font-size: .93em;
                font-family: "Familjen Grotesk", sans-serif; white-space: nowrap; }
   table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .95rem; }
-  th { background: var(--mora-hondo); color: #fff; text-align: left;
+  th { background: var(--marca-hondo); color: #fff; text-align: left;
        padding: .5rem .7rem; font-family: "Familjen Grotesk", sans-serif; }
   td { padding: .5rem .7rem; border-bottom: 1px solid var(--borde); vertical-align: top; }
-  .indice { background: #fbf6f9; border-radius: 8px; padding: 1.1rem 1.4rem; }
+  .indice { background: #fbf6ed; border-radius: 8px; padding: 1.1rem 1.4rem; }
   .indice ol { margin: 0; }
-  .indice a { color: var(--mora); }
+  .indice a { color: var(--marca); }
   @media print {
     body { background: #fff; padding: 0; font-size: 11.5pt; }
     .hoja { box-shadow: none; padding: 0; max-width: none; }

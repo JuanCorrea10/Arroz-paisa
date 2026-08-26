@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20260825-1745";
+  --version: "20260826-0814";
 }
 
 /* ===========================================================================
@@ -27,7 +27,7 @@
   left: -9999px;
   top: 0;
   z-index: 100;
-  background: var(--mora);
+  background: var(--marca);
   color: #fff;
   padding: var(--e2) var(--e4);
   border-radius: 0 0 var(--radio) 0;
@@ -96,9 +96,9 @@
 .tarjeta-enlace:hover {
   transform: translateY(-2px);
   box-shadow: var(--sombra-alta);
-  border-color: var(--mora);
+  border-color: var(--marca);
 }
-.tarjeta-enlace h2 { color: var(--mora); margin-bottom: var(--e2); }
+.tarjeta-enlace h2 { color: var(--marca); margin-bottom: var(--e2); }
 .tarjeta-enlace p { color: var(--tinta-media); margin-bottom: var(--e2); }
 
 .etiqueta.pendiente {
@@ -180,7 +180,7 @@
   width: 22px;
   height: 22px;
   min-height: auto;
-  accent-color: var(--mora);
+  accent-color: var(--marca);
   cursor: pointer;
 }
 .nombre-opcion {
@@ -224,8 +224,8 @@
   font-family: var(--cuerpo);
 }
 .opcion-parecida:hover {
-  border-color: var(--mora);
-  background: var(--mora-claro);
+  border-color: var(--marca);
+  background: var(--marca-claro);
 }
 .opcion-parecida strong {
   font-family: var(--display);
@@ -242,8 +242,8 @@
   margin-top: var(--e2);
 }
 .opcion-parecida.es-otra:hover {
-  border-color: var(--mora);
-  background: var(--mora-claro);
+  border-color: var(--marca);
+  background: var(--marca-claro);
 }
 
 /* --------------------------------------------------------------------- */
@@ -262,7 +262,7 @@ input.precio {
   border-radius: var(--radio);
   background: var(--papel-hueso);
 }
-input.precio:focus { background: #fff; border-color: var(--mora); }
+input.precio:focus { background: #fff; border-color: var(--marca); }
 /* Un plato sin precio entra en $ 0 a la cuenta de cobro. Se tiene que ver. */
 input.precio.falta {
   background: var(--rojo-claro);
@@ -274,14 +274,14 @@ input.precio.falta::placeholder { color: #7d1a10; opacity: 1; }
 /*  Compartir con las empresas                                            */
 /* --------------------------------------------------------------------- */
 
-.garantia { border-left: 5px solid var(--mora); background: var(--papel-hueso); }
-.garantia h2 { color: var(--mora-hondo); }
+.garantia { border-left: 5px solid var(--marca); background: var(--papel-hueso); }
+.garantia h2 { color: var(--marca-hondo); }
 
 .empresa-compartir h3 {
   font-size: var(--t-md);
   margin-top: var(--e5);
   margin-bottom: var(--e1);
-  color: var(--mora-hondo);
+  color: var(--marca-hondo);
 }
 
 /* La vista previa del archivo, tal como lo va a ver el supervisor. */
@@ -315,8 +315,8 @@ input.precio.falta::placeholder { color: #7d1a10; opacity: 1; }
 /*  La lista de personal de la empresa                                     */
 /* --------------------------------------------------------------------- */
 
-.tarjeta-personal { border-left: 5px solid var(--mora); }
-.tarjeta-personal h2 { color: var(--mora-hondo); }
+.tarjeta-personal { border-left: 5px solid var(--marca); }
+.tarjeta-personal h2 { color: var(--marca-hondo); }
 
 /* El documento se muestra siempre cortado: solo los ultimos numeros. */
 .documento-corto {
@@ -331,7 +331,7 @@ input.precio.falta::placeholder { color: #7d1a10; opacity: 1; }
 
 /* Cuando el documento lo prueba, no es una opinion: es un hecho. */
 .seguro-probado {
-  background: var(--mora-hondo);
+  background: var(--marca-hondo);
   color: #fff;
 }
 
@@ -340,12 +340,12 @@ input.precio.falta::placeholder { color: #7d1a10; opacity: 1; }
   margin-top: var(--e4);
   padding-top: var(--e4);
 }
-.fusiones-halladas h4 { color: var(--mora-hondo); margin-bottom: var(--e2); }
+.fusiones-halladas h4 { color: var(--marca-hondo); margin-bottom: var(--e2); }
 
 .fusion {
   background: var(--papel-hueso);
   border: 1px solid var(--borde);
-  border-left: 4px solid var(--mora);
+  border-left: 4px solid var(--marca);
   border-radius: var(--radio);
   padding: var(--e3);
   margin-bottom: var(--e3);
@@ -373,7 +373,7 @@ input.precio.falta::placeholder { color: #7d1a10; opacity: 1; }
   font-weight: 600;
   font-size: var(--t-sm);
 }
-.boton-enlace:hover { border-color: var(--mora); background: var(--mora-claro); }
+.boton-enlace:hover { border-color: var(--marca); background: var(--marca-claro); }
 
 .manual-adentro {
   background: var(--papel);
@@ -417,7 +417,7 @@ input.precio.falta::placeholder { color: #7d1a10; opacity: 1; }
   line-height: 1;
 }
 /* En la pagina donde ya esta parada, el numerito no tiene que gritar. */
-.menu a[aria-current="page"] .contador { background: var(--mora); }
+.menu a[aria-current="page"] .contador { background: var(--marca); }
 
 /* --------------------------------------------------------------------- */
 /*  "Posibles errores": una tarjeta por cosa que hay que decidir           */
@@ -449,7 +449,7 @@ label.opcion-parecida input[type="radio"] {
   height: 21px;
   min-height: auto;
   flex: none;
-  accent-color: var(--mora);
+  accent-color: var(--marca);
 }
 label.opcion-parecida span {
   display: flex;
@@ -458,8 +458,8 @@ label.opcion-parecida span {
 }
 /* La que es casi segura se marca, para que solo tenga que confirmar. */
 label.opcion-parecida.obvia {
-  border-color: var(--mora);
-  background: var(--mora-claro);
+  border-color: var(--marca);
+  background: var(--marca-claro);
 }
 
 /* Plata que sube o que baja al unir dos platos. */
@@ -525,14 +525,14 @@ label.opcion-parecida.obvia {
   line-height: 1.25;
   text-align: left;
 }
-.ficha-plato:hover { background: var(--mora-claro); border-color: var(--mora); }
+.ficha-plato:hover { background: var(--marca-claro); border-color: var(--marca); }
 .ficha-plato small {
   font-family: var(--dato);
   font-weight: 400;
   font-size: var(--t-xs);
   color: var(--tinta-suave);
 }
-.ficha-plato:hover small { color: var(--mora); }
+.ficha-plato:hover small { color: var(--marca); }
 
 /* La tarjeta de "los mismos de ayer". */
 .tarjeta-ayer {
@@ -1043,9 +1043,9 @@ thead th {
   color: var(--tinta);
 }
 .plano:hover {
-  background: var(--mora-claro);
-  border-color: var(--mora);
-  color: var(--mora-oscuro);
+  background: var(--marca-claro);
+  border-color: var(--marca);
+  color: var(--marca-oscuro);
 }
 
 /* "Dejelo asi" si se queda discreto: es la salida, no una accion. */
@@ -1241,7 +1241,7 @@ tfoot td, tfoot th {
   bottom: 0;
   z-index: 2;
   background: var(--papel-hueso);
-  border-top: 2px solid var(--mora);
+  border-top: 2px solid var(--marca);
   font-weight: 700;
 }
 
@@ -1442,4 +1442,14 @@ html { scroll-behavior: smooth; }
   padding-bottom: var(--e2);
   height: auto;
   min-height: var(--alto-toque);
+}
+
+/* La fecha de la cuenta de cobro, alineada a la derecha como en cualquier
+   documento formal. */
+.fecha-cuenta {
+  text-align: right;
+  font-family: var(--dato);
+  font-size: var(--t-sm);
+  color: var(--tinta-media);
+  margin: 0 0 var(--e4);
 }

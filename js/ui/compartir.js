@@ -38,6 +38,7 @@ import { estado, empresas, empresaPorCodigo } from "./estado.js";
 import { pesos, nombreMes, fechaCorta } from "../nucleo/formato.js";
 import {
   delMes, quincenaDe, sumar, contarFacturas, cuentaDeCobro, rangoQuincena,
+  fechaDeCobro,
 } from "../nucleo/calculos.js";
 import { generarReporteEmpresa, descargarReporteEmpresa } from "../exportar/reporte-empresa.js";
 import { exportarEmpresaAExcel } from "../exportar/excel-export.js";
@@ -181,7 +182,9 @@ function botonCuenta(empresa, anio, mes, quincena, cuantos) {
     clase: "plano",
     disabled: cuantos === 0,
     alHacerClic: () => {
-      const cuenta = cuentaDeCobro(estado.datos.consumos, anio, mes, quincena, empresa);
+      const cuenta = cuentaDeCobro(
+        estado.datos.consumos, anio, mes, quincena, empresa,
+        fechaDeCobro(estado.datos, empresa.codigo, anio, mes, quincena));
       if (!cuenta.filas.length) {
         mensaje(`No hay nada que cobrar en la quincena ${quincena}.`, "ojo");
         return;

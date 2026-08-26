@@ -9,9 +9,11 @@
 
 import { el, vaciar, tabla, cifra, cifraPlata, acciones, vacio, mensaje, confirmar, poner, botonQueTrabaja,
 } from "./componentes.js";
-import { estado, empresas, empresaPorCodigo, asegurarEmpresa } from "./estado.js";
-import { pesos, nombreMes, fechaCorta } from "../nucleo/formato.js";
-import { cuentaDeCobro, deQuincena, sumar } from "../nucleo/calculos.js";
+import { estado, cambio, empresas, empresaPorCodigo, asegurarEmpresa } from "./estado.js";
+import { pesos, nombreMes, fechaCorta, fechaLarga } from "../nucleo/formato.js";
+import {
+  cuentaDeCobro, deQuincena, sumar, fechaDeCobro, ponerFechaDeCobro,
+} from "../nucleo/calculos.js";
 import { pdfCuentaDeCobro } from "../exportar/pdf.js";
 import { descargarReporteEmpresa } from "../exportar/reporte-empresa.js";
 import { exportarEmpresaAExcel } from "../exportar/excel-export.js";
@@ -36,7 +38,9 @@ export function pintarCobro(raiz) {
 
   const empresa = empresaPorCodigo(empresaCobro);
   const acreedor = estado.datos.config.acreedor || {};
-  const cuenta = cuentaDeCobro(estado.datos.consumos, estado.anio, estado.mes, quincena, empresa);
+  const laFecha = fechaDeCobro(estado.datos, empresaCobro, estado.anio, estado.mes, quincena);
+  const cuenta = cuentaDeCobro(
+    estado.datos.consumos, estado.anio, estado.mes, quincena, empresa, laFecha);
 
   // Aviso importante: si en esa quincena hay algo en $0, la cuenta sale corta.
   const enCero = deQuincena(estado.datos.consumos, estado.anio, estado.mes, quincena, empresa).filter(
@@ -62,6 +66,22 @@ export function pintarCobro(raiz) {
         el("label", { for: "cobro-empresa", texto: "Empresa" }),
         el("select", { id: "cobro-empresa", alCambiar: (e) => { empresaCobro = e.target.value; repintar(); } },
           ...empresas().map((e) => el("option", { value: e.codigo, selected: e.codigo === empresaCobro }, `${e.codigo} — ${e.razonSocial}`)))
+      ),
+      el("div", { clase: "campo" },
+        el("label", { for: "cobro-fecha", texto: "Fecha de la cuenta" }),
+        el("input", {
+          type: "date",
+          id: "cobro-fecha",
+          value: laFecha || "",
+          alCambiar: (e) => {
+            ponerFechaDeCobro(estado.datos, empresaCobro, estado.anio, estado.mes,
+                              quincena, e.target.value);
+            cambio();
+            repintar();
+          },
+        }),
+        el("small", { estilo: "color:var(--tinta-suave)",
+          texto: laFecha ? fechaLarga(laFecha) : "Sin poner: no sale en el documento" })
       ),
       el("div", { clase: "campo" },
         el("label", { for: "cobro-quincena", texto: "Quincena" }),
@@ -110,10 +130,18 @@ export function pintarCobro(raiz) {
 // ---------------------------------------------------------------------------
 
 function documentoDeCobro(cuenta, acreedor) {
-  const { empresa, rango, mes, anio, filas, total, facturas } = cuenta;
+  const { empresa, rango, mes, anio, filas, total, facturas, fechaCuenta } = cuenta;
 
   return el("div", { clase: "documento" },
     el("h2", { texto: "Cuenta de cobro" }),
+
+    // La fecha en que se pasa la cuenta. Si ella no la ha puesto, NO se
+    // inventa ninguna: un documento con una fecha inventada es peor que uno
+    // sin fecha, porque nadie se da cuenta de que esta mal.
+    fechaCuenta
+      ? el("p", { clase: "fecha-cuenta" },
+          (acreedor.ciudad ? acreedor.ciudad + ", " : "") + fechaLarga(fechaCuenta))
+      : null,
 
     el("div", { clase: "partes" },
       el("div", { clase: "parte" },
@@ -199,8 +227,12 @@ function paraElCliente(empresa) {
         alHacerClic: () => {
           try {
             const acreedor = estado.datos.config.acreedor || {};
-            pdfCuentaDeCobro(cuentaDeCobro(estado.datos.consumos, estado.anio, estado.mes, 1, empresa), acreedor);
-            pdfCuentaDeCobro(cuentaDeCobro(estado.datos.consumos, estado.anio, estado.mes, 2, empresa), acreedor);
+            for (const q of [1, 2]) {
+              pdfCuentaDeCobro(
+                cuentaDeCobro(estado.datos.consumos, estado.anio, estado.mes, q, empresa,
+                  fechaDeCobro(estado.datos, empresaCobro, estado.anio, estado.mes, q)),
+                acreedor);
+            }
             mensaje("Bajé las dos cuentas de cobro del mes.", "bien");
           } catch (e) { mensaje(e.message, "malo", 8); }
         },

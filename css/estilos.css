@@ -15,43 +15,52 @@
    =========================================================================== */
 
 :root {
-  /* Leche: el papel. Un blanco tibio, no un blanco de hospital. */
-  --papel-contable: #f6f0f4;   /* el fondo de toda la pagina */
+  /* Los colores del restaurante: rojo, blanco y beige.
+     Salen del logo, no de la imaginacion. */
+
+  /* Beige y blanco: el papel */
+  --papel-contable: #f5eee2;   /* el fondo de toda la pagina */
   --papel: #ffffff;            /* las tarjetas, que asi resaltan */
-  --papel-raya: #fbf6f9;       /* las filas de en medio de las tablas */
-  --papel-hueso: #fdfafc;
+  --papel-raya: #fbf6ed;       /* las filas de en medio de las tablas */
+  --papel-hueso: #fdfaf4;
+  --beige: #e9dcc6;            /* el arco del logo */
+  --beige-claro: #f2e8d8;
 
-  /* Tinta: negro con una gota de mora, para que no pelee con el fondo */
-  --tinta: #241b21;
-  --tinta-media: #574a53;
-  --tinta-suave: #80727b;
+  /* Tinta: negro con una gota de tierra, para que no pelee con el beige */
+  --tinta: #241b18;
+  --tinta-media: #574b45;
+  --tinta-suave: #85756e;
 
-  /* Mora: el armazon. La barra, los encabezados, los botones que hacen algo. */
-  --mora-hondo: #3b1b34;
-  --mora: #7c3568;
-  --mora-oscuro: #612650;
-  --mora-claro: #f5e6f1;
+  /* Rojo de la marca: la barra, los encabezados, los botones que hacen algo */
+  --marca-hondo: #a81e17;
+  --marca: #d92b22;
+  --marca-oscuro: #b4231b;
+  --marca-claro: #fbe6e3;
 
-  /* Azul clarito: lo que acompania. La pagina en la que se esta parada, la
-     fila sobre la que pasa el mouse, los avisos que solo informan. */
-  --azul-claro: #dfeaf6;
-  --azul-suave: #eef4fb;
-  --azul: #3d6e9c;
-  --azul-hondo: #26496b;
+  /* Azul de apoyo: la pagina donde esta parada, la fila del mouse. Hace falta
+     un color que NO sea rojo para lo que solo acompania; si todo fuera rojo,
+     nada resaltaria. */
+  --azul-claro: #dde9f4;
+  --azul-suave: #eff4fa;
+  --azul: #35678f;
+  --azul-hondo: #204461;
 
-  /* Senales. Estas NO cambian de color porque el color ES el mensaje:
-     verde bien, rojo mal, ambar ojo. Solo se les baja el tono para que
-     convivan con la mora. */
-  --verde: #2e7d5b;
-  --verde-claro: #dff0e7;
-  --verde-hondo: #1d5540;
-  --rojo: #a8253a;
-  --rojo-claro: #fbe3e7;
-  --amarillo: #a9700b;
-  --amarillo-claro: #fbefd8;
+  /* Senales. Aqui esta el problema mas dificil de esta paleta: la marca es
+     ROJA, y el rojo tambien es el color de "algo esta mal". Si fueran el
+     mismo rojo, un error se veria igual que un boton normal.
+     Por eso el rojo de alerta es mucho mas oscuro y menos naranja que el de
+     la marca, y ademas los errores siempre llevan fondo y barra al lado: se
+     reconocen por peso, no solo por color. */
+  --verde: #1f7a4c;
+  --verde-claro: #dcefe4;
+  --verde-hondo: #145636;
+  --rojo: #8b1a12;
+  --rojo-claro: #fbe0dc;
+  --amarillo: #9c6a06;
+  --amarillo-claro: #fbeed4;
 
-  --borde: #e2d5de;
-  --borde-fuerte: #c6b2c0;
+  --borde: #e5dccc;
+  --borde-fuerte: #c9b99f;
 
   /* Tipografía */
   --display: "Familjen Grotesk", "Segoe UI", system-ui, sans-serif;
@@ -115,7 +124,7 @@ h2 { font-size: var(--t-xl); }
 h3 { font-size: var(--t-lg); }
 h4 { font-size: var(--t-md); }
 p { margin: 0 0 var(--e3); }
-a { color: var(--mora); }
+a { color: var(--marca); }
 
 :focus-visible {
   outline: 3px solid var(--azul);
@@ -134,7 +143,7 @@ a { color: var(--mora); }
 /* --------------------------------------------------------------------- */
 
 .barra {
-  background: var(--mora-hondo);
+  background: var(--marca-hondo);
   color: #f6ecf3;
   position: sticky;
   top: 0;
@@ -197,7 +206,7 @@ a { color: var(--mora); }
 .menu a:hover { background: rgba(255, 255, 255, 0.09); color: #fff; }
 .menu a[aria-current="page"] {
   background: var(--azul-claro);
-  color: var(--mora-hondo);
+  color: var(--marca-hondo);
   border-color: #b9cfe6;
 }
 
@@ -251,7 +260,7 @@ a { color: var(--mora); }
   content: "";
   flex: 1 0 100%;
   height: 3px;
-  background: linear-gradient(90deg, var(--mora) 0 90px, var(--borde) 90px);
+  background: linear-gradient(90deg, var(--marca) 0 90px, var(--borde) 90px);
   margin-top: var(--e3);
 }
 
@@ -305,9 +314,9 @@ textarea {
   width: 100%;
   transition: border-color 0.12s, box-shadow 0.12s;
 }
-input:hover, select:hover { border-color: var(--mora); }
+input:hover, select:hover { border-color: var(--marca); }
 input:focus, select:focus, textarea:focus {
-  border-color: var(--mora);
+  border-color: var(--marca);
   box-shadow: 0 0 0 3px var(--azul-claro);
   outline: none;
 }
@@ -323,7 +332,7 @@ input[aria-invalid="true"] { border-color: var(--rojo); background: var(--rojo-c
   align-items: flex-end;
   background: var(--papel);
   border: 1px solid var(--borde);
-  border-left: 5px solid var(--mora);
+  border-left: 5px solid var(--marca);
   border-radius: var(--radio-g);
   box-shadow: var(--sombra);
   padding: var(--e4);
@@ -360,16 +369,16 @@ button, .boton {
   transition: background 0.12s, border-color 0.12s, transform 0.06s;
   white-space: nowrap;
 }
-button:hover, .boton:hover { background: var(--papel-raya); border-color: var(--mora); }
+button:hover, .boton:hover { background: var(--papel-raya); border-color: var(--marca); }
 button:active { transform: translateY(1px); }
 button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 
 .principal {
-  background: var(--mora);
-  border-color: var(--mora-oscuro);
+  background: var(--marca);
+  border-color: var(--marca-oscuro);
   color: #fff;
 }
-.principal:hover { background: var(--mora-oscuro); border-color: var(--mora-oscuro); }
+.principal:hover { background: var(--marca-oscuro); border-color: var(--marca-oscuro); }
 
 .verde { background: var(--verde); border-color: var(--verde-hondo); color: #fff; }
 .verde:hover { background: var(--verde-hondo); border-color: var(--verde-hondo); }
@@ -378,7 +387,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 .peligro:hover { background: var(--rojo-claro); border-color: var(--rojo); }
 
 .plano { border-color: transparent; background: transparent; padding: 0 var(--e2); }
-.plano:hover { background: var(--mora-claro); border-color: transparent; }
+.plano:hover { background: var(--marca-claro); border-color: transparent; }
 
 .chico { min-height: 36px; font-size: var(--t-sm); padding: 0 var(--e3); }
 .grande { min-height: 60px; font-size: var(--t-md); padding: 0 var(--e5); }
@@ -403,7 +412,7 @@ table {
 }
 
 thead th {
-  background: var(--mora-hondo);
+  background: var(--marca-hondo);
   color: #f6ecf3;
   font-family: var(--display);
   font-weight: 600;
@@ -435,7 +444,7 @@ td.n, th.n { text-align: right; }
 }
 
 tfoot td {
-  border-top: 2.5px solid var(--mora-hondo);
+  border-top: 2.5px solid var(--marca-hondo);
   padding: 0.7rem var(--e3);
   font-family: var(--display);
   font-weight: 700;
@@ -465,7 +474,7 @@ tfoot td.n { font-family: var(--dato); }
 }
 
 .comanda {
-  --cinta: var(--mora);
+  --cinta: var(--marca);
   background: var(--papel);
   border: 1px solid var(--borde);
   border-top: 4px solid var(--cinta);
@@ -579,7 +588,7 @@ tfoot td.n { font-family: var(--dato); }
   line-height: 1.1;
   overflow-wrap: anywhere;
 }
-.cifra.destacada { background: var(--mora-hondo); border-color: var(--mora-hondo); }
+.cifra.destacada { background: var(--marca-hondo); border-color: var(--marca-hondo); }
 .cifra.destacada dt { color: #9dc9b0; }
 .cifra.destacada dd { color: #fff; }
 
@@ -598,7 +607,7 @@ tfoot td.n { font-family: var(--dato); }
   padding: 0.16rem 0.5rem;
   border-radius: 3px;
   color: #fff;
-  background: var(--mora);
+  background: var(--marca);
   white-space: nowrap;
 }
 
@@ -638,7 +647,7 @@ tfoot td.n { font-family: var(--dato); }
   max-width: min(420px, calc(100vw - 2rem));
 }
 .mensaje {
-  background: var(--mora-hondo);
+  background: var(--marca-hondo);
   color: #fff;
   padding: var(--e3) var(--e4);
   border-radius: var(--radio-g);
@@ -663,7 +672,7 @@ tfoot td.n { font-family: var(--dato); }
   right: 0;
   z-index: 30;
   background: var(--papel);
-  border: 1.5px solid var(--mora);
+  border: 1.5px solid var(--marca);
   border-radius: var(--radio);
   box-shadow: var(--sombra-alta);
   max-height: 320px;
@@ -682,13 +691,13 @@ tfoot td.n { font-family: var(--dato); }
   gap: var(--e3);
   align-items: center;
 }
-.buscador-lista li[aria-selected="true"] { background: var(--mora-hondo); color: #fff; }
+.buscador-lista li[aria-selected="true"] { background: var(--marca-hondo); color: #fff; }
 .buscador-lista li[aria-selected="true"] .apunte { color: #a9d3bc; }
 .buscador-lista li:hover { background: var(--azul-suave); }
-.buscador-lista li[aria-selected="true"]:hover { background: var(--mora-hondo); }
+.buscador-lista li[aria-selected="true"]:hover { background: var(--marca-hondo); }
 .buscador-lista .apunte { font-family: var(--dato); font-size: var(--t-xs); color: var(--tinta-suave); }
-.buscador-lista .crear { color: var(--mora); font-weight: 600; font-family: var(--display); }
-.buscador-lista li[aria-selected="true"].crear { background: var(--mora); color: #fff; }
+.buscador-lista .crear { color: var(--marca); font-weight: 600; font-family: var(--display); }
+.buscador-lista li[aria-selected="true"].crear { background: var(--marca); color: #fff; }
 
 /* --------------------------------------------------------------------- */
 /*  Ventanas                                                               */
@@ -696,7 +705,7 @@ tfoot td.n { font-family: var(--dato); }
 
 dialog {
   border: 1px solid var(--borde-fuerte);
-  border-top: 5px solid var(--mora);
+  border-top: 5px solid var(--marca);
   border-radius: var(--radio-g);
   padding: 0;
   max-width: min(560px, calc(100vw - 2rem));
@@ -738,7 +747,7 @@ tr[data-estado="cuadra"] .diferencia { color: var(--verde); }
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding-bottom: var(--e3);
-  border-bottom: 3px solid var(--mora-hondo);
+  border-bottom: 3px solid var(--marca-hondo);
   margin-bottom: var(--e4);
 }
 .documento .partes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--e4); margin-bottom: var(--e5); }
@@ -787,7 +796,7 @@ tr[data-estado="cuadra"] .diferencia { color: var(--verde); }
   .hoja { padding: 0; max-width: none; }
   .tarjeta, .marco-tabla, .documento { box-shadow: none; border: none; padding: 0; }
   .documento { max-width: none; }
-  thead th { background: #3b1b34 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  thead th { background: #a81e17 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   tbody tr:nth-child(even) { background: #f8f2f6 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   tbody tr:hover { background: transparent !important; }
   table { page-break-inside: auto; }

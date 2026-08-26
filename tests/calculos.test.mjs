@@ -19,6 +19,7 @@ import {
   delMes, deQuincena, contarFacturas, facturasPorEmpresa, informeDia,
   informeCocina, informePorPersona, cuentaDeCobro, informeCuadre,
   revisarConsumo, indicePorCodigo, precioDe, personasDe, clavePrecio,
+  fechaDeCobro, ponerFechaDeCobro,
 } from "../js/nucleo/calculos.js";
 
 // ---------------------------------------------------------------------------
@@ -358,4 +359,50 @@ prueba("contarFacturas y facturasPorEmpresa dan lo mismo sumadas", () => {
   const f = facturasPorEmpresa(D.consumos);
   const suma = Object.values(f).reduce((a, b) => a + b, 0);
   igual(suma, contarFacturas(D.consumos));
+});
+
+// ---------------------------------------------------------------------------
+grupo("La fecha en que se pasa la cuenta");
+
+prueba("los dias de la quincena NO dependen de esa fecha", () => {
+  // Esto es lo importante: se agrego poder poner la fecha en que se entrega
+  // la cuenta, y eso NO puede mover ni un dia del periodo que cubre.
+  const empresa = { codigo: "MGP", ultimoDiaQ1: 13, ultimoDiaQ2: 31 };
+  const antes = rangoQuincena(2026, 8, 1, empresa);
+  const datos = { fechasDeCobro: {} };
+  ponerFechaDeCobro(datos, "MGP", 2026, 8, 1, "2026-08-20");
+  const despues = rangoQuincena(2026, 8, 1, empresa);
+  igual(despues, antes, "el periodo tiene que quedar igual");
+  igual(antes.desde, 1);
+  igual(antes.hasta, 13);
+});
+
+prueba("se guarda y se lee por empresa, mes y quincena", () => {
+  const datos = { fechasDeCobro: {} };
+  ponerFechaDeCobro(datos, "MGP", 2026, 8, 1, "2026-08-14");
+  ponerFechaDeCobro(datos, "MGP", 2026, 8, 2, "2026-09-02");
+  igual(fechaDeCobro(datos, "MGP", 2026, 8, 1), "2026-08-14");
+  igual(fechaDeCobro(datos, "MGP", 2026, 8, 2), "2026-09-02");
+  igual(fechaDeCobro(datos, "AGRO", 2026, 8, 1), null, "otra empresa no la hereda");
+  igual(fechaDeCobro(datos, "MGP", 2026, 9, 1), null, "otro mes tampoco");
+});
+
+prueba("si no la han puesto, NO se inventa ninguna", () => {
+  // Un documento con fecha inventada es peor que uno sin fecha: nadie se da
+  // cuenta de que esta mal.
+  igual(fechaDeCobro({}, "MGP", 2026, 8, 1), null);
+});
+
+prueba("una fecha que no es fecha se rechaza", () => {
+  const datos = { fechasDeCobro: {} };
+  ponerFechaDeCobro(datos, "MGP", 2026, 8, 1, "14 de agosto");
+  igual(fechaDeCobro(datos, "MGP", 2026, 8, 1), null);
+});
+
+prueba("borrarla la quita, no la deja en blanco", () => {
+  const datos = { fechasDeCobro: {} };
+  ponerFechaDeCobro(datos, "MGP", 2026, 8, 1, "2026-08-14");
+  ponerFechaDeCobro(datos, "MGP", 2026, 8, 1, "");
+  igual(fechaDeCobro(datos, "MGP", 2026, 8, 1), null);
+  igual(Object.keys(datos.fechasDeCobro).length, 0);
 });
