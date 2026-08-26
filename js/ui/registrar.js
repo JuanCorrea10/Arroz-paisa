@@ -17,6 +17,7 @@ import { estado, cambio, empresas, asegurarEmpresa, empresaPorCodigo } from "./e
 import { pesos, fechaLarga, normalizar, hoyISO } from "../nucleo/formato.js";
 import {
   delDia, subtotal, contarFacturas, personasDe, precioDe, clavePersona,
+  A_CREDITO, DE_CONTADO, CORTESIA, formaDeCobro, esCortesia, yaLoPago,
 } from "../nucleo/calculos.js";
 import { nuevoConsumo, agregarPersona, agregarProducto } from "../nucleo/modelo.js";
 import {
@@ -226,7 +227,7 @@ function comandaEnCurso(raiz) {
 /** Los platos de la persona activa, con sus botones de cantidad y borrar. */
 function tablaDePlatos(renglones, raiz) {
   const cuerpo = renglones.map((c) => {
-    const problema = c.facturable !== false && !(c.precioUnitario > 0);
+    const problema = !esCortesia(c) && !(c.precioUnitario > 0);
     return el("tr", {},
       el("td", {},
         c.producto,
@@ -238,9 +239,7 @@ function tablaDePlatos(renglones, raiz) {
                 alHacerClic: () => ponerPrecio(c, raiz),
               }, "Póngale precio"))
           : null,
-        c.facturable === false
-          ? el("div", { estilo: "color:var(--tinta-suave);font-size:var(--t-xs)", texto: "No se le cobra" })
-          : null,
+        etiquetaDeCobro(c),
 
         // La nota del renglon: "sin verduras", "para llevar", lo que sea.
         // Se ve debajo del plato porque es del plato, no de la persona.
@@ -263,11 +262,7 @@ function tablaDePlatos(renglones, raiz) {
       el("td", { clase: "n", texto: pesos(c.precioUnitario) }),
       el("td", { clase: "n", texto: pesos(subtotal(c)) }),
       el("td", { clase: "n", estilo: "white-space:nowrap" },
-        el("button", {
-          clase: "chico",
-          title: c.facturable === false ? "Volver a cobrarlo" : "Marcar que no se le cobra",
-          alHacerClic: () => { c.facturable = c.facturable === false; recalcularRevisar(c); cambio(); pintarRegistrar(raiz); },
-        }, c.facturable === false ? "Cobrar" : "No cobrar"),
+        botonDeCobro(c, raiz),
         el("button", {
           clase: "chico peligro",
           estilo: "margin-left:.3rem",
@@ -359,10 +354,13 @@ function listaDeComandas(raiz) {
       ),
       el("ul", { clase: "comanda-platos" },
         ...platos.map((c) =>
-          el("li", { clase: c.facturable === false ? "gratis" : "" },
+          el("li", { clase: esCortesia(c) ? "gratis" : yaLoPago(c) ? "pagado" : "" },
             el("span", { clase: "comanda-cant", texto: c.cantidad + "×" }),
             el("span", { clase: "comanda-plato", texto: c.producto }),
-            el("span", { clase: "comanda-valor", texto: c.facturable === false ? "no cobra" : pesos(subtotal(c)) }),
+            el("span", { clase: "comanda-valor",
+              texto: esCortesia(c) ? "cortesía"
+                   : yaLoPago(c) ? "pagó · " + pesos(subtotal(c))
+                   : pesos(subtotal(c)) }),
             el("button", {
               clase: "plano chico",
               "aria-label": `Borrar ${c.producto} de ${nombre}`,
@@ -515,7 +513,6 @@ function ventanaDeAyer(raiz, ayer) {
                 producto: plato.producto,
                 cantidad: plato.cantidad,
                 precioUnitario: precio === null ? 0 : precio,
-                facturable: plato.facturable,
               }));
               renglones++;
             }
@@ -648,7 +645,7 @@ function agregarPlato(plato, raiz, cuantos = 1) {
   // Si ya le habían anotado ese mismo plato hoy, se le suma uno en vez de
   // abrir un renglón nuevo. Así la comanda no se llena de renglones repetidos.
   const yaEsta = renglonesDe(personaActiva).find(
-    (c) => c.producto === normalizar(plato) && c.facturable !== false
+    (c) => c.producto === normalizar(plato) && !esCortesia(c)
   );
   if (yaEsta) {
     yaEsta.cantidad += cantidad;
@@ -742,7 +739,7 @@ async function ponerPrecio(renglon, raiz) {
 /** Vuelve a mirar si el renglón tiene algún problema. Se llama en cada cambio. */
 function recalcularRevisar(c) {
   const revisar = [];
-  if (c.facturable !== false && !(c.precioUnitario > 0)) revisar.push("SIN_PRECIO");
+  if (!esCortesia(c) && !(c.precioUnitario > 0)) revisar.push("SIN_PRECIO");
   if (!(c.cantidad > 0)) revisar.push("SIN_CANTIDAD");
   c.revisar = revisar;
 }
@@ -901,4 +898,99 @@ async function crearPlato(plato, facturaA, raiz) {
   cambio();
   agregarPlato(limpiarNombre(datos.nombre), raiz);
   mensaje(`"${limpiarNombre(datos.nombre)}" quedó en el catálogo a ${pesos(valor)}.`, "bien");
+}
+
+
+// ===========================================================================
+//  CÓMO SE PAGA CADA PLATO
+//
+//  Antes había un solo botón, "No cobrar", y no alcanzaba. Si alguien pagaba
+//  de una, las dos salidas estaban malas: dejarlo normal le cobraba a la
+//  empresa algo ya pagado, y marcarlo "no cobrar" hacía desaparecer la venta.
+//
+//  El caso normal (a crédito) va callado a propósito. De veinte platos del
+//  día, diecinueve son a crédito: si cada uno gritara su estado, el día que
+//  uno sea distinto no se notaría. Solo se marcan las excepciones.
+// ===========================================================================
+
+const COMO_SE_PAGA = [
+  {
+    forma: A_CREDITO,
+    titulo: "A crédito",
+    corto: "Pago",
+    explica: "Se le cobra a la empresa en la cuenta de la quincena. Es lo normal.",
+  },
+  {
+    forma: DE_CONTADO,
+    titulo: "Pagó de una",
+    corto: "Pagó de una",
+    explica: "La persona ya pagó de su bolsillo. NO se le cobra a la empresa, " +
+             "pero sí cuenta como venta del día y tiene que estar en la caja.",
+  },
+  {
+    forma: CORTESIA,
+    titulo: "Cortesía",
+    corto: "Cortesía",
+    explica: "No lo paga nadie. No se le cobra a la empresa ni entra a la caja: " +
+             "vale cero en todas partes.",
+  },
+];
+
+function etiquetaDeCobro(c) {
+  if (loNormal(c)) return null;
+  const cual = COMO_SE_PAGA.find((x) => x.forma === formaDeCobro(c));
+  return el("div", { clase: "marca-cobro " + formaDeCobro(c), texto: cual.titulo });
+}
+
+const loNormal = (c) => formaDeCobro(c) === A_CREDITO;
+
+function botonDeCobro(c, raiz) {
+  const cual = COMO_SE_PAGA.find((x) => x.forma === formaDeCobro(c));
+  return el("button", {
+    clase: loNormal(c) ? "chico" : "chico marcado-" + formaDeCobro(c),
+    title: "Cómo se paga este plato",
+    alHacerClic: () => elegirComoSePaga(c, raiz),
+  }, cual.corto);
+}
+
+function elegirComoSePaga(renglon, raiz) {
+  const actual = formaDeCobro(renglon);
+
+  const opciones = COMO_SE_PAGA.map((x) =>
+    el("button", {
+      clase: "opcion-cobro" + (x.forma === actual ? " puesta" : ""),
+      alHacerClic: () => {
+        ponerFormaDeCobro(renglon, x.forma);
+        recalcularRevisar(renglon);
+        cambio();
+        cerrar();
+        pintarRegistrar(raiz);
+        if (x.forma !== actual) {
+          mensaje(`${renglon.producto}: ${x.titulo.toLowerCase()}.`, "bien", 4);
+        }
+      },
+    },
+      el("strong", { texto: x.titulo }),
+      el("span", { texto: x.explica })
+    )
+  );
+
+  const { cerrar } = ventana({
+    titulo: `¿Cómo se paga ${renglon.producto}?`,
+    cuerpo: el("div", { clase: "lista-cobro" }, ...opciones),
+    botones: [{ texto: "Cancelar" }],
+  });
+}
+
+/**
+ * Deja el renglón en la forma escogida.
+ *
+ * Escribe también el "facturable" viejo. No hace falta para las cuentas -- el
+ * núcleo ya lee el campo nuevo -- pero si mañana quedara un pedazo de código
+ * mirando el viejo, va a leer algo coherente en vez de lo contrario. Es un
+ * campo de más en el archivo; una cuenta equivocada cuesta bastante más.
+ */
+function ponerFormaDeCobro(renglon, forma) {
+  renglon.cobro = forma;
+  renglon.facturable = forma !== CORTESIA;
 }

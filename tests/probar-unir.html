@@ -189,6 +189,88 @@ if (pareja.length < 2) {
   }
 }
 
+// --- Y con TRES marcadas, que es como de verdad va a pasar ----------------
+//
+// De la misma persona suelen quedar tres formas: el nombre completo, el apodo
+// y el nombre con un punto. Marcar tres y unirlas de una es justo lo que se
+// quería evitarle: antes tocaba renombrar a mano para poder juntarlas.
+const conRenglones2 = estado.datos.personas.filter(
+  (p) => estado.datos.consumos.some(
+    (c) => c.empresaCome === p.empresaCome && c.persona === p.nombre));
+const empresaB = conRenglones2.length ? conRenglones2[0].empresaCome : null;
+const trio = conRenglones2.filter((p) => p.empresaCome === empresaB).slice(0, 3);
+
+if (trio.length < 3) {
+  anotar("OJO  no hay tres personas con renglones en la misma empresa");
+} else {
+  win.location.hash = "#personas";
+  await esperar(1000);
+  await filtrarPor(empresaB);
+
+  const antes3 = { plata: total(), filas: estado.datos.consumos.length,
+                   personas: estado.datos.personas.length, sueltos: huerfanos() };
+
+  for (const p of trio) { marcarA(p.nombre); await esperar(450); }
+
+  const barra3 = doc.querySelector(".barra-unir");
+  anotar(barra3 && barra3.textContent.indexOf("3 personas marcadas") >= 0
+    ? "OK   la barra dice que hay 3 marcadas"
+    : "MAL  la barra no cuenta bien las 3");
+
+  const boton3 = barra3 && [...barra3.querySelectorAll("button")]
+    .find((b) => b.textContent.indexOf("Unir las marcadas") >= 0);
+
+  if (boton3 && !boton3.disabled) {
+    boton3.click();
+    await esperar(800);
+
+    const elegir3 = doc.querySelector("dialog select");
+    anotar(elegir3 && elegir3.options.length === 3
+      ? "OK   deja escoger entre los 3 nombres"
+      : "MAL  la lista trae " + (elegir3 ? elegir3.options.length : "nada") + " nombres");
+
+    const queda3 = elegir3 ? elegir3.value : null;
+    const seguir = [...doc.querySelectorAll("dialog button")]
+      .find((b) => b.textContent.indexOf("Ver qué va a pasar") >= 0);
+    if (seguir) { seguir.click(); await esperar(900); }
+
+    // La frase tiene que nombrar a los DOS que desaparecen, no solo a uno.
+    const previa3 = doc.querySelector("dialog");
+    const dice3 = previa3 ? previa3.textContent : "";
+    const otros3 = trio.map((p) => p.nombre).filter((n) => n !== queda3);
+    anotar(otros3.every((n) => dice3.indexOf(n) >= 0)
+      ? "OK   nombra a los dos que van a desaparecer"
+      : `MAL  no nombra a los dos: falta ${otros3.find((n) => dice3.indexOf(n) < 0)}`);
+
+    const unir3 = [...doc.querySelectorAll("dialog button")]
+      .find((b) => b.textContent.trim() === "Sí, unir");
+    if (unir3) { unir3.click(); await esperar(1400); }
+
+    const despues3 = { plata: total(), filas: estado.datos.consumos.length,
+                       personas: estado.datos.personas.length, sueltos: huerfanos() };
+
+    anotar(despues3.plata === antes3.plata
+      ? "OK   con tres, la plata también quedó igual"
+      : `MAL  la plata cambió: ${antes3.plata} -> ${despues3.plata}`);
+    anotar(despues3.filas === antes3.filas
+      ? "OK   con tres, no se perdió ningún renglón"
+      : `MAL  se perdieron renglones: ${antes3.filas} -> ${despues3.filas}`);
+    anotar(despues3.personas === antes3.personas - 2
+      ? "OK   desaparecieron las dos que sobraban"
+      : `MAL  las personas pasaron de ${antes3.personas} a ${despues3.personas} (esperaba -2)`);
+    anotar(despues3.sueltos <= antes3.sueltos
+      ? "OK   con tres, ningún renglón quedó sin dueño"
+      : `MAL  quedaron ${despues3.sueltos - antes3.sueltos} renglones sin dueño`);
+
+    const barraDespues = doc.querySelector(".barra-unir");
+    anotar(!barraDespues
+      ? "OK   la barra se fue sola al terminar"
+      : "MAL  la barra se quedó con gente marcada que ya no existe");
+  } else {
+    anotar("MAL  con 3 marcadas de la misma empresa el botón no dejó unir");
+  }
+}
+
 // --- La otra mitad: dos de empresas distintas NO se pueden unir ------------
 const porEmpresa = new Map();
 for (const p of estado.datos.personas) {

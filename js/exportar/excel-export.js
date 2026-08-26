@@ -15,6 +15,7 @@ import { nombreMes } from "../nucleo/formato.js";
 import {
   indicePorCodigo, quincenaDe, subtotal, delMes, deQuincena, sumar,
   contarFacturas, informePorPersona, clavePrecio,
+  loPagaLaEmpresa, formaDeCobro, sumarLoDeLaEmpresa,
 } from "../nucleo/calculos.js";
 
 /** Exporta TODO: es el respaldo completo en formato Excel. */
@@ -69,7 +70,7 @@ export async function exportarTodoAExcel(datos) {
       c.precioUnitario,
       subtotal(c),
       quincenaDe(c.fecha, empresas[c.empresaFactura]) || "",
-      c.facturable === false ? "N" : "S",
+      { empresa: "EMPRESA", contado: "PAGO DE UNA", cortesia: "CORTESIA" }[formaDeCobro(c)],
       c.observacion || "",
       (c.revisar || []).join(" "),
     ]),
@@ -83,8 +84,8 @@ export async function exportarTodoAExcel(datos) {
   ];
   let granTotal = 0;
   for (const e of datos.empresas) {
-    const q1 = sumar(deQuincena(datos.consumos, datos.config.anio, datos.config.mes, 1, e).filter((c) => c.facturable !== false));
-    const q2 = sumar(deQuincena(datos.consumos, datos.config.anio, datos.config.mes, 2, e).filter((c) => c.facturable !== false));
+    const q1 = sumarLoDeLaEmpresa(deQuincena(datos.consumos, datos.config.anio, datos.config.mes, 1, e));
+    const q2 = sumarLoDeLaEmpresa(deQuincena(datos.consumos, datos.config.anio, datos.config.mes, 2, e));
     const suyos = delMes(datos.consumos, datos.config.anio, datos.config.mes).filter((c) => c.empresaFactura === e.codigo);
     resumen.push([e.codigo, e.razonSocial, q1, q2, q1 + q2, contarFacturas(suyos)]);
     granTotal += q1 + q2;
@@ -136,12 +137,12 @@ export async function exportarEmpresaAExcel(datos, codigoEmpresa, anio, mes) {
       .map((c) => [
         c.fecha, Number(c.fecha.slice(8, 10)), c.persona, c.producto, c.cantidad,
         c.precioUnitario, subtotal(c), quincenaDe(c.fecha, empresa) || "",
-        c.facturable === false ? "NO" : "SÍ",
+        { empresa: "SÍ", contado: "NO, pagó de una", cortesia: "NO, cortesía" }[formaDeCobro(c)],
       ]),
   ];
 
-  const q1 = mios.filter((c) => c.facturable !== false && quincenaDe(c.fecha, empresa) === 1);
-  const q2 = mios.filter((c) => c.facturable !== false && quincenaDe(c.fecha, empresa) === 2);
+  const q1 = mios.filter((c) => loPagaLaEmpresa(c) && quincenaDe(c.fecha, empresa) === 1);
+  const q2 = mios.filter((c) => loPagaLaEmpresa(c) && quincenaDe(c.fecha, empresa) === 2);
 
   const portada = [
     ["CONSUMO DE ALMUERZOS"],

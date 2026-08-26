@@ -244,6 +244,50 @@ prueba("avisa cuando el número de facturas del día va a bajar", () => {
   igual(previa.facturasQueSePierden, 1);
 });
 
+prueba("unir TRES nombres de una, no de a dos", () => {
+  // Esto no era posible hasta que Personas dejó marcar varias con la casilla.
+  // Y es el caso de verdad: de la misma persona quedaron el nombre completo,
+  // el apodo y el nombre con un punto, y hay que juntar los tres.
+  const datos = datosDePrueba();
+  datos.personas.push({ nombre: "JUANCHO PEREZ", empresaCome: "AGRO", empresaFactura: "AGRO" });
+  datos.consumos.push(renglon("2026-08-05", "AGRO", "JUANCHO PEREZ", 2));
+
+  const antesRenglones = datos.consumos.length;
+  const antesPlata = datos.consumos.reduce((a, c) => a + c.cantidad * c.precioUnitario, 0);
+
+  const previa = simularUnion(datos, "AGRO", "JUAN PEREZ", ["JUAN.PEREZ", "JUANCHO PEREZ"]);
+  igual(previa.renglones, 2, "tiene que contar los renglones de LOS DOS absorbidos");
+  igual(previa.plata, 30000, "1 almuerzo de JUAN.PEREZ + 2 de JUANCHO");
+
+  unirPersonas(datos, "AGRO", "JUAN PEREZ", ["JUAN.PEREZ", "JUANCHO PEREZ"]);
+
+  igual(datos.consumos.length, antesRenglones, "no se puede perder ni crear un renglón");
+  igual(datos.consumos.reduce((a, c) => a + c.cantidad * c.precioUnitario, 0), antesPlata,
+        "la plata del negocio no puede cambiar");
+
+  const deAgro = datos.personas.filter((p) => p.empresaCome === "AGRO");
+  igual(deAgro.length, 1, "de los tres nombres tiene que quedar uno solo");
+  igual(deAgro[0].nombre, "JUAN PEREZ");
+
+  const renglonesAgro = datos.consumos.filter((c) => c.empresaCome === "AGRO");
+  cierto(renglonesAgro.every((c) => c.persona === "JUAN PEREZ"),
+         "quedó algún renglón a nombre de uno de los absorbidos");
+
+  // Y el tocayo de la otra empresa sigue intacto: son personas distintas.
+  igual(datos.personas.filter((p) => p.empresaCome === "BASARILI").length, 1);
+});
+
+prueba("unir tres no cuenta dos veces las facturas del mismo día", () => {
+  const datos = datosDePrueba();
+  datos.personas.push({ nombre: "JUANCHO PEREZ", empresaCome: "AGRO", empresaFactura: "AGRO" });
+  // Los tres comen el MISMO día: hoy son 3 facturas, mañana 1. Se pierden 2.
+  datos.consumos.push(renglon("2026-08-03", "AGRO", "JUAN.PEREZ", 1));
+  datos.consumos.push(renglon("2026-08-03", "AGRO", "JUANCHO PEREZ", 1));
+
+  const previa = simularUnion(datos, "AGRO", "JUAN PEREZ", ["JUAN.PEREZ", "JUANCHO PEREZ"]);
+  igual(previa.facturasQueSePierden, 2);
+});
+
 prueba("si no comen el mismo día, no se pierde ninguna factura", () => {
   const datos = datosDePrueba();
   const previa = simularUnion(datos, "AGRO", "JUAN PEREZ", ["JUAN.PEREZ"]);

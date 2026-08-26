@@ -99,6 +99,7 @@
     <li><a href="#pantallas">Qué hace cada pantalla</a></li>
     <li><a href="#dia">Lo de todos los días</a></li>
     <li><a href="#quincena">Lo de cada quincena</a></li>
+    <li><a href="#pagos">Cuando alguien paga de una</a></li>
     <li><a href="#nombres">Cuando un nombre queda repetido</a></li>
     <li><a href="#guardado">Dónde quedan guardados los datos</a></li>
     <li><a href="#problemas">Si algo sale mal</a></li>
@@ -194,6 +195,10 @@
       sale un botón que lo anota completo de un toque.</li>
     <li><strong>+ nota</strong> en cada plato, para cosas como
       &laquo;sin verduras&raquo;. Sale en Cocina y en lo que se le manda a la empresa.</li>
+    <li><strong>Pago</strong>: decir c&oacute;mo se paga ese plato. Casi siempre
+      es a cr&eacute;dito y no hay que tocar nada; el bot&oacute;n est&aacute;
+      ah&iacute; para el d&iacute;a que alguien pague de una.
+      (Ver <a href="#pagos">c&oacute;mo se paga cada plato</a>.)</li>
     <li><strong>Ver lo de ayer</strong>, por si el señor dicta &laquo;lo mismo de ayer&raquo;.</li>
     <li>Si la persona o el plato no existen todavía, se crean ahí mismo sin salirse.</li>
   </ul>
@@ -215,7 +220,9 @@
   <h3><span class="menu-item">Resumen del día</span></h3>
   <p class="parasirve">Cómo quedó un día, ya cerrado.</p>
   <p><strong>Qué se ve:</strong> los platos de ese día con su valor, cuántas
-  facturas salieron y el total.</p>
+  facturas salieron y el total. Si ese día alguien pagó de una, sale además el
+  total partido en dos: lo que se le cobra a la empresa y lo que
+  <strong>tiene que estar en la caja</strong>.</p>
   <p><strong>Qué se puede hacer:</strong> cambiar de día, escoger una empresa
   sola, y bajarlo en PDF.</p>
   <p><strong>Aquí NO se:</strong> arregla un pedido mal anotado. Para eso se
@@ -451,7 +458,79 @@ día, el consumo de cada persona y los totales de las dos quincenas.</p>
   mandarlo.</p>
 </div>
 
-<h2 id="nombres">4. Cuando un nombre queda repetido</h2>
+<h2 id="pagos">4. Cuando alguien paga de una</h2>
+
+<p>
+  Casi todo se anota <strong>a cr&eacute;dito</strong>: la persona come, y a la
+  empresa se le cobra en la cuenta de la quincena. Pero a veces alguien saca la
+  plata y paga en el momento. Para eso cada plato tiene un bot&oacute;n
+  <span class="menu-item">Pago</span> en la comanda.
+</p>
+
+<table class="pantallas">
+  <tr><th>Se marca</th><th>Qu&eacute; pasa con la plata</th><th>Cu&aacute;ndo</th></tr>
+  <tr>
+    <td><strong>A cr&eacute;dito</strong></td>
+    <td>Se le cobra a la empresa en la quincena. <em>Es lo normal, no hay que tocar nada.</em></td>
+    <td>Casi siempre.</td>
+  </tr>
+  <tr>
+    <td><strong>Pag&oacute; de una</strong></td>
+    <td>NO se le cobra a la empresa. S&iacute; cuenta como venta del d&iacute;a
+        y tiene que estar en la caja.</td>
+    <td>Cuando la persona paga en efectivo.</td>
+  </tr>
+  <tr>
+    <td><strong>Cortes&iacute;a</strong></td>
+    <td>No lo paga nadie. Vale cero en todas partes.</td>
+    <td>Cuando se regala el almuerzo.</td>
+  </tr>
+</table>
+
+<div class="caja ojo">
+  <p><strong>Por qu&eacute; son tres y no dos.</strong> Antes hab&iacute;a un
+  solo bot&oacute;n que dec&iacute;a &laquo;No cobrar&raquo;, y con ese no
+  alcanzaba. Si alguien pagaba de una, las dos salidas estaban malas:</p>
+  <ul>
+    <li>Dejarlo normal &rarr; la empresa terminaba pagando un almuerzo que la
+      persona <em>ya hab&iacute;a pagado</em>. Cobrado dos veces.</li>
+    <li>Marcarlo &laquo;No cobrar&raquo; &rarr; el almuerzo pasaba a valer $ 0.
+      Ese d&iacute;a el negocio aparec&iacute;a vendiendo menos de lo que
+      vendi&oacute;, y no quedaba rastro de que hab&iacute;a pagado.</li>
+  </ul>
+  <p>Son dos preguntas distintas: <em>&iquest;qui&eacute;n paga?</em> y
+  <em>&iquest;esto fue una venta?</em>. Un pago de contado responde &laquo;la
+  persona&raquo; y &laquo;s&iacute;&raquo;. Una cortes&iacute;a responde
+  &laquo;nadie&raquo; y &laquo;no&raquo;.</p>
+</div>
+
+<div class="caja bien">
+  <p><strong>Para cuadrar la caja al cerrar.</strong> En
+  <span class="menu-item">Resumen del d&iacute;a</span>, cuando hubo pagos de
+  contado, el total sale partido: <em>se le cobra a la empresa</em> y
+  <em>pagaron de una</em>. Ese segundo n&uacute;mero es exactamente lo que debe
+  haber en el caj&oacute;n.</p>
+</div>
+
+<p>
+  Una cosa que la app hace a prop&oacute;sito: cuando se trae
+  <strong>lo de ayer</strong> o se usa <strong>lo de siempre</strong>, el pedido
+  llega siempre <strong>a cr&eacute;dito</strong>, aunque ayer esa persona
+  hubiera pagado de una. Es a posta: si copiara el pago, quedar&iacute;a marcado
+  como pagado un almuerzo que nadie pag&oacute;, y esa plata se perder&iacute;a
+  sin que nadie se diera cuenta. Pagar de una es una decisi&oacute;n de ese
+  d&iacute;a.
+</p>
+
+<p>
+  Y en el informe que se le manda a la empresa, el plato que la persona
+  pag&oacute; de su bolsillo <strong>s&iacute; aparece</strong>, en gris y con
+  la aclaraci&oacute;n &laquo;lo pag&oacute; &eacute;l&raquo;, pero sin sumar.
+  As&iacute; el supervisor ve que esa persona s&iacute; comi&oacute; ese
+  d&iacute;a y no se pone a preguntar por qu&eacute; falta gente.
+</p>
+
+<h2 id="nombres">5. Cuando un nombre queda repetido</h2>
 
 <p>Pasa que la misma persona queda anotada de dos formas: <em>LUZ CASTRO</em>
 y <em>LUZ MARINA CASTRO</em>. Cuando pasa eso, su consumo aparece partido en
@@ -485,7 +564,7 @@ apellido y a veces por el otro.</p>
 <p>De cada documento la app guarda solo los últimos 5 números, y ese dato no
 sale en las cuentas de cobro ni en lo que se le manda a las empresas.</p>
 
-<h2 id="guardado">5. Dónde quedan guardados los datos</h2>
+<h2 id="guardado">6. Dónde quedan guardados los datos</h2>
 
 <p>En dos sitios a la vez, a propósito:</p>
 <ul>
@@ -507,7 +586,7 @@ sale en las cuentas de cobro ni en lo que se le manda a las empresas.</p>
 mandar a su propio correo. Es el paracaídas: con él vuelve todo, aunque se
 dañe el computador.</p>
 
-<h2 id="problemas">6. Si algo sale mal</h2>
+<h2 id="problemas">7. Si algo sale mal</h2>
 
 <table>
   <tr><th>Qué ve</th><th>Qué hacer</th></tr>

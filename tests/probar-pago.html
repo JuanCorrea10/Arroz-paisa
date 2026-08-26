@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<title>Probar marcar un pedido como pagado</title>
+<style>
+  body { font-family: system-ui, sans-serif; padding: 1rem; background: #f5eee2; margin: 0; }
+  h1 { font-size: 1.15rem; margin: 0 0 .3rem; }
+  p { margin: 0 0 .8rem; font-size: .9rem; color: #574b45; max-width: 64ch; }
+  iframe { width: 1250px; height: 820px; border: 1px solid #c9b99f; display: block; }
+  pre { background: #fff; padding: .7rem; font-size: .85rem; margin-top: .8rem; }
+</style>
+</head>
+<body>
+<h1>&laquo;Juan paga de una&raquo;</h1>
+<p>
+  Se registra un almuerzo, se marca como <em>pagó de una</em>, y se comprueban
+  las dos cosas que pueden salir mal y que <strong>no dan error en pantalla</strong>:
+  que no se le siga cobrando a la empresa (le cobraría dos veces), y que la
+  venta no desaparezca (el día cuadraría por menos de lo que vendió).
+</p>
+<iframe id="app" src="../index.html#registrar"></iframe>
+<pre id="salida">probando…</pre>
+
+<script type="module">
+const esperar = (ms) => new Promise((l) => setTimeout(l, ms));
+const marco = document.getElementById("app");
+const lineas = [];
+const anotar = (t) => {
+  lineas.push(t);
+  document.getElementById("salida").textContent = lineas.join("\n");
+};
+
+await new Promise((listo) => {
+  marco.addEventListener("load", listo, { once: true });
+  setTimeout(listo, 15000);
+});
+await esperar(4500);
+
+const doc = marco.contentDocument;
+const win = marco.contentWindow;
+const { estado } = await win.eval('import("/js/ui/estado.js")');
+const calc = await win.eval('import("/js/nucleo/calculos.js")');
+
+// --- Se escoge una persona y se le anota un almuerzo ----------------------
+const casilla = doc.querySelector(".caja-captura input[type='text']");
+casilla.focus();
+casilla.value = "a";
+casilla.dispatchEvent(new win.Event("input", { bubbles: true }));
+await esperar(500);
+const primera = doc.querySelector(".buscador-lista li");
+if (primera) { primera.click(); await esperar(900); }
+
+const comanda = doc.querySelector(".comanda-abierta");
+if (!comanda) { anotar("MAL  no se abrió la comanda"); }
+else {
+  const casillaPlato = comanda.querySelector("input[type='text']");
+  casillaPlato.focus();
+  casillaPlato.value = "almuerzo";
+  casillaPlato.dispatchEvent(new win.Event("input", { bubbles: true }));
+  await esperar(500);
+  const opcion = comanda.querySelector(".buscador-lista li");
+  if (opcion) { opcion.click(); await esperar(900); }
+}
+
+// El renglón recién anotado.
+const renglonDe = () => estado.datos.consumos
+  .filter((c) => c.fecha === estado.fecha).slice(-1)[0];
+
+let c = renglonDe();
+if (!c) { anotar("MAL  no se anotó ningún plato"); }
+else {
+  anotar(`anotado: ${c.persona} · ${c.producto} · ${c.precioUnitario}`);
+  anotar(calc.loPagaLaEmpresa(c)
+    ? "OK   nace a crédito, como debe ser"
+    : "MAL  no nació a crédito");
+
+  const empresa = estado.datos.empresas.find((e) => e.codigo === c.empresaFactura);
+  const quincena = calc.quincenaDe(c.fecha, empresa);
+  const anio = Number(c.fecha.slice(0, 4)), mes = Number(c.fecha.slice(5, 7));
+  const cobrar = () => calc.cuentaDeCobro(estado.datos.consumos, anio, mes, quincena, empresa).total;
+  const vendido = () => calc.informeDia(estado.datos.consumos, c.fecha).total;
+  const caja = () => calc.informeDia(estado.datos.consumos, c.fecha).deContado;
+
+  const cobroAntes = cobrar();
+  const vendidoAntes = vendido();
+  const valor = c.cantidad * c.precioUnitario;
+  anotar(`antes:  la empresa debe ${cobroAntes}, el día vendió ${vendidoAntes}, en caja ${caja()}`);
+
+  // --- Se marca como pagado, por la pantalla, como lo haría ella ---------
+  const botones = [...doc.querySelectorAll(".comanda-abierta tbody button")];
+  const botonPago = botones.find((b) => b.textContent.trim() === "Pago");
+  anotar(botonPago ? "OK   hay un botón para decir cómo se paga" : "MAL  no hay botón de pago");
+
+  if (botonPago) {
+    botonPago.click();
+    await esperar(700);
+
+    const opciones = [...doc.querySelectorAll("dialog .opcion-cobro")];
+    anotar(opciones.length === 3
+      ? "OK   ofrece las tres formas de pago"
+      : `MAL  ofrece ${opciones.length} formas`);
+
+    const laDeContado = opciones.find((o) => o.textContent.includes("Pagó de una"));
+    anotar(laDeContado && laDeContado.textContent.includes("NO se le cobra a la empresa")
+      ? "OK   le explica qué significa antes de escoger"
+      : "OJO  no explica qué significa");
+
+    if (laDeContado) { laDeContado.click(); await esperar(1100); }
+
+    c = estado.datos.consumos.find((x) => x.id === c.id) || c;
+    anotar(`ahora el renglón dice: cobro="${c.cobro}"`);
+
+    // --- Lo que de verdad importa ---------------------------------------
+    anotar(calc.yaLoPago(c) ? "OK   quedó marcado como pagado" : "MAL  no quedó marcado");
+
+    anotar(cobrar() === cobroAntes - valor
+      ? `OK   a la empresa se le dejó de cobrar (${cobroAntes} -> ${cobrar()})`
+      : `MAL  la empresa sigue debiendo ${cobrar()}, esperaba ${cobroAntes - valor}`);
+
+    anotar(vendido() === vendidoAntes
+      ? `OK   la venta NO desapareció: el día sigue en ${vendido()}`
+      : `MAL  la venta se perdió: ${vendidoAntes} -> ${vendido()}`);
+
+    anotar(caja() === valor
+      ? `OK   en la caja tienen que estar ${valor}`
+      : `MAL  la caja dice ${caja()} y esperaba ${valor}`);
+
+    // La suma de las dos partes tiene que dar lo vendido. Si no, alguna de
+    // las dos está mintiendo y no se sabe cuál.
+    const d = calc.informeDia(estado.datos.consumos, c.fecha);
+    anotar(d.aCredito + d.deContado === d.total
+      ? "OK   crédito + contado da lo vendido"
+      : `MAL  ${d.aCredito} + ${d.deContado} no da ${d.total}`);
+
+    // --- Y que se vea en la pantalla, no solo en los datos ---------------
+    const marca = doc.querySelector(".comanda-abierta .marca-cobro");
+    anotar(marca ? `OK   se ve marcado en la comanda: "${marca.textContent.trim()}"`
+                 : "MAL  la comanda no muestra que está pagado");
+
+    // --- Volver a crédito tiene que devolver todo ------------------------
+    const botonPago2 = [...doc.querySelectorAll(".comanda-abierta tbody button")]
+      .find((b) => b.textContent.trim() === "Pagó de una");
+    if (botonPago2) {
+      botonPago2.click();
+      await esperar(700);
+      const volver = [...doc.querySelectorAll("dialog .opcion-cobro")]
+        .find((o) => o.textContent.includes("A crédito"));
+      if (volver) { volver.click(); await esperar(1100); }
+      anotar(cobrar() === cobroAntes
+        ? "OK   volver a crédito devuelve el cobro a la empresa"
+        : `MAL  al volver a crédito la empresa debe ${cobrar()}, esperaba ${cobroAntes}`);
+    } else {
+      anotar("MAL  el botón no cambió de nombre al marcarlo pagado");
+    }
+  }
+}
+
+document.getElementById("salida").textContent = lineas.join("\n");
+try { await fetch("/diagnostico", { method: "POST", body: lineas.join("\n") }); } catch {}
+</script>
+</body>
+</html>

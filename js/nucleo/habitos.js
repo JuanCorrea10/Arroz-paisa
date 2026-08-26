@@ -164,11 +164,16 @@ export function loDelDiaAnterior(datos, codigoEmpresa, fechaActual) {
     if (normalizar(c.empresaCome) !== empresa || c.fecha !== anterior) continue;
     const persona = normalizar(c.persona);
     if (!porPersona.has(persona)) porPersona.set(persona, []);
+    // A proposito NO se copia como se pago.
+    //
+    // Si ayer alguien pago en efectivo y hoy se trae "lo de ayer", copiar el
+    // pago dejaria marcado como pagado un almuerzo que nadie pago: la plata se
+    // pierde y nadie se entera. La costumbre es QUE come, no COMO lo pago ese
+    // dia. Lo de hoy nace a credito y ella marca si alguien paga.
     porPersona.get(persona).push({
       producto: normalizar(c.producto),
       cantidad: Number(c.cantidad) || 1,
       precioUnitario: Number(c.precioUnitario) || 0,
-      facturable: c.facturable !== false,
     });
   }
 

@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20260826-1128";
+  --version: "20260826-1156";
 }
 
 /* ===========================================================================
@@ -1643,3 +1643,56 @@ html { scroll-behavior: smooth; }
   margin-bottom: var(--e3);
 }
 .barra-unir p { margin: 2px 0 0; }
+
+/* ---------------------------------------------------------------------------
+   CÓMO SE PAGA CADA PLATO
+   El caso normal (a crédito) no lleva marca: de veinte platos del día,
+   diecinueve son normales. Si todos gritaran su estado, el que de verdad es
+   distinto no se notaría. Solo se pintan las excepciones.
+   --------------------------------------------------------------------------- */
+.marca-cobro {
+  display: inline-block;
+  font-size: var(--t-xs);
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+  margin-top: 2px;
+}
+.marca-cobro.contado { background: #dcefe4; color: #145a3c; }
+.marca-cobro.cortesia { background: var(--beige); color: var(--tinta-suave); }
+
+button.marcado-contado { background: #dcefe4; border-color: #9ccbb2; color: #145a3c; }
+button.marcado-cortesia { background: var(--beige); color: var(--tinta-suave); }
+
+.comanda-platos li.pagado .comanda-valor { color: #145a3c; font-weight: 700; }
+
+/* Las tres opciones, cada una con su explicación. Se escoge una vez y se
+   entiende: nada de un botón que cambia de significado cada vez que se toca. */
+.lista-cobro { display: grid; gap: var(--e2); }
+.opcion-cobro {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: var(--e3);
+  border: 2px solid var(--borde);
+  border-radius: var(--r2);
+  background: var(--papel);
+  cursor: pointer;
+}
+.opcion-cobro:hover { border-color: var(--marca); background: var(--marca-claro); }
+.opcion-cobro.puesta { border-color: var(--marca); background: var(--marca-claro); }
+.opcion-cobro strong { display: block; font-size: var(--t-md); margin-bottom: 2px; }
+.opcion-cobro span { display: block; font-size: var(--t-sm); color: var(--tinta-suave); font-weight: 400; }
+
+/* El reparto del día cuando hubo pagos en efectivo. Va aparte del total
+   grande a propósito: uno es plata que va a llegar, el otro es plata que
+   tiene que estar en el cajón ahora mismo. */
+.caja-del-dia {
+  background: var(--papel-contable);
+  border: 1px solid var(--beige);
+  border-radius: var(--r2);
+  padding: var(--e3);
+  margin-bottom: var(--e4);
+}
+.caja-del-dia .cifras { margin: 0 0 var(--e2); }
+.caja-del-dia .nota { margin: 0; }

@@ -18,7 +18,9 @@
 // ============================================================================
 
 import { normalizar } from "./formato.js";
-import { clavePersona, clavePrecio, subtotal } from "./calculos.js";
+import { clavePersona, clavePrecio, subtotal,
+  esCortesia,
+} from "./calculos.js";
 import {
   limpiarNombre, esqueleto, distancia, parecidasEnEmpresa,
 } from "./nombres.js";
@@ -303,7 +305,7 @@ export function platosSueltos(datos, { incluirRevisados = false } = {}) {
     const plato = normalizar(c.producto);
     if (!plato) continue;
     const faltaEnCatalogo = !enCatalogo.has(plato);
-    const sinPrecio = c.facturable !== false && !(Number(c.precioUnitario) > 0);
+    const sinPrecio = !esCortesia(c) && !(Number(c.precioUnitario) > 0);
     if (!faltaEnCatalogo && !sinPrecio) continue;
 
     if (!grupos.has(plato)) {
@@ -388,7 +390,7 @@ export function simularUnionDePlato(datos, nombreSuelto, nombreBueno) {
     const nuevo = Number.isFinite(precioNuevo) ? precioNuevo : Number(c.precioUnitario) || 0;
 
     const viejoTotal = subtotal(c);
-    const nuevoTotal = c.facturable === false ? 0 : (Number(c.cantidad) || 0) * nuevo;
+    const nuevoTotal = esCortesia(c) ? 0 : (Number(c.cantidad) || 0) * nuevo;
 
     renglones++;
     antes += viejoTotal;

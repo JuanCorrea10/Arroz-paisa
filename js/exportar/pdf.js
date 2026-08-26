@@ -250,10 +250,12 @@ export function pdfResumenDia(informe, nombreEmpresa, acreedor) {
     startY: y,
     head: [["Plato", "Cantidad", "Valor unitario", "Total"]],
     body: informe.filas.map((f) => [
-      f.producto + (f.facturable ? "" : "  (no se cobra)"),
+      f.producto +
+        (f.forma === "contado" ? "  (pagó de una)" : "") +
+        (f.forma === "cortesia" ? "  (cortesía)" : ""),
       String(f.cantidad),
-      f.facturable ? pesos(f.precioUnitario) : "-",
-      f.facturable ? pesos(f.total) : "-",
+      f.forma === "cortesia" ? "-" : pesos(f.precioUnitario),
+      f.forma === "cortesia" ? "-" : pesos(f.total),
     ]),
     columnStyles: {
       0: { cellWidth: "auto" },
@@ -606,13 +608,18 @@ export function pdfInformeCompleto(informe) {
       colSpan: 4,
     }]);
     for (const c of dia.renglones) {
+      // Lo que la persona pago de su bolsillo SI se muestra: el supervisor
+      // necesita ver que ese dia comio. Pero en la columna del valor va un
+      // guion, porque a la empresa no se le cobra.
+      const forma = c.cobro || (c.facturable === false ? "cortesia" : "empresa");
       cuerpo.push([
         c.persona,
         c.producto +
-          (c.facturable === false ? "  (no se cobra)" : "") +
+          (forma === "contado" ? "  (lo pagó él)" : "") +
+          (forma === "cortesia" ? "  (cortesía)" : "") +
           (c.observacion ? "  — " + c.observacion : ""),
         String(c.cantidad),
-        c.facturable === false ? "—" : pesos(subtotalDe(c)),
+        forma === "empresa" ? pesos(subtotalDe(c)) : "—",
       ]);
     }
   }
@@ -652,8 +659,9 @@ export function pdfInformeCompleto(informe) {
       }
       const c = consumoDe[d.row.index];
       if (!c) return;
-      // Lo que no se cobra se ve en gris: está, pero no suma.
-      if (c.facturable === false) d.cell.styles.textColor = GRIS;
+      // Lo que la empresa no paga se ve en gris: está, pero no suma.
+      const forma = c.cobro || (c.facturable === false ? "cortesia" : "empresa");
+      if (forma !== "empresa") d.cell.styles.textColor = GRIS;
       if (c.observacion && d.column.index === 1) d.cell.styles.fontStyle = "italic";
     },
     // Las hojas de continuación llevan el mismo encabezado rojo, para que

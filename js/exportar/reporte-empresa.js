@@ -15,6 +15,25 @@ import { descargarBlob } from "../datos/almacen.js";
 import { pesos, fechaCorta, fechaLarga, nombreMes } from "../nucleo/formato.js";
 import { subtotal, sumar, contarFacturas, informeCompletoDeEmpresa } from "../nucleo/calculos.js";
 
+/**
+ * Un renglón del día por día.
+ *
+ * Lo que la persona pagó de su bolsillo SÍ se muestra -- el supervisor
+ * necesita ver que ese día comió, o al comparar con la lista de asistencia va
+ * a ver huecos y va a preguntar -- pero con un guion en el valor, porque a la
+ * empresa no se le cobra.
+ */
+function renglonDelDia(c) {
+  const forma = c.cobro || (c.facturable === false ? "cortesia" : "empresa");
+  const aclara = forma === "contado" ? " (lo pagó él)"
+               : forma === "cortesia" ? " (cortesía)" : "";
+  const nota = c.observacion ? ' <em class="nota">' + esc(c.observacion) + "</em>" : "";
+  return `<tr><td>${esc(c.persona)}</td>` +
+    `<td${forma === "empresa" ? "" : ' class="nocobra"'}>${esc(c.producto)}${aclara}${nota}</td>` +
+    `<td class="n">${c.cantidad}</td>` +
+    `<td class="n">${forma === "empresa" ? esc(pesos(subtotal(c))) : "—"}</td></tr>`;
+}
+
 /** Nada de lo que escriba la señora puede convertirse en código HTML. */
 function esc(txt) {
   return String(txt === null || txt === undefined ? "" : txt)
@@ -128,7 +147,7 @@ export function generarReporteEmpresa(datos, codigoEmpresa, anio, mes) {
         <thead><tr><th>Persona</th><th>Plato</th><th class="n">Cant.</th><th class="n">Valor</th></tr></thead>
         <tbody>
           ${d.renglones
-            .map((c) => `<tr><td>${esc(c.persona)}</td><td${c.facturable === false ? ' class="nocobra"' : ""}>${esc(c.producto)}${c.facturable === false ? " (no se cobra)" : ""}${c.observacion ? ' <em class="nota">' + esc(c.observacion) + "</em>" : ""}</td><td class="n">${c.cantidad}</td><td class="n">${c.facturable === false ? "—" : esc(pesos(subtotal(c)))}</td></tr>`)
+            .map((c) => renglonDelDia(c))
             .join("\n          ")}
         </tbody>
       </table></div></div>`).join("\n    ")}

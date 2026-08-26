@@ -70,22 +70,97 @@ export function rangoQuincena(anio, mes, quincena, empresa) {
 //  Plata
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+//  CÓMO SE PAGA CADA PEDIDO
+//
+//  Antes esto era un solo sí/no ("facturable"), y ese sí/no estaba tapando dos
+//  preguntas distintas:
+//
+//      ¿quién paga?          ¿esto fue una venta?
+//      la empresa            sí          -> a crédito
+//      la persona, de una    sí          -> de contado
+//      nadie                 no          -> cortesía
+//
+//  Con un solo botón, un almuerzo pagado en efectivo no tenía dónde ir. Si se
+//  dejaba normal, la empresa terminaba pagando algo que la persona ya había
+//  pagado. Si se marcaba "no cobrar", la venta desaparecía: ese día el negocio
+//  aparecía vendiendo menos de lo que vendió, y no quedaba rastro del pago.
+//
+//  Por eso ahora son tres estados y no dos.
+// ---------------------------------------------------------------------------
+
+export const A_CREDITO = "empresa";
+export const DE_CONTADO = "contado";
+export const CORTESIA = "cortesia";
+
 /**
- * Cuánto suma un renglón.
- * Si NO es facturable, suma cero: la persona comió pero no se le cobra.
+ * Cómo se paga este renglón.
  *
- * El precio sale del RENGLÓN (precioUnitario), no del catálogo. Esta
+ * Los renglones viejos no tienen el campo: se guardaron cuando solo existía
+ * "facturable". Se traducen aquí mismo y no hay que convertir nada en el
+ * archivo de datos. Una conversión de 1135 renglones es una oportunidad de
+ * dañarlos; leerlos bien no lo es.
+ */
+export function formaDeCobro(consumo) {
+  const forma = consumo && consumo.cobro;
+  if (forma === A_CREDITO || forma === DE_CONTADO || forma === CORTESIA) return forma;
+  return consumo && consumo.facturable === false ? CORTESIA : A_CREDITO;
+}
+
+/** ¿Esto entra en la cuenta de cobro de la empresa? */
+export function loPagaLaEmpresa(consumo) {
+  return formaDeCobro(consumo) === A_CREDITO;
+}
+
+/** ¿La persona ya lo pagó de su bolsillo? */
+export function yaLoPago(consumo) {
+  return formaDeCobro(consumo) === DE_CONTADO;
+}
+
+/** ¿No lo paga nadie? */
+export function esCortesia(consumo) {
+  return formaDeCobro(consumo) === CORTESIA;
+}
+
+/**
+ * Cuánto vale este renglón COMO VENTA.
+ *
+ * Ojo con la diferencia: de contado SÍ vale (la plata entró, solo que por la
+ * caja y no por la empresa). Solo la cortesía vale cero, porque ahí no entró
+ * plata de ningún lado.
+ *
+ * El precio sale del RENGLÓN (precioUnitario), no del catálogo. Está
  * CONGELADO desde el día en que se registró. Si mañana sube el almuerzo, las
  * cuentas de cobro ya enviadas no se pueden mover. (Bug #9 del Excel.)
  */
 export function subtotal(consumo) {
-  if (consumo.facturable === false) return 0;
+  if (esCortesia(consumo)) return 0;
   return (Number(consumo.cantidad) || 0) * (Number(consumo.precioUnitario) || 0);
 }
 
-/** Suma los subtotales de una lista de renglones. */
+/** Lo que de este renglón le toca pagar a la empresa. Contado y cortesía: 0. */
+export function subtotalAcreditoDeEmpresa(consumo) {
+  return loPagaLaEmpresa(consumo) ? subtotal(consumo) : 0;
+}
+
+/** Lo que de este renglón entró en efectivo. */
+export function subtotalDeContado(consumo) {
+  return yaLoPago(consumo) ? subtotal(consumo) : 0;
+}
+
+/** Suma lo VENDIDO: crédito y contado juntos. La cortesía no suma. */
 export function sumar(consumos) {
   return consumos.reduce((acc, c) => acc + subtotal(c), 0);
+}
+
+/** Suma solo lo que le toca pagar a la empresa. Es lo que va en la cuenta. */
+export function sumarLoDeLaEmpresa(consumos) {
+  return consumos.reduce((acc, c) => acc + subtotalAcreditoDeEmpresa(c), 0);
+}
+
+/** Suma solo lo que entró en efectivo. Es lo que debe haber en la caja. */
+export function sumarLoDeContado(consumos) {
+  return consumos.reduce((acc, c) => acc + subtotalDeContado(c), 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -184,13 +259,17 @@ export function informeDia(consumos, fechaISO, codigoEmpresa) {
     // Agrupamos por plato Y POR PRECIO: si el mismo plato se cobró a dos
     // precios distintos, salen en renglones separados. Si los juntáramos,
     // el total no cuadraría con las cantidades y nadie sabría por qué.
+    // Se agrupa tambien por FORMA DE COBRO. Dos almuerzos del mismo precio,
+    // uno a credito y otro pagado de una, no pueden ir en el mismo renglon:
+    // uno se le cobra a la empresa y el otro ya esta en la caja.
     const llave = normalizar(c.producto) + "|" + (Number(c.precioUnitario) || 0) +
-                  "|" + (c.facturable === false);
+                  "|" + formaDeCobro(c);
     if (!porPlato.has(llave)) {
       porPlato.set(llave, {
         producto: normalizar(c.producto),
         precioUnitario: Number(c.precioUnitario) || 0,
-        facturable: c.facturable !== false,
+        forma: formaDeCobro(c),
+        facturable: !esCortesia(c),   // lo que ya leian las pantallas viejas
         cantidad: 0,
         total: 0,
       });
@@ -206,7 +285,12 @@ export function informeDia(consumos, fechaISO, codigoEmpresa) {
     filas,
     renglones: dia.length,
     facturas: contarFacturas(dia),
+    // Lo vendido: credito + contado.
     total: filas.reduce((a, f) => a + f.total, 0),
+    // Y partido, que es lo que hace falta para cuadrar la caja al cerrar:
+    // "aCredito" se lo van a pagar despues, "deContado" tiene que estar ahi.
+    aCredito: sumarLoDeLaEmpresa(dia),
+    deContado: sumarLoDeContado(dia),
   };
 }
 
@@ -258,19 +342,24 @@ export function informePorPersona(consumos, anio, mes, empresasPorCodigo, codigo
         persona: normalizar(c.persona),
         empresaCome: normalizar(c.empresaCome),
         empresaFactura: normalizar(c.empresaFactura),
+        // q1, q2 y mes son lo que va a la cuenta de la empresa: lo que le van
+        // a descontar. Lo que la persona ya pago de su bolsillo NO puede
+        // estar aqui, o se le descontaria dos veces.
         q1: 0,
         q2: 0,
         mes: 0,
+        contado: 0,
         facturas: new Set(),
       });
     }
     const fila = porPersona.get(llave);
     const empresa = empresasPorCodigo[normalizar(c.empresaFactura)];
     const q = quincenaDe(c.fecha, empresa);
-    const valor = subtotal(c);
-    if (q === 1) fila.q1 += valor;
-    else if (q === 2) fila.q2 += valor;
-    fila.mes += valor;
+    const alaEmpresa = subtotalAcreditoDeEmpresa(c);
+    if (q === 1) fila.q1 += alaEmpresa;
+    else if (q === 2) fila.q2 += alaEmpresa;
+    fila.mes += alaEmpresa;
+    fila.contado += subtotalDeContado(c);
     fila.facturas.add(claveFactura(c));
   }
   return [...porPersona.values()]
@@ -281,12 +370,12 @@ export function informePorPersona(consumos, anio, mes, empresasPorCodigo, codigo
 /**
  * CUENTA DE COBRO: el documento que se le entrega a la empresa.
  * Un renglón por plato, con cantidad, valor unitario y total.
- * Solo entra lo facturable.
+ * Solo entra lo que paga la empresa: ni lo de contado ni las cortesías.
  */
 export function cuentaDeCobro(consumos, anio, mes, quincena, empresa, fechaCuenta = null) {
-  const lista = deQuincena(consumos, anio, mes, quincena, empresa).filter(
-    (c) => c.facturable !== false
-  );
+  // Lo de contado NO puede entrar aquí. Si entrara, se le cobraría a la
+  // empresa un almuerzo que la persona ya pagó en la caja: cobrado dos veces.
+  const lista = deQuincena(consumos, anio, mes, quincena, empresa).filter(loPagaLaEmpresa);
   const porPlato = new Map();
   for (const c of lista) {
     const llave = normalizar(c.producto) + "|" + (Number(c.precioUnitario) || 0);
@@ -436,11 +525,14 @@ export function revisarConsumo(consumo, datos) {
       comoArreglar: "Agréguelo en la pantalla Catálogo con su precio.",
     });
   }
-  if (consumo.facturable !== false && !(Number(consumo.precioUnitario) > 0)) {
+  // Una cortesía en $ 0 está bien: no la paga nadie. Pero un pedido de
+  // contado en $ 0 es un error igual de grave que uno a crédito, porque
+  // significa que alguien pagó y no quedó anotado cuánto.
+  if (!esCortesia(consumo) && !(Number(consumo.precioUnitario) > 0)) {
     avisos.push({
       codigo: "SIN_PRECIO",
       mensaje: '"' + consumo.producto + '" quedó en $ 0 y sí se está cobrando.',
-      comoArreglar: "Póngale el precio aquí mismo, o márquelo como no facturable.",
+      comoArreglar: "Póngale el precio aquí mismo, o márquelo como cortesía.",
     });
   }
   if (!(Number(consumo.cantidad) > 0)) {
@@ -508,7 +600,7 @@ export function informeCompletoDeEmpresa(datos, codigoEmpresa, anio, mes) {
   const cod = normalizar(codigoEmpresa);
   const mios = delMes(datos.consumos, anio, mes).filter(
     (c) => normalizar(c.empresaFactura) === cod);
-  const cobrables = mios.filter((c) => c.facturable !== false);
+  const cobrables = mios.filter(loPagaLaEmpresa);
 
   const q1 = cobrables.filter((c) => quincenaDe(c.fecha, empresa) === 1);
   const q2 = cobrables.filter((c) => quincenaDe(c.fecha, empresa) === 2);
@@ -531,7 +623,7 @@ export function informeCompletoDeEmpresa(datos, codigoEmpresa, anio, mes) {
       fecha,
       renglones,
       facturas: contarFacturas(renglones),
-      total: sumar(renglones.filter((c) => c.facturable !== false)),
+      total: sumarLoDeLaEmpresa(renglones),
       notas: notasDelDia(mios, fecha, [codigoEmpresa]),
     };
   });

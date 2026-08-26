@@ -13,6 +13,7 @@ import { estado, cambio, empresas, empresaPorCodigo, asegurarEmpresa } from "./e
 import { pesos, nombreMes, fechaCorta, fechaLarga } from "../nucleo/formato.js";
 import {
   cuentaDeCobro, deQuincena, sumar, fechaDeCobro, ponerFechaDeCobro,
+  esCortesia, sumarLoDeLaEmpresa,
 } from "../nucleo/calculos.js";
 import { pdfCuentaDeCobro } from "../exportar/pdf.js";
 import { descargarReporteEmpresa } from "../exportar/reporte-empresa.js";
@@ -44,7 +45,7 @@ export function pintarCobro(raiz) {
 
   // Aviso importante: si en esa quincena hay algo en $0, la cuenta sale corta.
   const enCero = deQuincena(estado.datos.consumos, estado.anio, estado.mes, quincena, empresa).filter(
-    (c) => c.facturable !== false && !(c.precioUnitario > 0)
+    (c) => !esCortesia(c) && !(c.precioUnitario > 0)
   );
 
   poner(raiz, 
@@ -257,8 +258,11 @@ function paraElCliente(empresa) {
 /** Los totales de todas las empresas, para la pantalla de inicio. */
 export function totalesDelMes() {
   return empresas().map((e) => {
-    const q1 = sumar(deQuincena(estado.datos.consumos, estado.anio, estado.mes, 1, e).filter((c) => c.facturable !== false));
-    const q2 = sumar(deQuincena(estado.datos.consumos, estado.anio, estado.mes, 2, e).filter((c) => c.facturable !== false));
+    // Solo lo que le toca pagar a la empresa. Si aqui entrara lo de contado,
+    // este avance diria que la empresa debe mas de lo que debe, y ella lo
+    // notaria hasta el dia de cobrar.
+    const q1 = sumarLoDeLaEmpresa(deQuincena(estado.datos.consumos, estado.anio, estado.mes, 1, e));
+    const q2 = sumarLoDeLaEmpresa(deQuincena(estado.datos.consumos, estado.anio, estado.mes, 2, e));
     return { empresa: e, q1, q2, total: q1 + q2 };
   });
 }

@@ -39,6 +39,7 @@ import { pesos, nombreMes, fechaCorta } from "../nucleo/formato.js";
 import {
   delMes, quincenaDe, sumar, contarFacturas, cuentaDeCobro, rangoQuincena,
   fechaDeCobro, informeCompletoDeEmpresa,
+  loPagaLaEmpresa,
 } from "../nucleo/calculos.js";
 import { generarReporteEmpresa, descargarReporteEmpresa } from "../exportar/reporte-empresa.js";
 import { exportarEmpresaAExcel } from "../exportar/excel-export.js";
@@ -98,7 +99,7 @@ function tarjetaDeEmpresa(empresa) {
 
   const delMesEmpresa = delMes(datos.consumos, anio, mes)
     .filter((c) => c.empresaFactura === empresa.codigo);
-  const cobrables = delMesEmpresa.filter((c) => c.facturable !== false);
+  const cobrables = delMesEmpresa.filter(loPagaLaEmpresa);
   const q1 = cobrables.filter((c) => quincenaDe(c.fecha, empresa) === 1);
   const q2 = cobrables.filter((c) => quincenaDe(c.fecha, empresa) === 2);
   const r1 = rangoQuincena(anio, mes, 1, empresa);

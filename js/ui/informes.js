@@ -12,6 +12,7 @@ import { pesos, fechaLarga, fechaCorta, nombreMes, diasDelMes, hoyISO } from "..
 import {
   informeCocina, informeDia, informePorPersona, informeCuadre, notasDelDia,
   indicePorCodigo, delDia, contarFacturas,
+  A_CREDITO, DE_CONTADO, CORTESIA,
 } from "../nucleo/calculos.js";
 import { pdfCocina, pdfResumenDia, pdfPorPersona, pdfCuadre } from "../exportar/pdf.js";
 
@@ -196,16 +197,39 @@ export function pintarResumenDia(raiz) {
       el("dl", { clase: "cifras", estilo: "margin-bottom:var(--e4)" },
         cifra("Facturas", String(informe.facturas)),
         cifra("Renglones", String(informe.renglones)),
-        cifraPlata("Total del día", informe.total, true)
+        cifraPlata("Vendido en el día", informe.total, true)
       ),
+
+      // Cuando hubo pagos de contado, hace falta partir el total: uno es
+      // plata que va a llegar en la quincena y el otro es plata que TIENE que
+      // estar en la caja ahora mismo. Juntos no sirven para cuadrar nada.
+      //
+      // Si no hubo ninguno, esto no sale: no hay por qué mostrarle una fila
+      // en cero todos los días.
+      informe.deContado > 0
+        ? el("div", { clase: "caja-del-dia" },
+            el("dl", { clase: "cifras" },
+              cifraPlata("Se le cobra a la empresa", informe.aCredito),
+              cifraPlata("Pagaron de una", informe.deContado)
+            ),
+            el("p", { clase: "nota" },
+              "En la caja tienen que estar esos ",
+              el("strong", { texto: pesos(informe.deContado) }),
+              ". Lo otro se le cobra a la empresa en la cuenta de la quincena."))
+        : null,
       tabla(
         [{ titulo: "Plato" }, { titulo: "Cantidad", clase: "n" }, { titulo: "Valor unitario", clase: "n" }, { titulo: "Total", clase: "n" }],
         informe.filas.map((f) =>
           el("tr", {},
-            el("td", {}, f.producto, f.facturable ? null : el("span", { estilo: "color:var(--tinta-suave);font-size:var(--t-xs)", texto: "  (no se cobra)" })),
+            el("td", {}, f.producto,
+              f.forma === DE_CONTADO
+                ? el("span", { clase: "marca-cobro contado", texto: "pagó de una" })
+                : f.forma === CORTESIA
+                  ? el("span", { clase: "marca-cobro cortesia", texto: "cortesía" })
+                  : null),
             el("td", { clase: "n", texto: String(f.cantidad) }),
-            el("td", { clase: "n", texto: f.facturable ? pesos(f.precioUnitario) : "—" }),
-            el("td", { clase: "n", texto: f.facturable ? pesos(f.total) : "—" })
+            el("td", { clase: "n", texto: f.forma === CORTESIA ? "—" : pesos(f.precioUnitario) }),
+            el("td", { clase: "n", texto: f.forma === CORTESIA ? "—" : pesos(f.total) })
           )
         ),
         el("tr", {},
