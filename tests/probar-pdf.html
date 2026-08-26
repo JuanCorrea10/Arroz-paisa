@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<title>Probar el informe en PDF</title>
+<script src="../vendor/jspdf.umd.min.js"></script>
+<script src="../vendor/jspdf.plugin.autotable.min.js"></script>
+<style>
+  body { font-family: system-ui, sans-serif; padding: 1rem; background: #f5eee2; margin: 0; }
+  h1 { font-size: 1.15rem; margin: 0 0 .3rem; }
+  p { margin: 0 0 .8rem; font-size: .9rem; color: #574b45; max-width: 62ch; }
+  pre { background: #fff; padding: .7rem; font-size: .85rem; }
+  iframe.previa { width: 900px; height: 700px; border: 1px solid #c9b99f; margin-top: 1rem; }
+</style>
+</head>
+<body>
+<h1>El informe completo en PDF</h1>
+<p>
+  Se arma el PDF de una empresa con los datos de verdad y se revisa que salga,
+  que tenga las hojas que debe tener, y &mdash; lo que más se daña en un PDF
+  &mdash; que ningún texto de la portada se salga de su cajita.
+</p>
+<pre id="salida">probando…</pre>
+<div id="previa"></div>
+
+<script type="module">
+const lineas = [];
+const anotar = (t) => {
+  lineas.push(t);
+  document.getElementById("salida").textContent = lineas.join("\n");
+};
+
+const { informeCompletoDeEmpresa } = await import("../js/nucleo/calculos.js");
+const pdf = await import("../js/exportar/pdf.js");
+
+// Los datos de verdad, los mismos que arranca la app.
+const datos = await (await fetch("../datos/inicial.json")).json();
+await pdf.prepararLogo("../img/logo-blanco.png");
+
+// Qué empresa y qué mes tienen más movimiento: es el caso que más se rompe.
+const cuenta = new Map();
+for (const c of datos.consumos) {
+  const k = c.empresaFactura + "|" + c.fecha.slice(0, 7);
+  cuenta.set(k, (cuenta.get(k) || 0) + 1);
+}
+const [mejor] = [...cuenta.entries()].sort((a, b) => b[1] - a[1]);
+const [codigo, aaaamm] = mejor[0].split("|");
+const anio = Number(aaaamm.slice(0, 4));
+const mes = Number(aaaamm.slice(5, 7));
+anotar(`empresa con más movimiento: ${codigo}, ${aaaamm} (${mejor[1]} renglones)`);
+
+const informe = informeCompletoDeEmpresa(datos, codigo, anio, mes);
+anotar(`el informe trae ${informe.dias.length} días, ${informe.personas.length} personas, ` +
+       `${informe.platos.length} platos, total ${informe.totales.mes}`);
+
+// No se quiere que se baje un archivo: se quiere mirarlo. Se intercepta el
+// guardado para quedarse con el documento.
+let capturado = null;
+const guardarDeVerdad = window.jspdf.jsPDF.API.save;
+window.jspdf.jsPDF.API.save = function (nombre) {
+  capturado = { doc: this, nombre };
+  return this;
+};
+
+let revento = null;
+try {
+  pdf.pdfInformeCompleto(informe);
+} catch (e) {
+  revento = e;
+}
+window.jspdf.jsPDF.API.save = guardarDeVerdad;
+
+if (revento) {
+  anotar("MAL  el PDF reventó: " + (revento.stack || revento.message));
+} else if (!capturado) {
+  anotar("MAL  no se generó ningún PDF");
+} else {
+  anotar(`OK   el PDF se generó: ${capturado.nombre}`);
+
+  const hojas = capturado.doc.internal.getNumberOfPages();
+  // Portada + qué se consumió + quién consumió + al menos una de día por día.
+  anotar(hojas >= 4
+    ? `OK   trae ${hojas} hojas`
+    : `MAL  solo trae ${hojas} hojas; faltan secciones`);
+
+  const datauri = capturado.doc.output("datauristring");
+  const kb = Math.round((datauri.length * 3) / 4 / 1024);
+  anotar(`peso: ${kb} KB`);
+  anotar(kb < 4000
+    ? "OK   pesa poco: se puede mandar por WhatsApp"
+    : "OJO  pesa mucho para WhatsApp");
+
+  // --- Lo que más se daña: texto que se sale de su cajita -----------------
+  //
+  // jsPDF no avisa cuando un texto no cabe: lo pinta encima de lo que sigue.
+  // En pantalla eso se ve como dos números pisados y el supervisor lee
+  // cualquier cosa. Así que se miden las cuatro cifras de la portada con la
+  // misma regla con la que se pintaron.
+  const doc = capturado.doc;
+  const ancho = doc.internal.pageSize.getWidth();
+  const anchoCaja = (ancho - 18 * 2 - 6 * 3) / 4;
+  const { pesos } = await import("../js/nucleo/formato.js");
+  const t = informe.totales;
+  const cifras = [
+    ["QUINCENA 1", pesos(t.q1), informe.rangos.q1.desde + " al " + informe.rangos.q1.hasta],
+    ["QUINCENA 2", pesos(t.q2), informe.rangos.q2.desde + " al " + informe.rangos.q2.hasta],
+    ["FACTURAS DEL MES", String(t.facturas), t.platos + " platos"],
+    ["TOTAL DEL MES", pesos(t.mes), t.renglones + " renglones"],
+  ];
+
+  let seSale = [];
+  for (const [titulo, valor, pie] of cifras) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(valor.length > 11 ? 10.5 : 12.5);
+    const anchoValor = doc.getTextWidth(valor);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    const anchoTitulo = doc.getTextWidth(titulo);
+    doc.setFontSize(7);
+    const anchoPie = doc.getTextWidth(pie);
+
+    const util = anchoCaja - 8;
+    if (anchoValor > util) seSale.push(`${titulo}: el valor "${valor}" mide ${anchoValor.toFixed(1)} y solo caben ${util.toFixed(1)}`);
+    if (anchoTitulo > util) seSale.push(`${titulo}: el título mide ${anchoTitulo.toFixed(1)} y solo caben ${util.toFixed(1)}`);
+    if (anchoPie > util) seSale.push(`${titulo}: el pie "${pie}" mide ${anchoPie.toFixed(1)} y solo caben ${util.toFixed(1)}`);
+  }
+  anotar(`la cajita de cada cifra mide ${anchoCaja.toFixed(1)} mm`);
+  if (seSale.length) {
+    anotar("MAL  hay texto que no cabe en la portada:");
+    for (const s of seSale) anotar("     " + s);
+  } else {
+    anotar("OK   las cuatro cifras de la portada caben en su cajita");
+  }
+
+  // El nombre de la empresa, que es el que más largo puede salir.
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(13);
+  const nombre = informe.empresa.razonSocial || informe.empresa.codigo;
+  const anchoNombre = doc.getTextWidth(nombre);
+  anotar(anchoNombre <= ancho - 82
+    ? "OK   el nombre de la empresa cabe en la portada"
+    : `OJO  el nombre "${nombre}" mide ${anchoNombre.toFixed(1)} mm y el hueco es ${(ancho - 82).toFixed(1)} mm (se parte solo)`);
+
+  // Se deja verlo con los ojos.
+  const marco = document.createElement("iframe");
+  marco.className = "previa";
+  marco.src = datauri;
+  document.getElementById("previa").append(marco);
+
+  // Y se guarda para poder abrirlo aparte.
+  try {
+    await fetch("/guardar-pdf", { method: "POST", body: datauri });
+    anotar("guardado en tests/salida/informe.pdf");
+  } catch { /* sin servidor, se ve en el marco de abajo */ }
+}
+
+try { await fetch("/diagnostico", { method: "POST", body: lineas.join("\n") }); } catch {}
+</script>
+</body>
+</html>

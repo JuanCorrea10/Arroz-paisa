@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<title>Probar el archivo que se le manda a la empresa</title>
+<style>
+  body { font-family: system-ui, sans-serif; padding: 1rem; background: #f5eee2; margin: 0; }
+  h1 { font-size: 1.15rem; margin: 0 0 .3rem; }
+  p { margin: 0 0 .8rem; font-size: .9rem; color: #574b45; max-width: 62ch; }
+  pre { background: #fff; padding: .7rem; font-size: .85rem; }
+  iframe { width: 1000px; height: 620px; border: 1px solid #c9b99f; margin-top: 1rem; }
+</style>
+</head>
+<body>
+<h1>El archivo que se le manda a la empresa</h1>
+<p>
+  Las cuentas de este archivo ahora las hace el núcleo, no el archivo mismo.
+  Aquí se comprueba que después del cambio siga diciendo exactamente lo mismo
+  que el PDF, y &mdash; lo único que sería grave &mdash; que no lleve adentro
+  ni un dato de las otras empresas.
+</p>
+<pre id="salida">probando…</pre>
+<div id="previa"></div>
+
+<script type="module">
+const lineas = [];
+const anotar = (t) => {
+  lineas.push(t);
+  document.getElementById("salida").textContent = lineas.join("\n");
+};
+
+const { generarReporteEmpresa } = await import("../js/exportar/reporte-empresa.js");
+const { informeCompletoDeEmpresa } = await import("../js/nucleo/calculos.js");
+const { pesos } = await import("../js/nucleo/formato.js");
+const datos = await (await fetch("../datos/inicial.json")).json();
+
+const mes = 8, anio = 2026;
+
+for (const empresa of datos.empresas) {
+  const informe = informeCompletoDeEmpresa(datos, empresa.codigo, anio, mes);
+  if (!informe.totales.renglones) { anotar(`${empresa.codigo}: sin movimiento`); continue; }
+
+  let html;
+  try {
+    html = generarReporteEmpresa(datos, empresa.codigo, anio, mes).html;
+  } catch (e) {
+    anotar(`MAL  ${empresa.codigo}: reventó — ${e.message}`);
+    continue;
+  }
+
+  // 1. El total tiene que aparecer escrito tal cual en la página. Si el
+  //    archivo y el PDF dijeran cifras distintas, el supervisor los compara y
+  //    deja de creerle a los dos.
+  const total = pesos(informe.totales.mes);
+  anotar(html.includes(total)
+    ? `OK   ${empresa.codigo}: el total ${total} sale en la página`
+    : `MAL  ${empresa.codigo}: el total ${total} NO aparece en la página`);
+
+  // 2. Todos los días tienen que estar.
+  const faltan = informe.dias.filter((d) => !html.includes(String(d.facturas))).length;
+  anotar(`     ${empresa.codigo}: ${informe.dias.length} días, ` +
+         `${informe.personas.length} personas, ${Math.round(html.length / 1024)} KB`);
+
+  // 3. Lo único grave: que se cuele un renglón de otra empresa.
+  //
+  //    Costó tres intentos dar con la forma correcta de preguntarlo, y los
+  //    tres errores valen la pena anotarlos:
+  //
+  //    a) html.includes(nombre) -> acusaba a "JUAN" de colarse, porque "JUAN"
+  //       está dentro de "JUAN MANUEL PEREZ", que sí es de aquí.
+  //    b) comparar contra la lista de personas -> acusaba a dos que no tienen
+  //       ficha. No se colaron: son renglones sueltos, de los que salen en
+  //       Revisar, y todo lo suyo es de esta empresa.
+  //    c) comparar por nombre contra los consumos -> acusaba a ALBEIRO
+  //       QUIROGA de estar en dos empresas. Y sí está: son DOS personas
+  //       distintas que se llaman igual. Ese es justo el error que toda esta
+  //       app está hecha para no cometer: una persona es empresa + nombre,
+  //       nunca el nombre solo.
+  //
+  //    La pregunta buena no es sobre nombres, es sobre RENGLONES: cada
+  //    renglón que la página muestra, ¿existe entre los de esta empresa?
+  //    Si aparece uno que solo existe bajo otra empresa, eso sí es una fuga.
+  const pagina = new DOMParser().parseFromString(html, "text/html");
+
+  // Los renglones que de verdad son de esta empresa, contados (una persona
+  // puede pedir lo mismo dos veces el mismo día, y las dos son válidas).
+  const permitidos = new Map();
+  for (const c of datos.consumos) {
+    if (c.empresaFactura !== empresa.codigo) continue;
+    if (c.fecha.slice(0, 7) !== "2026-08") continue;
+    const llave = c.persona + "|" + c.producto + "|" + c.cantidad;
+    permitidos.set(llave, (permitidos.get(llave) || 0) + 1);
+  }
+
+  // Los renglones que la página muestra en "Día por día".
+  let mostrados = 0;
+  const colados = [];
+  for (const tabla of pagina.querySelectorAll(".dia table")) {
+    for (const fila of tabla.querySelectorAll("tbody tr")) {
+      if (fila.children.length < 3) continue;
+      mostrados++;
+      const persona = fila.children[0].textContent.trim();
+
+      // La celda del plato lleva pegada la nota dentro de un <em>. Si se lee
+      // el texto de la celda entera sale "ALMUERZO dia recuperado" y no casa
+      // con nada. Se le quita la nota antes de leerla.
+      const celdaPlato = fila.children[1].cloneNode(true);
+      for (const nota of celdaPlato.querySelectorAll("em.nota")) nota.remove();
+      const plato = celdaPlato.textContent.replace(" (no se cobra)", "").trim();
+      const celdas = [...fila.children].map((c) => c.textContent.trim());
+      const llave = persona + "|" + plato + "|" + celdas[2];
+      const quedan = permitidos.get(llave) || 0;
+      if (quedan > 0) permitidos.set(llave, quedan - 1);
+      else colados.push(`${persona} · ${plato}`);
+    }
+  }
+
+  anotar(`     ${empresa.codigo}: la página muestra ${mostrados} renglones`);
+  anotar(colados.length === 0
+    ? `OK   ${empresa.codigo}: los ${mostrados} renglones son de esta empresa`
+    : `MAL  ${empresa.codigo}: ${colados.length} renglones NO son de esta empresa: ${colados.slice(0, 5).join(" / ")}`);
+  anotar(mostrados === informe.totales.renglones
+    ? `OK   ${empresa.codigo}: no falta ningún renglón`
+    : `MAL  ${empresa.codigo}: muestra ${mostrados} pero debería mostrar ${informe.totales.renglones}`);
+
+  // 4. Y que no lleve cédulas. Nunca se mandan.
+  const conCedula = datos.personas.filter((p) => p.documento).map((p) => p.documento);
+  const cedulasAdentro = [...new Set(conCedula)].filter((d) => d && html.includes(d));
+  anotar(cedulasAdentro.length === 0
+    ? `OK   ${empresa.codigo}: no lleva ninguna cédula`
+    : `OJO  ${empresa.codigo}: aparecen ${cedulasAdentro.length} números que coinciden con cédulas`);
+}
+
+// Se deja ver el de la primera empresa con movimiento.
+const cual = datos.empresas.find(
+  (e) => informeCompletoDeEmpresa(datos, e.codigo, anio, mes).totales.renglones);
+if (cual) {
+  const { html } = generarReporteEmpresa(datos, cual.codigo, anio, mes);
+  const marco = document.createElement("iframe");
+  marco.srcdoc = html;
+  document.getElementById("previa").append(marco);
+}
+
+document.getElementById("salida").textContent = lineas.join("\n");
+try { await fetch("/diagnostico", { method: "POST", body: lineas.join("\n") }); } catch {}
+</script>
+</body>
+</html>

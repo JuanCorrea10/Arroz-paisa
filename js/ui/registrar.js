@@ -161,8 +161,9 @@ function comandaEnCurso(raiz) {
   const facturaA = persona ? persona.empresaFactura : estado.empresa;
 
   const buscaPlato = buscador({
-    etiqueta: `Platos de ${personaActiva}`,
-    placeholder: "Escriba el plato y pulse Enter",
+    etiqueta: `¿Qué pidió ${personaActiva}?`,
+    placeholder: 'Escriba el plato. Puede poner la cantidad adelante: "3 almuerzo"',
+    permiteCantidad: true,
     opciones: estado.datos.productos
       .filter((p) => p.activo !== false)
       .map((p) => {
@@ -170,23 +171,32 @@ function comandaEnCurso(raiz) {
         return { texto: p.nombre, valor: p.nombre, apunte: v === null ? "sin precio" : pesos(v) };
       })
       .sort((a, b) => a.texto.localeCompare(b.texto, "es")),
-    alElegir: (plato) => { agregarPlato(plato, raiz); },
+    alElegir: (plato, _opcion, cuantos) => { agregarPlato(plato, raiz, cuantos); },
     alCrear: (plato) => crearPlato(plato, facturaA, raiz),
     textoCrear: (t) => `Crear el plato "${t}"`,
   });
 
   const mios = renglonesDe(personaActiva);
-  const caja = el("div", {
-    estilo: `margin-top:var(--e4);padding-top:var(--e4);border-top:2px dashed var(--borde)`,
-  });
 
-  poner(caja, 
-    el("div", { clase: "entre" },
-      el("h4", {},
-        personaActiva,
-        facturaA !== estado.empresa
-          ? el("span", { estilo: "font-weight:400;color:var(--tinta-suave);font-size:var(--t-sm)", texto: `  ·  se le cobra a ${facturaA}` })
-          : null
+  // La comanda es una CAJA APARTE, no la continuación de la de arriba.
+  //
+  // Antes las dos casillas se veían iguales y ella terminaba escribiendo el
+  // plato en la casilla del nombre. Eso no es descuido de ella: si dos cosas
+  // distintas se ven igual, tarde o temprano se confunden. Aquí la comanda
+  // tiene fondo propio, va metida hacia adentro y lleva el nombre arriba,
+  // como el papelito que representa.
+  const caja = el("div", { clase: "comanda-abierta" });
+
+  poner(caja,
+    el("div", { clase: "comanda-abierta-cabeza" },
+      el("div", {},
+        el("span", { clase: "comanda-abierta-rotulo", texto: "Pedido de" }),
+        el("h4", {},
+          personaActiva,
+          facturaA !== estado.empresa
+            ? el("span", { clase: "comanda-abierta-cobro", texto: `se le cobra a ${facturaA}` })
+            : null
+        )
       ),
       el("button", {
         clase: "chico",
@@ -196,10 +206,19 @@ function comandaEnCurso(raiz) {
     atajosDePedido(raiz, facturaA, mios.length),
     buscaPlato.nodo,
     mios.length ? tablaDePlatos(mios, raiz) : el("p", {
-      estilo: "margin:var(--e3) 0 0;color:var(--tinta-suave);font-size:var(--t-sm)",
+      clase: "comanda-abierta-vacia",
       texto: "Todavía no le ha anotado nada.",
     })
   );
+  // Esc cierra la persona y salta a buscar la siguiente, sin soltar el
+  // teclado. Transcribiendo de un audio, cada mano que se levanta cuesta.
+  caja.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    e.preventDefault();
+    personaActiva = null;
+    pintarRegistrar(raiz);
+  });
+
   setTimeout(() => buscaPlato.enfocar(), 40);
   return caja;
 }
@@ -221,7 +240,20 @@ function tablaDePlatos(renglones, raiz) {
           : null,
         c.facturable === false
           ? el("div", { estilo: "color:var(--tinta-suave);font-size:var(--t-xs)", texto: "No se le cobra" })
-          : null
+          : null,
+
+        // La nota del renglon: "sin verduras", "para llevar", lo que sea.
+        // Se ve debajo del plato porque es del plato, no de la persona.
+        c.observacion
+          ? el("button", {
+              clase: "nota-renglon",
+              title: "Cambiar la nota",
+              alHacerClic: () => ponerNota(c, raiz),
+            }, c.observacion)
+          : el("button", {
+              clase: "plano chico agregar-nota",
+              alHacerClic: () => ponerNota(c, raiz),
+            }, "+ nota")
       ),
       el("td", { clase: "n", estilo: "white-space:nowrap" },
         el("button", { clase: "chico", "aria-label": "Quitar uno", alHacerClic: () => cambiarCantidad(c, -1, raiz) }, "−"),
@@ -567,7 +599,41 @@ function atajosDePedido(raiz, facturaA, yaTieneAlgo) {
   return caja.children.length ? caja : null;
 }
 
-function agregarPlato(plato, raiz) {
+/**
+ * Ponerle una nota a un renglon: "sin verduras", "para llevar".
+ *
+ * La nota NO cambia el precio ni la cantidad. Es un recado para la cocina, y
+ * sale en la pantalla de Cocina junto al nombre de quien lo pidio.
+ */
+async function ponerNota(renglon, raiz) {
+  const r = await pedirDatos({
+    titulo: `Nota para ${renglon.producto}`,
+    campos: [
+      {
+        nombre: "nota",
+        etiqueta: "¿Qué hay que tener en cuenta?",
+        valor: renglon.observacion || "",
+        ayuda: 'Por ejemplo: "sin verduras", "para llevar", "sin cebolla". ' +
+               "Sale en la pantalla de Cocina. No cambia el precio.",
+      },
+    ],
+    textoAceptar: "Guardar la nota",
+  });
+  if (r === null) return;
+
+  renglon.observacion = String(r.nota || "").trim();
+  cambio();
+  pintarRegistrar(raiz);
+  mensaje(
+    renglon.observacion
+      ? `Anotado: "${renglon.observacion}". Sale en Cocina.`
+      : "Nota quitada.",
+    "bien", 4
+  );
+}
+
+function agregarPlato(plato, raiz, cuantos = 1) {
+  const cantidad = Math.max(1, Math.min(Number(cuantos) || 1, 99));
   const persona = estado.datos.personas.find(
     (p) => clavePersona(p.empresaCome, p.nombre) === clavePersona(estado.empresa, personaActiva)
   );
@@ -585,7 +651,7 @@ function agregarPlato(plato, raiz) {
     (c) => c.producto === normalizar(plato) && c.facturable !== false
   );
   if (yaEsta) {
-    yaEsta.cantidad += 1;
+    yaEsta.cantidad += cantidad;
     recalcularRevisar(yaEsta);
     cambio();
     pintarRegistrar(raiz);
@@ -600,7 +666,7 @@ function agregarPlato(plato, raiz) {
     persona: personaActiva,
     empresaFactura: facturaA,
     producto: plato,
-    cantidad: 1,
+    cantidad,
     precioUnitario: precio === null ? 0 : precio,
   });
   estado.datos.consumos.push(renglon);

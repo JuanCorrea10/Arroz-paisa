@@ -7,10 +7,20 @@
 
 import { pesos, fechaCorta, fechaLarga, nombreMes } from "../nucleo/formato.js";
 
-const VERDE = [18, 60, 41];
-const ACHIOTE = [188, 67, 24];
-const GRIS = [109, 125, 116];
-const RAYA = [244, 248, 242];
+// Los mismos colores del restaurante que usa la app. Cuando el supervisor
+// recibe el PDF tiene que reconocerlo como el mismo documento que le mostraron
+// en pantalla, no como algo salido de otro lado.
+//
+// (Antes esto era verde, de una version anterior. Un PDF verde llegando de una
+// app roja se ve como si lo hubiera hecho otra persona.)
+const MARCA = [217, 43, 34];      // --marca      #d92b22
+const MARCA_HONDA = [192, 34, 25];// --marca-hondo #c02219
+const ACHIOTE = [188, 67, 24];    // avisos
+const GRIS = [133, 117, 110];
+const RAYA = [251, 246, 237];     // el beige clarito de las filas alternas
+const BEIGE = [233, 220, 198];
+const TINTA = [36, 27, 24];
+
 
 /**
  * El logo, listo para meterlo en un PDF.
@@ -22,10 +32,22 @@ const RAYA = [244, 248, 242];
  */
 let logoListo = null;
 
-export async function prepararLogo(ruta = "img/logo.jpg") {
+/**
+ * Ojo con CUAL logo.
+ *
+ * El original es un JPG con fondo rojo, y ese rojo NO es el mismo de la app.
+ * Puesto encima de la portada roja se ve un cuadrado de otro tono, como un
+ * parche pegado. Por eso se usa la version blanca con fondo transparente
+ * (la saca tests/sacar-logo.html), que se funde con cualquier rojo.
+ *
+ * Si esa version no esta, se cae al JPG: mejor un logo con parche que ningun
+ * logo, y mucho mejor que un documento que no sale.
+ */
+export async function prepararLogo(ruta = "img/logo-blanco.png") {
   if (logoListo) return logoListo;
   try {
-    const respuesta = await fetch(ruta);
+    let respuesta = await fetch(ruta);
+    if (!respuesta.ok && ruta !== "img/logo.jpg") respuesta = await fetch("img/logo.jpg");
     if (!respuesta.ok) return null;
     const trozo = await respuesta.blob();
     logoListo = await new Promise((listo, falla) => {
@@ -40,6 +62,26 @@ export async function prepararLogo(ruta = "img/logo.jpg") {
   }
 }
 
+/**
+ * Pone el logo, si hay.
+ *
+ * jsPDF necesita que le digan el formato ("PNG", "JPEG"). Escribirlo a mano en
+ * cada documento es una trampa: el dia que cambie el archivo del logo, los
+ * documentos que quedaron con el formato viejo dejan de salir -- y nadie lo
+ * nota hasta que a alguien le toca entregar una cuenta de cobro.
+ * Aqui se deduce del propio dato, asi que no hay nada que actualizar.
+ */
+function ponerLogo(doc, x, y, ancho, alto) {
+  if (!logoListo) return false;
+  const formato = logoListo.slice(0, 20).includes("image/png") ? "PNG" : "JPEG";
+  try {
+    doc.addImage(logoListo, formato, x, y, ancho, alto);
+    return true;
+  } catch {
+    return false; // un documento sin logo se entrega; uno que revienta, no
+  }
+}
+
 function nuevoDocumento(orientacion = "p") {
   if (!window.jspdf || !window.jspdf.jsPDF) {
     throw new Error("No se pudo cargar el creador de PDF. Recargue la página (Ctrl + F5).");
@@ -50,7 +92,7 @@ function nuevoDocumento(orientacion = "p") {
 /** El encabezado verde que llevan todos los documentos. */
 function encabezado(doc, titulo, subtitulo, acreedor) {
   const ancho = doc.internal.pageSize.getWidth();
-  doc.setFillColor(...VERDE);
+  doc.setFillColor(...MARCA);
   doc.rect(0, 0, ancho, 26, "F");
 
   doc.setTextColor(255, 255, 255);
@@ -88,8 +130,8 @@ function pieDePagina(doc) {
 
 const estiloTabla = {
   theme: "grid",
-  headStyles: { fillColor: VERDE, textColor: 255, fontStyle: "bold", fontSize: 9.5 },
-  bodyStyles: { fontSize: 9.5, textColor: [22, 33, 27] },
+  headStyles: { fillColor: MARCA, textColor: 255, fontStyle: "bold", fontSize: 9.5 },
+  bodyStyles: { fontSize: 9.5, textColor: TINTA },
   alternateRowStyles: { fillColor: RAYA },
   styles: { cellPadding: 2.2, lineColor: [207, 219, 203], lineWidth: 0.15 },
   margin: { left: 14, right: 14 },
@@ -110,11 +152,9 @@ export function pdfCuentaDeCobro(cuenta, acreedor) {
 
   let y = encabezado(doc, "CUENTA DE COBRO", `${nombreMes(mes)} ${anio} · Quincena ${quincena}`, acreedor);
 
-  // El logo del restaurante, arriba a la izquierda. Solo si alcanzo a cargar.
-  if (logoListo) {
-    try { doc.addImage(logoListo, "JPEG", 14, 10, 18, 18); }
-    catch { /* si la imagen sale mal, la cuenta se entrega igual */ }
-  }
+  // El logo del restaurante, arriba a la izquierda. Si no alcanzo a cargar o
+  // sale mal, la cuenta se entrega igual: sin logo se cobra, sin cuenta no.
+  ponerLogo(doc, 14, 10, 18, 18);
 
   // La fecha en que se pasa la cuenta, si ella la puso. No se inventa: un
   // documento con fecha inventada es peor que uno sin fecha.
@@ -169,7 +209,7 @@ export function pdfCuentaDeCobro(cuenta, acreedor) {
       3: { halign: "right", cellWidth: 34 },
     },
     foot: [["TOTAL A PAGAR", "", "", pesos(total)]],
-    footStyles: { fillColor: [255, 255, 255], textColor: VERDE, fontStyle: "bold", fontSize: 12, lineWidth: 0.4, lineColor: VERDE, halign: "right" },
+    footStyles: { fillColor: [255, 255, 255], textColor: MARCA, fontStyle: "bold", fontSize: 12, lineWidth: 0.4, lineColor: MARCA, halign: "right" },
     didParseCell: (d) => { if (d.section === "foot" && d.column.index === 0) d.cell.styles.halign = "left"; },
   });
 
@@ -222,7 +262,7 @@ export function pdfResumenDia(informe, nombreEmpresa, acreedor) {
       3: { halign: "right", cellWidth: 34 },
     },
     foot: [[`TOTAL · ${informe.facturas} facturas`, "", "", pesos(informe.total)]],
-    footStyles: { fillColor: [255, 255, 255], textColor: VERDE, fontStyle: "bold", fontSize: 11.5, lineWidth: 0.4, lineColor: VERDE, halign: "right" },
+    footStyles: { fillColor: [255, 255, 255], textColor: MARCA, fontStyle: "bold", fontSize: 11.5, lineWidth: 0.4, lineColor: MARCA, halign: "right" },
     didParseCell: (d) => { if (d.section === "foot" && d.column.index === 0) d.cell.styles.halign = "left"; },
   });
   pieDePagina(doc);
@@ -233,7 +273,7 @@ export function pdfResumenDia(informe, nombreEmpresa, acreedor) {
 //  Cocina
 // ---------------------------------------------------------------------------
 
-export function pdfCocina(filas, fecha, codigos, acreedor) {
+export function pdfCocina(filas, fecha, codigos, acreedor, notas = []) {
   const doc = nuevoDocumento();
   const y = encabezado(doc, "LO QUE HAY QUE PREPARAR", fechaLarga(fecha), acreedor);
   doc.autoTable({
@@ -248,9 +288,28 @@ export function pdfCocina(filas, fecha, codigos, acreedor) {
     ),
     foot: [["TOTAL DE PLATOS", ...codigos.map((c) => String(filas.reduce((a, f) => a + (f.porEmpresa[c] || 0), 0))),
       String(filas.reduce((a, f) => a + f.total, 0))]],
-    footStyles: { fillColor: [255, 255, 255], textColor: VERDE, fontStyle: "bold", fontSize: 11, lineWidth: 0.4, lineColor: VERDE, halign: "right" },
+    footStyles: { fillColor: [255, 255, 255], textColor: MARCA, fontStyle: "bold", fontSize: 11, lineWidth: 0.4, lineColor: MARCA, halign: "right" },
     didParseCell: (d) => { if (d.section === "foot" && d.column.index === 0) d.cell.styles.halign = "left"; },
   });
+  // Las notas, despues de la tabla. Si no salieran aqui, la cocina nunca se
+  // enteraria de que un almuerzo va sin verduras.
+  if (notas.length) {
+    const desdeY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 40) + 10;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(107, 71, 8);
+    doc.text(`PLATOS CON NOTA (${notas.length})`, 14, desdeY);
+
+    doc.autoTable({
+      ...estiloTabla,
+      startY: desdeY + 3,
+      head: [["Empresa", "Persona", "Plato", "Cant.", "Nota"]],
+      body: notas.map((n) => [n.empresa, n.persona, n.producto, String(n.cantidad), n.nota]),
+      headStyles: { ...estiloTabla.headStyles, fillColor: [156, 106, 6] },
+      columnStyles: { 3: { halign: "right", cellWidth: 16 } },
+    });
+  }
+
   pieDePagina(doc);
   guardar(doc, `cocina-${fecha}.pdf`);
 }
@@ -281,7 +340,7 @@ export function pdfPorPersona(filas, anio, mes, nombreEmpresa, acreedor) {
       pesos(filas.reduce((a, f) => a + f.q1, 0)),
       pesos(filas.reduce((a, f) => a + f.q2, 0)),
       pesos(filas.reduce((a, f) => a + f.mes, 0))]],
-    footStyles: { fillColor: [255, 255, 255], textColor: VERDE, fontStyle: "bold", fontSize: 10, lineWidth: 0.4, lineColor: VERDE, halign: "right" },
+    footStyles: { fillColor: [255, 255, 255], textColor: MARCA, fontStyle: "bold", fontSize: 10, lineWidth: 0.4, lineColor: MARCA, halign: "right" },
     didParseCell: (d) => { if (d.section === "foot" && d.column.index <= 1) d.cell.styles.halign = "left"; },
   });
   pieDePagina(doc);
@@ -321,4 +380,290 @@ export function pdfCuadre(filas, anio, mes, acreedor) {
   });
   pieDePagina(doc);
   guardar(doc, `cuadre-${anio}-${String(mes).padStart(2, "0")}.pdf`);
+}
+
+// ---------------------------------------------------------------------------
+//  INFORME COMPLETO DE UNA EMPRESA
+//
+//  Para que los trabajadores puedan ver la información sin meterse a la app.
+//  Se pensaron tres formas:
+//
+//   - Darles usuario en la app: hay que manejar claves y cuidar que uno no vea
+//     lo de la otra empresa. Mucho lío para una persona sola.
+//   - El archivo de página web que ya existe: se ve muy bien, pero llega por
+//     WhatsApp como un adjunto raro y en iPhone muchas veces ni abre.
+//   - (Este) Un PDF. WhatsApp lo muestra en pantalla en cualquier teléfono,
+//     se puede guardar, imprimir y buscar, y NO se puede editar.
+//
+//  Lleva adentro únicamente lo de esa empresa. No es que las otras estén
+//  escondidas: es que no están.
+// ---------------------------------------------------------------------------
+
+/** El valor de un renglón. Igual que en calculos.js: aquí no entra el núcleo. */
+function subtotalDe(consumo) {
+  return (Number(consumo.cantidad) || 0) * (Number(consumo.precioUnitario) || 0);
+}
+
+/** La portada. Es lo único que ve el supervisor antes de decidir si lo abre. */
+function portada(doc, informe) {
+  const ancho = doc.internal.pageSize.getWidth();
+  const { empresa, anio, mes, totales, acreedor } = informe;
+
+  doc.setFillColor(...MARCA);
+  doc.rect(0, 0, ancho, 78, "F");
+
+  // El logo va en blanco sobre el rojo. Si no alcanzó a cargar, sale sin él y
+  // el documento sirve igual: un informe sin logo se lee, uno que se queda
+  // esperando una imagen no existe.
+  ponerLogo(doc, ancho - 54, 16, 36, 36);
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(26);
+  doc.text("Almuerzos", 18, 30);
+  doc.setFontSize(15);
+  doc.text(nombreMes(mes) + " de " + anio, 18, 41);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(13);
+  doc.text(empresa.razonSocial || empresa.codigo, 18, 56, { maxWidth: ancho - 82 });
+  doc.setFontSize(9.5);
+  doc.text("Sede " + empresa.codigo, 18, 64);
+
+  // Las cuatro cifras grandes, como las tarjetas de la pantalla.
+  const cifras = [
+    ["Quincena 1", pesos(totales.q1), informe.rangos.q1.desde + " al " + informe.rangos.q1.hasta],
+    ["Quincena 2", pesos(totales.q2), informe.rangos.q2.desde + " al " + informe.rangos.q2.hasta],
+    ["Facturas del mes", String(totales.facturas), totales.platos + " platos"],
+    ["TOTAL DEL MES", pesos(totales.mes), totales.renglones + " renglones"],
+  ];
+  const margen = 18;
+  const anchoCaja = (ancho - margen * 2 - 6 * 3) / 4;
+  let x = margen;
+  for (const [titulo, valor, pie] of cifras) {
+    const esTotal = titulo === "TOTAL DEL MES";
+    doc.setFillColor(...(esTotal ? MARCA : BEIGE));
+    doc.roundedRect(x, 88, anchoCaja, 31, 2, 2, "F");
+
+    doc.setTextColor(...(esTotal ? [255, 255, 255] : GRIS));
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.text(titulo.toUpperCase(), x + 4, 96, { maxWidth: anchoCaja - 8 });
+
+    doc.setTextColor(...(esTotal ? [255, 255, 255] : TINTA));
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(valor.length > 11 ? 10.5 : 12.5);
+    doc.text(valor, x + 4, 106, { maxWidth: anchoCaja - 8 });
+
+    doc.setTextColor(...(esTotal ? [255, 232, 230] : GRIS));
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.text(pie, x + 4, 114, { maxWidth: anchoCaja - 8 });
+    x += anchoCaja + 6;
+  }
+
+  // Qué trae adentro, para que no toque adivinar ni pasar hojas buscando.
+  doc.setTextColor(...TINTA);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("Qué trae este documento", 18, 136);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  let y = 145;
+  for (const linea of [
+    "1.  Qué se consumió — cada plato, cuántos y a cómo.",
+    "2.  Quién consumió — persona por persona, las dos quincenas.",
+    "3.  Día por día — el detalle de cada día, con nombre y plato.",
+  ]) { doc.text(linea, 22, y); y += 7; }
+
+  doc.setDrawColor(...BEIGE);
+  doc.setLineWidth(0.6);
+  doc.line(18, y + 5, ancho - 18, y + 5);
+
+  y += 14;
+  doc.setTextColor(...GRIS);
+  doc.setFontSize(9);
+  if (acreedor.nombre) {
+    doc.text("Lo prepara: " + acreedor.nombre, 18, y); y += 5.5;
+    if (acreedor.nit) { doc.text("NIT " + acreedor.nit, 18, y); y += 5.5; }
+    if (acreedor.ciudad) { doc.text(acreedor.ciudad, 18, y); y += 5.5; }
+  }
+
+  y += 4;
+  doc.setFontSize(8.5);
+  doc.text(
+    "Este documento trae únicamente la información de " +
+    (empresa.razonSocial || empresa.codigo) +
+    ". La de las otras empresas no está adentro.",
+    18, y, { maxWidth: ancho - 36 }
+  );
+}
+
+/** El título de cada sección, con la rayita roja como en la app. */
+function tituloDeSeccion(doc, texto, y) {
+  const ancho = doc.internal.pageSize.getWidth();
+  doc.setFillColor(...MARCA);
+  doc.rect(14, y - 5, 3, 8, "F");
+  doc.setTextColor(...TINTA);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12.5);
+  doc.text(texto, 20, y + 1.5, { maxWidth: ancho - 40 });
+  doc.setDrawColor(...BEIGE);
+  doc.setLineWidth(0.5);
+  doc.line(14, y + 6, ancho - 14, y + 6);
+  return y + 13;
+}
+
+const pieTotal = {
+  fillColor: [255, 255, 255], textColor: MARCA, fontStyle: "bold",
+  fontSize: 10.5, lineWidth: 0.4, lineColor: MARCA, halign: "right",
+};
+const totalALaIzquierda = (d) => {
+  if (d.section === "foot" && d.column.index === 0) d.cell.styles.halign = "left";
+};
+
+export function pdfInformeCompleto(informe) {
+  const doc = nuevoDocumento();
+  const { empresa, anio, mes, totales, platos, personas, dias, acreedor } = informe;
+  const quien = empresa.razonSocial || empresa.codigo;
+  const cuando = nombreMes(mes) + " " + anio + " · " + quien;
+
+  portada(doc, informe);
+
+  // --- 1. Qué se consumió --------------------------------------------------
+  doc.addPage();
+  let y = encabezado(doc, "QUÉ SE CONSUMIÓ", cuando, acreedor);
+  y = tituloDeSeccion(doc, "Cada plato del mes", y);
+
+  doc.autoTable({
+    ...estiloTabla,
+    startY: y,
+    head: [["Plato", "Cantidad", "Valor unitario", "Total"]],
+    body: platos.map((p) => [p.producto, String(p.cantidad), pesos(p.precio), pesos(p.total)]),
+    columnStyles: {
+      0: { cellWidth: "auto" },
+      1: { halign: "right", cellWidth: 24 },
+      2: { halign: "right", cellWidth: 32 },
+      3: { halign: "right", cellWidth: 34, fontStyle: "bold" },
+    },
+    foot: [["TOTAL", String(totales.platos), "", pesos(totales.mes)]],
+    footStyles: pieTotal,
+    didParseCell: totalALaIzquierda,
+  });
+
+  // --- 2. Quién consumió ---------------------------------------------------
+  doc.addPage();
+  y = encabezado(doc, "QUIÉN CONSUMIÓ", cuando, acreedor);
+  y = tituloDeSeccion(doc, personas.length + " personas", y);
+
+  doc.autoTable({
+    ...estiloTabla,
+    startY: y,
+    head: [["Persona", "Facturas", "Quincena 1", "Quincena 2", "Mes"]],
+    body: personas.map((p) => [
+      p.persona, String(p.facturas), pesos(p.q1), pesos(p.q2), pesos(p.mes),
+    ]),
+    columnStyles: {
+      0: { cellWidth: "auto" },
+      1: { halign: "right", cellWidth: 22 },
+      2: { halign: "right", cellWidth: 30 },
+      3: { halign: "right", cellWidth: 30 },
+      4: { halign: "right", cellWidth: 32, fontStyle: "bold" },
+    },
+    foot: [["TOTAL", String(personas.reduce((a, p) => a + p.facturas, 0)),
+      pesos(totales.q1), pesos(totales.q2), pesos(totales.mes)]],
+    footStyles: pieTotal,
+    didParseCell: totalALaIzquierda,
+  });
+
+  // --- 3. Día por día ------------------------------------------------------
+  //
+  //  Aquí hubo que devolverse.
+  //
+  //  La primera versión hacía una tabla por día y decidía a mano si el día
+  //  cabía en lo que quedaba de hoja. Para eso había que ADIVINAR cuánto iba a
+  //  medir la tabla (tantos milímetros por renglón), y la adivinada nunca da:
+  //  un plato de nombre largo o una nota parten el renglón en dos líneas y ya
+  //  midió mal. Resultado medido sobre los datos de verdad: 19 días gastaban
+  //  26 hojas, con títulos colgando al pie y días que se partían dejando dos
+  //  renglones huérfanos al voltear.
+  //
+  //  Esta versión no adivina nada. Es UNA sola tabla corrida donde el día es
+  //  un renglón más, ancho completo, con fondo beige. autoTable ya sabe medir
+  //  sus propios renglones, así que empaqueta perfecto, repite el encabezado
+  //  en cada hoja y no deja huecos.
+  doc.addPage();
+  y = encabezado(doc, "DÍA POR DÍA", cuando, acreedor);
+
+  const cuerpo = [];
+  const esDia = [];   // qué renglones del cuerpo son separadores de día
+  for (const dia of dias) {
+    esDia[cuerpo.length] = true;
+    cuerpo.push([{
+      content: fechaLarga(dia.fecha) + "   ·   " + dia.facturas + " facturas   ·   " +
+               pesos(dia.total),
+      colSpan: 4,
+    }]);
+    for (const c of dia.renglones) {
+      cuerpo.push([
+        c.persona,
+        c.producto +
+          (c.facturable === false ? "  (no se cobra)" : "") +
+          (c.observacion ? "  — " + c.observacion : ""),
+        String(c.cantidad),
+        c.facturable === false ? "—" : pesos(subtotalDe(c)),
+      ]);
+    }
+  }
+
+  // Para poder pintar de gris lo que no se cobra hay que saber, desde el
+  // número de renglón de la tabla, cuál consumo era. Se guarda al armar.
+  const consumoDe = [];
+  let i = 0;
+  for (const dia of dias) {
+    i++; // el separador del día
+    for (const c of dia.renglones) consumoDe[i++] = c;
+  }
+
+  doc.autoTable({
+    ...estiloTabla,
+    startY: y,
+    margin: { left: 14, right: 14, top: 34, bottom: 20 },
+    showHead: "everyPage",
+    rowPageBreak: "avoid",
+    head: [["Persona", "Plato", "Cant.", "Valor"]],
+    body: cuerpo,
+    columnStyles: {
+      0: { cellWidth: 62 },
+      1: { cellWidth: "auto" },
+      2: { halign: "right", cellWidth: 18 },
+      3: { halign: "right", cellWidth: 30 },
+    },
+    didParseCell: (d) => {
+      if (d.section !== "body") return;
+      if (esDia[d.row.index]) {
+        d.cell.styles.fillColor = BEIGE;
+        d.cell.styles.textColor = TINTA;
+        d.cell.styles.fontStyle = "bold";
+        d.cell.styles.fontSize = 10.5;
+        d.cell.styles.cellPadding = 3;
+        return;
+      }
+      const c = consumoDe[d.row.index];
+      if (!c) return;
+      // Lo que no se cobra se ve en gris: está, pero no suma.
+      if (c.facturable === false) d.cell.styles.textColor = GRIS;
+      if (c.observacion && d.column.index === 1) d.cell.styles.fontStyle = "italic";
+    },
+    // Las hojas de continuación llevan el mismo encabezado rojo, para que
+    // ninguna quede como una tabla suelta sin saber de qué documento es.
+    didDrawPage: (d) => {
+      if (d.pageNumber > 1) encabezado(doc, "DÍA POR DÍA", cuando, acreedor);
+    },
+  });
+
+  pieDePagina(doc);
+  guardar(doc, ("almuerzos-" + empresa.codigo + "-" + anio + "-" +
+    String(mes).padStart(2, "0") + ".pdf").replace(/\s+/g, "-").toLowerCase());
 }

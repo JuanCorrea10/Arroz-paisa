@@ -31,8 +31,14 @@
   --tinta-media: #574b45;
   --tinta-suave: #85756e;
 
-  /* Rojo de la marca: la barra, los encabezados, los botones que hacen algo */
-  --marca-hondo: #a81e17;
+  /* Rojo de la marca: la barra, los encabezados, los botones que hacen algo.
+     --marca-viva es el rojo EXACTO del logo, medido de la imagen: #e02d29.
+     Con texto blanco da 4.59 de contraste, y el minimo para leer comodo es
+     4.5. O sea que pasa, pero raspando: por eso va en la barra de arriba
+     (texto grande) y no en el menu (texto chico), que lleva un tono mas
+     oscuro para que se lea bien. */
+  --marca-viva: #e02d29;
+  --marca-hondo: #c02219;
   --marca: #d92b22;
   --marca-oscuro: #b4231b;
   --marca-claro: #fbe6e3;

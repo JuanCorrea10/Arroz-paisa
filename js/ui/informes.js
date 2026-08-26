@@ -10,7 +10,7 @@ import { el, vaciar, tabla, cifra, cifraPlata, acciones, vacio, mensaje, cinta, 
 import { estado, cambio, empresas, empresaPorCodigo } from "./estado.js";
 import { pesos, fechaLarga, fechaCorta, nombreMes, diasDelMes, hoyISO } from "../nucleo/formato.js";
 import {
-  informeCocina, informeDia, informePorPersona, informeCuadre,
+  informeCocina, informeDia, informePorPersona, informeCuadre, notasDelDia,
   indicePorCodigo, delDia, contarFacturas,
 } from "../nucleo/calculos.js";
 import { pdfCocina, pdfResumenDia, pdfPorPersona, pdfCuadre } from "../exportar/pdf.js";
@@ -72,6 +72,10 @@ export function pintarCocina(raiz) {
   vaciar(raiz);
   const repintar = () => pintarCocina(raiz);
   const codigos = empresas().map((e) => e.codigo);
+  // Las notas del día. Se calculan aquí arriba, con lo demás, porque el
+  // botón de bajar el PDF las necesita y se crea antes que la tabla.
+  const notas = notasDelDia(estado.datos.consumos, estado.fecha, codigos);
+
   const filas = informeCocina(estado.datos.consumos, estado.fecha, codigos);
   const totalPlatos = filas.reduce((a, f) => a + f.total, 0);
 
@@ -84,7 +88,7 @@ export function pintarCocina(raiz) {
       acciones(
         botonImprimir(),
         botonQueTrabaja("Bajar PDF", () => {
-            try { pdfCocina(filas, estado.fecha, codigos, estado.datos.config.acreedor); }
+            try { pdfCocina(filas, estado.fecha, codigos, estado.datos.config.acreedor, notas); }
             catch (e) { mensaje(e.message, "malo", 8); }
           })
       )
@@ -118,6 +122,32 @@ export function pintarCocina(raiz) {
       )
     )
   );
+
+
+  // Van APARTE de la tabla y no dentro, porque la tabla agrupa por plato y
+  // una nota es de UNA persona: metida ahí, o se pierde o parte el plato en
+  // dos filas por un "sin verduras".
+  if (notas.length) {
+    poner(raiz,
+      el("section", { clase: "tarjeta notas-cocina" },
+        el("h2", { texto: notas.length === 1 ? "1 plato con nota" : `${notas.length} platos con nota` }),
+        el("p", { clase: "nota", texto: "Estos van distintos. Léalos antes de despachar." }),
+        tabla(
+          [{ titulo: "Empresa" }, { titulo: "Persona" }, { titulo: "Plato" },
+           { titulo: "Cant.", clase: "n" }, { titulo: "Nota" }],
+          notas.map((n) =>
+            el("tr", {},
+              el("td", {}, cinta(n.empresa)),
+              el("td", { texto: n.persona }),
+              el("td", { texto: n.producto }),
+              el("td", { clase: "n", texto: String(n.cantidad) }),
+              el("td", {}, el("strong", { clase: "texto-nota", texto: n.nota }))
+            )
+          )
+        )
+      )
+    );
+  }
 }
 
 // ===========================================================================

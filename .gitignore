@@ -43,6 +43,12 @@ docs/capturas/
 # --- Basura de las pruebas -------------------------------------------------
 tests/ultimo-diagnostico.txt
 
+# Lo que escupen las paginas de prueba cuando generan un documento de verdad.
+# El PDF del informe lleva adentro los nombres de todas las personas de una
+# empresa y lo que comio cada una: es un archivo para mandar por WhatsApp, no
+# para dejar publicado en internet.
+tests/salida/
+
 # --- Basura de Windows y de los editores -----------------------------------
 Thumbs.db
 desktop.ini

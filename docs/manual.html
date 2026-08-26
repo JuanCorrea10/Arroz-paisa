@@ -60,6 +60,22 @@
   th { background: var(--marca-hondo); color: #fff; text-align: left;
        padding: .5rem .7rem; font-family: "Familjen Grotesk", sans-serif; }
   td { padding: .5rem .7rem; border-bottom: 1px solid var(--borde); vertical-align: top; }
+  .pantallas td:first-child { white-space: nowrap; }
+  .pantallas { font-size: .92rem; }
+  /* Cada pantalla explicada aparte. La tabla de arriba sirve para ubicarse;
+     esto es para cuando toca saber QUE se puede hacer en una pantalla. */
+  .ficha { border: 1px solid var(--borde); border-left: 5px solid var(--marca);
+           border-radius: 0 7px 7px 0; padding: .9rem 1.15rem; margin: 1.1rem 0;
+           background: #fff; }
+  .ficha h3 { margin: 0 0 .4rem; font-size: 1rem; }
+  .ficha .parasirve { font-size: 1.02rem; color: var(--tinta);
+                      margin: 0 0 .7rem; font-weight: 600; }
+  .ficha p { margin: 0 0 .5rem; }
+  .ficha ul { margin: .2rem 0 .6rem; padding-left: 1.25rem; }
+  .ficha li { margin-bottom: .3rem; }
+  .ficha p:last-child, .ficha ul:last-child { margin-bottom: 0; }
+  .caja ul { margin: .5rem 0 .5rem 0; padding-left: 1.3rem; }
+  .caja li { margin-bottom: .3rem; }
   .indice { background: #fbf6ed; border-radius: 8px; padding: 1.1rem 1.4rem; }
   .indice ol { margin: 0; }
   .indice a { color: var(--marca); }
@@ -67,7 +83,7 @@
     body { background: #fff; padding: 0; font-size: 11.5pt; }
     .hoja { box-shadow: none; padding: 0; max-width: none; }
     h2 { page-break-after: avoid; }
-    .caja, .paso { page-break-inside: avoid; }
+    .caja, .paso, .ficha { page-break-inside: avoid; }
   }
 </style>
 </head>
@@ -80,6 +96,7 @@
 <div class="indice">
   <strong>De un vistazo</strong>
   <ol>
+    <li><a href="#pantallas">Qué hace cada pantalla</a></li>
     <li><a href="#dia">Lo de todos los días</a></li>
     <li><a href="#quincena">Lo de cada quincena</a></li>
     <li><a href="#nombres">Cuando un nombre queda repetido</a></li>
@@ -95,7 +112,225 @@
   verde, todo está en su sitio.</p>
 </div>
 
-<h2 id="dia">1. Lo de todos los días</h2>
+<h2 id="pantallas">1. Qué hace cada pantalla</h2>
+
+<p>
+  Arriba hay diez pestañas y no todas se usan igual de seguido. Primero un
+  vistazo rápido a todas, y después cada una explicada aparte:
+</p>
+
+<table class="pantallas">
+  <tr><th>Pantalla</th><th>Para qué es</th><th>Cuándo se usa</th></tr>
+  <tr>
+    <td><span class="menu-item">Registrar el día</span></td>
+    <td>Anotar quién comió y qué pidió. Es <strong>la pantalla principal</strong>.</td>
+    <td>Todos los días, mientras llegan los pedidos.</td>
+  </tr>
+  <tr>
+    <td><span class="menu-item">Cocina</span></td>
+    <td>Cuánto hay que preparar de cada plato, en columnas por empresa.</td>
+    <td>En la mañana, antes de cocinar.</td>
+  </tr>
+  <tr>
+    <td><span class="menu-item">Resumen del día</span></td>
+    <td>Lo de un día con sus totales, listo para mandar.</td>
+    <td>Al final del día.</td>
+  </tr>
+  <tr>
+    <td><span class="menu-item">Por persona</span></td>
+    <td>Cuánto lleva cada persona en la quincena 1, la 2 y el mes.</td>
+    <td>Cuando alguien pregunta cuánto debe.</td>
+  </tr>
+  <tr>
+    <td><span class="menu-item">Cuenta de cobro</span></td>
+    <td>El documento formal para cobrarle a una empresa.</td>
+    <td>Cada quincena.</td>
+  </tr>
+  <tr>
+    <td><span class="menu-item">Cuadre</span></td>
+    <td>Comparar cuántas facturas dice el trabajador contra las registradas.</td>
+    <td>Cada día, o todo junto al final del mes.</td>
+  </tr>
+  <tr>
+    <td><span class="menu-item">Compartir</span></td>
+    <td>Mandarle a cada empresa su información, sin que vea la de las otras.</td>
+    <td>Cada quincena, o cuando la pidan.</td>
+  </tr>
+  <tr>
+    <td><span class="menu-item">Revisar</span></td>
+    <td>Arreglar renglones que quedaron con una persona o un plato que no existe.</td>
+    <td>Cuando salga el numerito rojo al lado.</td>
+  </tr>
+  <tr>
+    <td><span class="menu-item">Ajustes</span></td>
+    <td>Personas, platos, empresas y los respaldos.</td>
+    <td>De vez en cuando, o cuando entra alguien nuevo.</td>
+  </tr>
+  <tr>
+    <td><span class="menu-item">Cómo se usa</span></td>
+    <td>Este manual.</td>
+    <td>Cuando algo no se entienda.</td>
+  </tr>
+</table>
+
+<p>
+  Abajo está cada pantalla explicada aparte: qué se ve, qué se puede hacer, y
+  &mdash; lo que más ahorra vueltas &mdash; qué <em>no</em> se hace ahí, para
+  no buscarlo donde no está.
+</p>
+
+<div class="ficha">
+  <h3><span class="menu-item">Registrar el día</span></h3>
+  <p class="parasirve">Anotar quién comió y qué pidió. Es donde se pasa el día.</p>
+  <p><strong>Qué se ve:</strong> arriba la fecha y la empresa; abajo una casilla
+  para buscar a la persona; y al escoger a alguien se abre <em>su comanda</em>:
+  una caja de otro color, con el nombre arriba, donde se le van anotando los
+  platos.</p>
+  <p><strong>Qué se puede hacer:</strong></p>
+  <ul>
+    <li>Escribir parte del nombre y escoger de la lista que sale.</li>
+    <li>Anotar varios de una: escriba <strong>3 almuerzo</strong> y anota tres.</li>
+    <li><strong>Lo de siempre</strong>: si la persona casi siempre pide lo mismo,
+      sale un botón que lo anota completo de un toque.</li>
+    <li><strong>+ nota</strong> en cada plato, para cosas como
+      &laquo;sin verduras&raquo;. Sale en Cocina y en lo que se le manda a la empresa.</li>
+    <li><strong>Ver lo de ayer</strong>, por si el señor dicta &laquo;lo mismo de ayer&raquo;.</li>
+    <li>Si la persona o el plato no existen todavía, se crean ahí mismo sin salirse.</li>
+  </ul>
+  <p><strong>Aquí NO se:</strong> cambia precios, ni se borra gente. Eso es en Ajustes.</p>
+</div>
+
+<div class="ficha">
+  <h3><span class="menu-item">Cocina</span></h3>
+  <p class="parasirve">Cuánto hay que preparar hoy de cada plato.</p>
+  <p><strong>Qué se ve:</strong> un renglón por plato y una columna por empresa,
+  con el total al final. Debajo, la lista de los pedidos que llevan nota.</p>
+  <p><strong>Qué se puede hacer:</strong> bajarlo en PDF para pegarlo en la
+  cocina, o imprimirlo.</p>
+  <p><strong>Aquí NO se:</strong> anota nada. Es solo para mirar; lo que muestra
+  sale de lo que se registró.</p>
+</div>
+
+<div class="ficha">
+  <h3><span class="menu-item">Resumen del día</span></h3>
+  <p class="parasirve">Cómo quedó un día, ya cerrado.</p>
+  <p><strong>Qué se ve:</strong> los platos de ese día con su valor, cuántas
+  facturas salieron y el total.</p>
+  <p><strong>Qué se puede hacer:</strong> cambiar de día, escoger una empresa
+  sola, y bajarlo en PDF.</p>
+  <p><strong>Aquí NO se:</strong> arregla un pedido mal anotado. Para eso se
+  vuelve a <span class="menu-item">Registrar el día</span> y se cambia la fecha.</p>
+</div>
+
+<div class="ficha">
+  <h3><span class="menu-item">Por persona</span></h3>
+  <p class="parasirve">Cuánto lleva cada quien.</p>
+  <p><strong>Qué se ve:</strong> la lista de personas con lo de la quincena 1,
+  la quincena 2 y el mes.</p>
+  <p><strong>Qué se puede hacer:</strong> buscar a una persona, filtrar por
+  empresa, y bajar la lista en PDF. En el PDF <strong>no salen</strong> los que
+  no pidieron nada, para que no llene hojas de ceros.</p>
+  <p><strong>Aquí NO se:</strong> cobra. Esto es para responder
+  &laquo;¿yo cuánto debo?&raquo;.</p>
+</div>
+
+<div class="ficha">
+  <h3><span class="menu-item">Cuenta de cobro</span></h3>
+  <p class="parasirve">El documento formal que se le entrega a la empresa.</p>
+  <p><strong>Qué se ve:</strong> la quincena escogida, un renglón por plato con
+  cantidad y valor, y el total.</p>
+  <p><strong>Qué se puede hacer:</strong> escoger empresa y quincena, ponerle la
+  fecha con que se cobra, y bajarla en PDF con el logo y el NIT.</p>
+  <p><strong>Aquí NO se:</strong> ven las cédulas de nadie. En una cuenta de
+  cobro no tienen por qué salir.</p>
+</div>
+
+<div class="ficha">
+  <h3><span class="menu-item">Cuadre</span></h3>
+  <p class="parasirve">Que las facturas que dice el trabajador sean las mismas
+  que están anotadas.</p>
+  <p><strong>Qué se ve:</strong> un renglón por día, con lo que dijo el
+  trabajador al lado de lo registrado, y la diferencia.</p>
+  <p><strong>Qué se puede hacer:</strong> escribir cuántas facturas dijo él, y
+  ver de una en cuáles días no cuadra.</p>
+  <p><strong>Aquí NO se:</strong> corrige solo. La app muestra la diferencia;
+  decidir quién tiene la razón es de usted.</p>
+</div>
+
+<div class="ficha">
+  <h3><span class="menu-item">Compartir</span></h3>
+  <p class="parasirve">Mandarle a cada empresa lo suyo.</p>
+  <p><strong>Qué se ve:</strong> una tarjeta por empresa con el total del mes.</p>
+  <p><strong>Qué se puede hacer:</strong></p>
+  <ul>
+    <li><strong>El informe en PDF</strong>: todo el mes con la misma pinta de la
+      app. Es lo que se manda por WhatsApp, porque se abre en cualquier
+      teléfono. Sirve también para los trabajadores que quieren ver la
+      información sin meterse a la app.</li>
+    <li><strong>La página</strong>: lo mismo, pero para el computador, donde se
+      puede buscar con Ctrl+F.</li>
+    <li>La cuenta de cobro de cada quincena, y el Excel por si lo piden.</li>
+  </ul>
+  <p><strong>Lo importante:</strong> cada archivo lleva adentro
+  <strong>únicamente</strong> lo de esa empresa. No es que las otras estén
+  escondidas: no están. Se puede mandar sin miedo.</p>
+</div>
+
+<div class="ficha">
+  <h3><span class="menu-item">Revisar</span></h3>
+  <p class="parasirve">Los renglones que quedaron sueltos.</p>
+  <p><strong>Qué se ve:</strong> tarjetas con lo que la app no supo resolver
+  sola: una persona o un plato que no está en las listas. Cada tarjeta dice qué
+  pasa, qué hay que decidir, y cuánta plata está en juego.</p>
+  <p><strong>Qué se puede hacer:</strong> decir si es la misma persona de
+  siempre, crearla nueva, o dejarla como está.</p>
+  <p><strong>Cuándo entrar:</strong> cuando salga el numerito rojo al lado del
+  nombre de la pestaña. Si no hay numerito, no hay nada que hacer ahí.</p>
+</div>
+
+<div class="ficha">
+  <h3><span class="menu-item">Ajustes</span></h3>
+  <p class="parasirve">La puerta a las cinco pantallas de mantenimiento.</p>
+  <p>No se usa todos los días. Adentro están:</p>
+  <ul>
+    <li><strong>Personas</strong> &mdash; agregar gente, corregir un nombre, decir a
+      qué empresa se le cobra. Aquí también se <strong>unen dos personas</strong>:
+      se marcan las dos con la casilla de la izquierda y sale el botón
+      &laquo;Unir las marcadas&raquo;. Sirve cuando la misma persona quedó
+      anotada con nombres tan distintos que en Revisar nombres no se parecen.</li>
+    <li><strong>Revisar nombres</strong> &mdash; la app junta sola los nombres que
+      se parecen y pregunta si son la misma persona. Antes de unir muestra
+      cuántos renglones se mueven y cuánta plata.</li>
+    <li><strong>Catálogo</strong> &mdash; los platos y el precio de cada uno en cada
+      empresa. Si sube un precio, se cambia aquí y solo afecta de hoy en
+      adelante: las cuentas ya entregadas no se mueven.</li>
+    <li><strong>Empresas</strong> &mdash; el nombre, el NIT, y hasta qué día va la
+      primera quincena de cada una.</li>
+    <li><strong>Datos y respaldos</strong> &mdash; bajar una copia de todo, volver a
+      cargarla, o traer un Excel viejo.</li>
+  </ul>
+</div>
+
+<div class="ficha">
+  <h3><span class="menu-item">Cómo se usa</span></h3>
+  <p class="parasirve">Este manual.</p>
+  <p>Se puede imprimir y dejar al lado del computador.</p>
+</div>
+
+<div class="caja ojo">
+  <p><strong>Lo que NINGUNA pantalla hace sola.</strong> Media confusión sale de
+  esperar que la app decida por usted, y a propósito no lo hace:</p>
+  <ul>
+    <li>Nunca junta dos personas sin que usted diga que son la misma.</li>
+    <li>Nunca le pone precio a un plato que no está en el catálogo.</li>
+    <li>Nunca cambia una cuenta de cobro que ya se entregó.</li>
+    <li>Nunca borra nada que tenga renglones registrados.</li>
+  </ul>
+  <p>Cuando algo no cuadra, la app se lo <em>muestra</em> y espera. Nada pasa
+  a sus espaldas.</p>
+</div>
+
+<h2 id="dia">2. Lo de todos los días</h2>
 
 <p>Se entra a <span class="menu-item">Registrar el día</span>. Es la pantalla
 con la que se trabaja siempre.</p>
@@ -176,7 +411,7 @@ WhatsApp con el botón <span class="boton">Bajar PDF</span>.</p>
 <p>En <span class="menu-item">Resumen del día</span> sale lo del día con los
 totales, que es lo que se le manda a cada empresa.</p>
 
-<h2 id="quincena">2. Lo de cada quincena</h2>
+<h2 id="quincena">3. Lo de cada quincena</h2>
 
 <div class="caja ojo">
   <p><strong>Mire siempre el mes de arriba.</strong> Al lado del menú hay dos
@@ -216,7 +451,7 @@ día, el consumo de cada persona y los totales de las dos quincenas.</p>
   mandarlo.</p>
 </div>
 
-<h2 id="nombres">3. Cuando un nombre queda repetido</h2>
+<h2 id="nombres">4. Cuando un nombre queda repetido</h2>
 
 <p>Pasa que la misma persona queda anotada de dos formas: <em>LUZ CASTRO</em>
 y <em>LUZ MARINA CASTRO</em>. Cuando pasa eso, su consumo aparece partido en
@@ -250,7 +485,7 @@ apellido y a veces por el otro.</p>
 <p>De cada documento la app guarda solo los últimos 5 números, y ese dato no
 sale en las cuentas de cobro ni en lo que se le manda a las empresas.</p>
 
-<h2 id="guardado">4. Dónde quedan guardados los datos</h2>
+<h2 id="guardado">5. Dónde quedan guardados los datos</h2>
 
 <p>En dos sitios a la vez, a propósito:</p>
 <ul>
@@ -272,7 +507,7 @@ sale en las cuentas de cobro ni en lo que se le manda a las empresas.</p>
 mandar a su propio correo. Es el paracaídas: con él vuelve todo, aunque se
 dañe el computador.</p>
 
-<h2 id="problemas">5. Si algo sale mal</h2>
+<h2 id="problemas">6. Si algo sale mal</h2>
 
 <table>
   <tr><th>Qué ve</th><th>Qué hacer</th></tr>

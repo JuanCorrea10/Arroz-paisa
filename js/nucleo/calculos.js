@@ -211,6 +211,36 @@ export function informeDia(consumos, fechaISO, codigoEmpresa) {
 }
 
 /**
+ * Los renglones de un día que llevan una nota ("sin verduras", "para llevar").
+ *
+ * Va aparte del informe de Cocina a propósito. Cocina agrupa por plato, y una
+ * nota NO se puede agrupar: es de UNA persona. Si se metiera en el conteo, o
+ * se perdería, o partiría el plato en dos filas por una nota.
+ *
+ * Y si la nota no llega a la cocina, la nota no sirve para nada: se anotó
+ * "sin verduras" y el plato salió con verduras igual.
+ */
+export function notasDelDia(consumos, fechaISO, codigosEmpresa) {
+  const permitidas = codigosEmpresa && codigosEmpresa.length
+    ? new Set(codigosEmpresa.map(normalizar))
+    : null;
+
+  return delDia(consumos, fechaISO)
+    .filter((c) => String(c.observacion || "").trim())
+    .filter((c) => !permitidas || permitidas.has(normalizar(c.empresaCome)))
+    .map((c) => ({
+      empresa: normalizar(c.empresaCome),
+      persona: normalizar(c.persona),
+      producto: normalizar(c.producto),
+      cantidad: Number(c.cantidad) || 0,
+      nota: String(c.observacion).trim(),
+    }))
+    .sort((a, b) =>
+      a.empresa.localeCompare(b.empresa, "es") ||
+      a.persona.localeCompare(b.persona, "es"));
+}
+
+/**
  * CONSUMO POR PERSONA: cuánto lleva cada persona en Q1, en Q2 y en el mes.
  * La quincena se calcula con la empresa A LA QUE SE LE FACTURA.
  */
@@ -456,4 +486,90 @@ export function personasDe(datos, codigoEmpresa, incluirInactivas) {
   return datos.personas
     .filter((p) => normalizar(p.empresaCome) === cod && (incluirInactivas || p.activa !== false))
     .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+}
+
+/**
+ * TODO lo de una empresa en un mes, en un solo objeto.
+ *
+ * Existe para que el archivo de página web y el PDF no puedan decir cosas
+ * distintas. Antes las cuentas del reporte se armaban dentro del generador de
+ * HTML; el día que hiciéramos un segundo documento tocaba copiarlas, y dos
+ * copias de la misma cuenta terminan desviándose sin que nadie se dé cuenta
+ * hasta que un supervisor reclama.
+ *
+ * Solo entra lo de ESTA empresa. Lo demás ni siquiera se calcula, así que no
+ * hay forma de que se filtre a un archivo que no le corresponde.
+ */
+export function informeCompletoDeEmpresa(datos, codigoEmpresa, anio, mes) {
+  const empresasPorCodigo = indicePorCodigo(datos.empresas);
+  const empresa = empresasPorCodigo[normalizar(codigoEmpresa)];
+  if (!empresa) throw new Error("Esa empresa no existe.");
+
+  const cod = normalizar(codigoEmpresa);
+  const mios = delMes(datos.consumos, anio, mes).filter(
+    (c) => normalizar(c.empresaFactura) === cod);
+  const cobrables = mios.filter((c) => c.facturable !== false);
+
+  const q1 = cobrables.filter((c) => quincenaDe(c.fecha, empresa) === 1);
+  const q2 = cobrables.filter((c) => quincenaDe(c.fecha, empresa) === 2);
+  const r1 = rangoQuincena(anio, mes, 1, empresa);
+  const r2 = rangoQuincena(anio, mes, 2, empresa);
+
+  // Día por día. Aquí entran también los renglones que NO se cobran: el
+  // supervisor necesita ver que ese día esa persona sí comió, aunque la
+  // empresa no lo pague.
+  const porDia = new Map();
+  for (const c of mios) {
+    if (!porDia.has(c.fecha)) porDia.set(c.fecha, []);
+    porDia.get(c.fecha).push(c);
+  }
+  const dias = [...porDia.keys()].sort().map((fecha) => {
+    const renglones = porDia.get(fecha)
+      .slice()
+      .sort((a, b) => String(a.persona).localeCompare(String(b.persona), "es"));
+    return {
+      fecha,
+      renglones,
+      facturas: contarFacturas(renglones),
+      total: sumar(renglones.filter((c) => c.facturable !== false)),
+      notas: notasDelDia(mios, fecha, [codigoEmpresa]),
+    };
+  });
+
+  // Por plato. El precio entra en la llave porque el mismo plato puede haber
+  // subido de precio a mitad de mes, y juntarlos taparía el cambio.
+  const porPlato = new Map();
+  for (const c of cobrables) {
+    const llave = normalizar(c.producto) + "|" + (Number(c.precioUnitario) || 0);
+    if (!porPlato.has(llave)) {
+      porPlato.set(llave, {
+        producto: normalizar(c.producto),
+        precio: Number(c.precioUnitario) || 0,
+        cantidad: 0,
+        total: 0,
+      });
+    }
+    const f = porPlato.get(llave);
+    f.cantidad += Number(c.cantidad) || 0;
+    f.total += subtotal(c);
+  }
+  const platos = [...porPlato.values()].sort((a, b) => b.total - a.total);
+
+  const personas = informePorPersona(datos.consumos, anio, mes, empresasPorCodigo)
+    .filter((f) => f.empresaFactura === cod);
+
+  return {
+    empresa, anio, mes,
+    rangos: { q1: r1, q2: r2 },
+    totales: {
+      q1: sumar(q1),
+      q2: sumar(q2),
+      mes: sumar(cobrables),
+      facturas: contarFacturas(cobrables),
+      renglones: mios.length,
+      platos: platos.reduce((a, p) => a + p.cantidad, 0),
+    },
+    platos, personas, dias,
+    acreedor: (datos.config && datos.config.acreedor) || {},
+  };
 }

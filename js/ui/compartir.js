@@ -38,11 +38,11 @@ import { estado, empresas, empresaPorCodigo } from "./estado.js";
 import { pesos, nombreMes, fechaCorta } from "../nucleo/formato.js";
 import {
   delMes, quincenaDe, sumar, contarFacturas, cuentaDeCobro, rangoQuincena,
-  fechaDeCobro,
+  fechaDeCobro, informeCompletoDeEmpresa,
 } from "../nucleo/calculos.js";
 import { generarReporteEmpresa, descargarReporteEmpresa } from "../exportar/reporte-empresa.js";
 import { exportarEmpresaAExcel } from "../exportar/excel-export.js";
-import { pdfCuentaDeCobro } from "../exportar/pdf.js";
+import { pdfCuentaDeCobro, pdfInformeCompleto } from "../exportar/pdf.js";
 
 export function pintarCompartir(raiz) {
   vaciar(raiz);
@@ -125,29 +125,50 @@ function tarjetaDeEmpresa(empresa) {
     !hayAlgo
       ? el("p", { clase: "nota", texto: "No hay nada registrado de esta empresa en este mes." })
       : el("div", {},
-          el("h3", { texto: "Para el supervisor: todo el mes, día por día" }),
+          el("h3", { texto: "Para mandar por WhatsApp: el informe completo" }),
           el("p", { clase: "nota" },
-            "Un archivo que se abre como una página. Trae el día a día, el " +
-            "consumo de cada persona y los totales de las dos quincenas. Es lo " +
-            "que sirve para que revisen y comparen."),
+            "Un PDF con todo el mes, con la misma pinta de la app: los totales " +
+            "de las dos quincenas, cada plato, cada persona y el día a día. " +
+            "Se abre en cualquier teléfono sin instalar nada, se puede " +
+            "imprimir y nadie lo puede cambiar."),
           acciones(
             el("button", {
               clase: "principal grande",
               alHacerClic: () => {
                 try {
-                  descargarReporteEmpresa(estado.datos, empresa.codigo, anio, mes);
+                  pdfInformeCompleto(
+                    informeCompletoDeEmpresa(estado.datos, empresa.codigo, anio, mes));
                   mensaje(
-                    `Bajado el archivo de ${empresa.codigo}. Búsquelo en Descargas y ` +
+                    `Bajado el informe de ${empresa.codigo}. Búsquelo en Descargas y ` +
                     "mándelo por WhatsApp.", "bien", 8);
                 } catch (e) {
-                  mensaje(e.message, "malo", 6);
+                  mensaje("No se pudo hacer el PDF: " + e.message, "malo", 6);
                 }
               },
-            }, "Bajar el archivo para mandar"),
+            }, "Bajar el informe en PDF"),
             el("button", {
               clase: "plano",
               alHacerClic: () => verAntesDeMandar(empresa, anio, mes),
             }, "Ver primero qué lleva")
+          ),
+
+          el("h3", { texto: "Para revisar en el computador" }),
+          el("p", { clase: "nota" },
+            "El mismo informe, pero como página de internet. Se puede buscar " +
+            "con Ctrl+F, que sirve cuando toca encontrar a una persona entre " +
+            "muchas. En el computador va mejor que el PDF; en el celular, no."),
+          acciones(
+            el("button", {
+              clase: "plano",
+              alHacerClic: () => {
+                try {
+                  descargarReporteEmpresa(estado.datos, empresa.codigo, anio, mes);
+                  mensaje(`Bajado el archivo de ${empresa.codigo}.`, "bien", 7);
+                } catch (e) {
+                  mensaje(e.message, "malo", 6);
+                }
+              },
+            }, "Bajar la página")
           ),
 
           el("h3", { texto: "Para cobrar: la cuenta de cobro en PDF" }),

@@ -380,9 +380,17 @@ function headerQueSeEncoge() {
   const barra = document.querySelector(".barra");
   if (!centinela || !barra || typeof IntersectionObserver !== "function") return;
 
+  // Ojo con el "threshold". Al principio le puse 1, o sea "avisame cuando el
+  // centinela se vea COMPLETO". Con un centinela de 1 px pegado al borde de
+  // arriba, el navegador a veces lo calcula como 0.99 por redondeo, y la
+  // barra salia encogida estando en el tope de la pagina.
+  //
+  // Con 0 la pregunta es otra y no tiene esa fragilidad: "avisame cuando no
+  // se vea NADA de el". Y el centinela mide 8 px para que la respuesta no
+  // dependa de un pixel.
   new IntersectionObserver(
     ([entrada]) => barra.classList.toggle("encogida", !entrada.isIntersecting),
-    { threshold: 1 }
+    { threshold: 0 }
   ).observe(centinela);
 }
 

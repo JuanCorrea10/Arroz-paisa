@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<title>Probar unir dos personas a mano</title>
+<style>
+  body { font-family: system-ui, sans-serif; padding: 1rem; background: #f5eee2; margin: 0; }
+  h1 { font-size: 1.15rem; margin: 0 0 .3rem; }
+  p { margin: 0 0 .8rem; font-size: .9rem; color: #574b45; max-width: 62ch; }
+  iframe { width: 1250px; height: 800px; border: 1px solid #c9b99f; display: block; }
+  pre { background: #fff; padding: .7rem; font-size: .85rem; margin-top: .8rem; }
+</style>
+</head>
+<body>
+<h1>Unir dos personas marcándolas en la lista</h1>
+<p>
+  Se marcan dos personas de la <em>misma</em> empresa, se unen, y se revisa lo
+  único que de verdad importa: que <strong>no se pierda ni un peso</strong>.
+  El total del negocio antes y después tiene que dar exactamente igual.
+  También se revisa que dos de empresas <em>distintas</em> no se dejen unir.
+</p>
+<iframe id="app" src="../index.html#personas"></iframe>
+<pre id="salida">probando…</pre>
+
+<script type="module">
+const esperar = (ms) => new Promise((l) => setTimeout(l, ms));
+const marco = document.getElementById("app");
+const lineas = [];
+const anotar = (t) => {
+  lineas.push(t);
+  document.getElementById("salida").textContent = lineas.join("\n");
+};
+
+await new Promise((listo) => {
+  marco.addEventListener("load", listo, { once: true });
+  setTimeout(listo, 15000);
+});
+await esperar(4500);
+
+const doc = marco.contentDocument;
+const win = marco.contentWindow;
+
+// El estado vive dentro del marco, no aquí.
+//
+// Si esta página hiciera un import normal, el navegador le daría una copia
+// aparte del módulo: otro `estado`, vacío, que nadie usó. La prueba mediría
+// un almacén imaginario y saldría verde sin haber probado nada.
+//
+// Pidiéndole al marco que haga ÉL el import, sale el mismo objeto que la
+// pantalla está usando. Se puede porque los dos son del mismo origen.
+const { estado } = await win.eval('import("/js/ui/estado.js")');
+
+// Un renglon no guarda su total: guarda cuantos y a como. Sumar "c.total"
+// daria 0 siempre, y la prueba pasaria sin haber mirado un solo peso.
+const total = () => estado.datos.consumos.reduce(
+  (s, c) => s + (Number(c.cantidad) || 0) * (Number(c.precioUnitario) || 0), 0);
+
+// Renglones cuya persona no esta en la lista. Ya existen antes de tocar nada
+// (para eso esta la pantalla "Sueltos"), asi que lo que se vigila NO es que
+// sean cero: es que unir dos personas no cree ni uno mas.
+const huerfanos = () => estado.datos.consumos.filter((c) =>
+  !estado.datos.personas.some(
+    (p) => p.empresaCome === c.empresaCome && p.nombre === c.persona)).length;
+
+const antes = {
+  plata: total(),
+  filas: estado.datos.consumos.length,
+  personas: estado.datos.personas.length,
+  sueltos: huerfanos(),
+};
+anotar(`antes:   ${antes.filas} renglones, ${antes.personas} personas, ` +
+       `${antes.sueltos} sin dueño, total ${antes.plata}`);
+
+// --- Dos personas de la misma empresa que TENGAN renglones -----------------
+const cuantos = new Map();
+for (const c of estado.datos.consumos) {
+  const k = c.empresaCome + "||" + c.persona;
+  cuantos.set(k, (cuantos.get(k) || 0) + 1);
+}
+const conRenglones = estado.datos.personas.filter(
+  (p) => cuantos.get(p.empresaCome + "||" + p.nombre) > 0);
+const empresaA = conRenglones.length ? conRenglones[0].empresaCome : null;
+const pareja = conRenglones.filter((p) => p.empresaCome === empresaA).slice(0, 2);
+
+const marcarA = (nombre) => {
+  for (const fila of doc.querySelectorAll("tbody tr")) {
+    const caja = fila.querySelector("input[type=checkbox]");
+    if (caja && caja.getAttribute("aria-label") === "Marcar a " + nombre + " para unir") {
+      caja.click();
+      return true;
+    }
+  }
+  return false;
+};
+
+const filtrarPor = async (codigo) => {
+  const filtro = doc.querySelector("select");
+  if (!filtro) return;
+  filtro.value = codigo;
+  filtro.dispatchEvent(new win.Event("change", { bubbles: true }));
+  await esperar(700);
+};
+
+if (pareja.length < 2) {
+  anotar("OJO  no hay dos personas con renglones en la misma empresa");
+} else {
+  anotar(`pareja:  "${pareja[0].nombre}" + "${pareja[1].nombre}" (${empresaA})`);
+
+  // La lista corta en 300 filas; filtrando por empresa las dos salen seguro.
+  await filtrarPor(empresaA);
+
+  const m1 = marcarA(pareja[0].nombre); await esperar(500);
+  const m2 = marcarA(pareja[1].nombre); await esperar(650);
+  anotar(m1 && m2 ? "OK   se marcaron las dos" : "MAL  no se pudieron marcar");
+
+  const barra = doc.querySelector(".barra-unir");
+  anotar(barra ? "OK   salió la barra de unir" : "MAL  no salió la barra de unir");
+
+  const boton = barra && [...barra.querySelectorAll("button")]
+    .find((b) => b.textContent.indexOf("Unir las marcadas") >= 0);
+  anotar(boton && !boton.disabled
+    ? "OK   el botón de unir está habilitado"
+    : "MAL  el botón de unir no se puede tocar");
+
+  if (boton && !boton.disabled) {
+    boton.click();
+    await esperar(800);
+
+    // 1) ¿Cuál nombre se queda?
+    const elegir = doc.querySelector("dialog select");
+    anotar(elegir && elegir.options.length === 2
+      ? "OK   deja escoger entre los 2 nombres"
+      : "MAL  la lista de nombres trae " + (elegir ? elegir.options.length : "nada"));
+
+    const queSeQueda = elegir ? elegir.value : null;
+    const aceptar1 = [...doc.querySelectorAll("dialog button")]
+      .find((b) => b.textContent.indexOf("Ver qué va a pasar") >= 0);
+    if (aceptar1) { aceptar1.click(); await esperar(900); }
+
+    // 2) La vista previa
+    const previa = doc.querySelector("dialog");
+    const dice = previa ? previa.textContent : "";
+    anotar(dice.indexOf("Renglones que se mueven") >= 0
+      ? "OK   avisa cuántos renglones se mueven"
+      : "MAL  no muestra la vista previa");
+    anotar(dice.indexOf("El total del negocio NO cambia") >= 0
+      ? "OK   le aclara que la plata no se pierde"
+      : "OJO  no aclara qué pasa con la plata");
+
+    const aceptar2 = [...doc.querySelectorAll("dialog button")]
+      .find((b) => b.textContent.trim() === "Sí, unir");
+    if (aceptar2) { aceptar2.click(); await esperar(1400); }
+
+    // 3) Lo que de verdad importa
+    const despues = {
+      plata: total(),
+      filas: estado.datos.consumos.length,
+      personas: estado.datos.personas.length,
+      sueltos: huerfanos(),
+    };
+    anotar(`después: ${despues.filas} renglones, ${despues.personas} personas, ` +
+           `${despues.sueltos} sin dueño, total ${despues.plata}`);
+    anotar(antes.plata > 0
+      ? "OK   la prueba sí está midiendo plata de verdad"
+      : "MAL  el total da 0: la prueba no está midiendo nada");
+
+    anotar(despues.plata === antes.plata
+      ? "OK   la plata quedó IGUAL: no se perdió nada"
+      : `MAL  la plata cambió: ${antes.plata} -> ${despues.plata}`);
+    anotar(despues.filas === antes.filas
+      ? "OK   no se perdió ningún renglón"
+      : `MAL  se perdieron renglones: ${antes.filas} -> ${despues.filas}`);
+    anotar(despues.personas === antes.personas - 1
+      ? "OK   quedó una persona menos, como debe ser"
+      : `MAL  las personas pasaron de ${antes.personas} a ${despues.personas}`);
+
+    const sobrevive = estado.datos.personas.some(
+      (p) => p.empresaCome === empresaA && p.nombre === queSeQueda);
+    anotar(sobrevive
+      ? `OK   quedó el nombre escogido ("${queSeQueda}")`
+      : "MAL  desapareció el nombre que se iba a quedar");
+
+    // Un renglón sin dueño no se ve roto en pantalla, pero desaparece de los
+    // informes por persona. Es la forma callada en que una unión mal hecha
+    // se lleva la plata de alguien.
+    anotar(despues.sueltos <= antes.sueltos
+      ? `OK   no quedó ningún renglón huérfano nuevo (${antes.sueltos} antes, ${despues.sueltos} después)`
+      : `MAL  la unión dejó ${despues.sueltos - antes.sueltos} renglones sin dueño`);
+  }
+}
+
+// --- La otra mitad: dos de empresas distintas NO se pueden unir ------------
+const porEmpresa = new Map();
+for (const p of estado.datos.personas) {
+  if (!porEmpresa.has(p.empresaCome)) porEmpresa.set(p.empresaCome, p);
+}
+const dosEmpresas = [...porEmpresa.values()].slice(0, 2);
+
+if (dosEmpresas.length < 2) {
+  anotar("OJO  solo hay una empresa; no se puede probar el bloqueo");
+} else {
+  win.location.hash = "#personas";
+  await esperar(1000);
+  await filtrarPor("");
+
+  for (const p of dosEmpresas) { marcarA(p.nombre); await esperar(500); }
+
+  const barra2 = doc.querySelector(".barra-unir");
+  const boton2 = barra2 && [...barra2.querySelectorAll("button")]
+    .find((b) => b.textContent.indexOf("Unir las marcadas") >= 0);
+  anotar(boton2 && boton2.disabled
+    ? "OK   dos de empresas distintas NO se dejan unir"
+    : "MAL  deja unir personas de empresas distintas");
+  anotar(barra2 && barra2.textContent.indexOf("empresas distintas") >= 0
+    ? "OK   y explica por qué no se puede"
+    : "OJO  no explica por qué no se puede");
+}
+
+document.getElementById("salida").textContent = lineas.join("\n");
+try { await fetch("/diagnostico", { method: "POST", body: lineas.join("\n") }); } catch {}
+</script>
+</body>
+</html>

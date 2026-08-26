@@ -13,10 +13,7 @@
 
 import { descargarBlob } from "../datos/almacen.js";
 import { pesos, fechaCorta, fechaLarga, nombreMes } from "../nucleo/formato.js";
-import {
-  indicePorCodigo, quincenaDe, subtotal, delMes, sumar, contarFacturas,
-  informePorPersona, rangoQuincena,
-} from "../nucleo/calculos.js";
+import { subtotal, sumar, contarFacturas, informeCompletoDeEmpresa } from "../nucleo/calculos.js";
 
 /** Nada de lo que escriba la señora puede convertirse en código HTML. */
 function esc(txt) {
@@ -29,43 +26,17 @@ function esc(txt) {
 }
 
 export function generarReporteEmpresa(datos, codigoEmpresa, anio, mes) {
-  const empresas = indicePorCodigo(datos.empresas);
-  const empresa = empresas[codigoEmpresa];
-  if (!empresa) throw new Error("Esa empresa no existe.");
-
-  // Solo lo de esta empresa. Nada más entra en el archivo.
-  const mios = delMes(datos.consumos, anio, mes).filter((c) => c.empresaFactura === codigoEmpresa);
-  const cobrables = mios.filter((c) => c.facturable !== false);
-  const q1 = cobrables.filter((c) => quincenaDe(c.fecha, empresa) === 1);
-  const q2 = cobrables.filter((c) => quincenaDe(c.fecha, empresa) === 2);
-  const r1 = rangoQuincena(anio, mes, 1, empresa);
-  const r2 = rangoQuincena(anio, mes, 2, empresa);
-
-  // Por día
-  const porDia = new Map();
-  for (const c of mios) {
-    if (!porDia.has(c.fecha)) porDia.set(c.fecha, []);
-    porDia.get(c.fecha).push(c);
-  }
-  const dias = [...porDia.keys()].sort();
-
-  // Por plato
-  const porPlato = new Map();
-  for (const c of cobrables) {
-    const llave = c.producto + "|" + c.precioUnitario;
-    if (!porPlato.has(llave)) porPlato.set(llave, { producto: c.producto, precio: c.precioUnitario, cantidad: 0, total: 0 });
-    const f = porPlato.get(llave);
-    f.cantidad += c.cantidad;
-    f.total += subtotal(c);
-  }
-  const platos = [...porPlato.values()].sort((a, b) => b.total - a.total);
-
-  const personas = informePorPersona(datos.consumos, anio, mes, empresas).filter(
-    (f) => f.empresaFactura === codigoEmpresa
-  );
-
-  const total = sumar(cobrables);
-  const acreedor = datos.config.acreedor || {};
+  // Las cuentas las hace el nucleo, no este archivo.
+  //
+  // Antes se armaban aqui adentro. Cuando aparecio el segundo documento (el
+  // PDF), la unica salida era copiarlas -- y dos copias de la misma cuenta se
+  // desvian sin que nadie se de cuenta, hasta que un supervisor reclama que
+  // el PDF y la pagina no dicen lo mismo.
+  const informe = informeCompletoDeEmpresa(datos, codigoEmpresa, anio, mes);
+  const { empresa, totales, platos, personas, dias, acreedor } = informe;
+  const r1 = informe.rangos.q1;
+  const r2 = informe.rangos.q2;
+  const total = totales.mes;
 
   const html = `<!doctype html>
 <html lang="es-CO">
@@ -120,9 +91,9 @@ export function generarReporteEmpresa(datos, codigoEmpresa, anio, mes) {
   <section>
     <h2>Resumen del mes</h2>
     <dl class="cifras">
-      <div class="cifra"><dt>Quincena 1 (${r1.desde} al ${r1.hasta})</dt><dd>${esc(pesos(sumar(q1)))}</dd></div>
-      <div class="cifra"><dt>Quincena 2 (${r2.desde} al ${r2.hasta})</dt><dd>${esc(pesos(sumar(q2)))}</dd></div>
-      <div class="cifra"><dt>Facturas</dt><dd>${contarFacturas(cobrables)}</dd></div>
+      <div class="cifra"><dt>Quincena 1 (${r1.desde} al ${r1.hasta})</dt><dd>${esc(pesos(totales.q1))}</dd></div>
+      <div class="cifra"><dt>Quincena 2 (${r2.desde} al ${r2.hasta})</dt><dd>${esc(pesos(totales.q2))}</dd></div>
+      <div class="cifra"><dt>Facturas</dt><dd>${totales.facturas}</dd></div>
       <div class="cifra total"><dt>Total del mes</dt><dd>${esc(pesos(total))}</dd></div>
     </dl>
   </section>
@@ -134,7 +105,7 @@ export function generarReporteEmpresa(datos, codigoEmpresa, anio, mes) {
       <tbody>
         ${platos.map((p) => `<tr><td>${esc(p.producto)}</td><td class="n">${p.cantidad}</td><td class="n">${esc(pesos(p.precio))}</td><td class="n">${esc(pesos(p.total))}</td></tr>`).join("\n        ")}
       </tbody>
-      <tfoot><tr><td>TOTAL</td><td class="n">${platos.reduce((a, p) => a + p.cantidad, 0)}</td><td></td><td class="n">${esc(pesos(total))}</td></tr></tfoot>
+      <tfoot><tr><td>TOTAL</td><td class="n">${totales.platos}</td><td></td><td class="n">${esc(pesos(total))}</td></tr></tfoot>
     </table></div>
   </section>
 
@@ -145,28 +116,22 @@ export function generarReporteEmpresa(datos, codigoEmpresa, anio, mes) {
       <tbody>
         ${personas.map((p) => `<tr><td>${esc(p.persona)}</td><td class="n">${p.facturas}</td><td class="n">${esc(pesos(p.q1))}</td><td class="n">${esc(pesos(p.q2))}</td><td class="n">${esc(pesos(p.mes))}</td></tr>`).join("\n        ")}
       </tbody>
-      <tfoot><tr><td>TOTAL</td><td class="n">${personas.reduce((a, p) => a + p.facturas, 0)}</td><td class="n">${esc(pesos(sumar(q1)))}</td><td class="n">${esc(pesos(sumar(q2)))}</td><td class="n">${esc(pesos(total))}</td></tr></tfoot>
+      <tfoot><tr><td>TOTAL</td><td class="n">${personas.reduce((a, p) => a + p.facturas, 0)}</td><td class="n">${esc(pesos(totales.q1))}</td><td class="n">${esc(pesos(totales.q2))}</td><td class="n">${esc(pesos(total))}</td></tr></tfoot>
     </table></div>
   </section>
 
   <section>
     <h2>Día por día</h2>
-    ${dias.map((f) => {
-      const renglones = porDia.get(f);
-      const totalDia = sumar(renglones);
-      return `<div class="dia">
-      <h3>${esc(fechaLarga(f))} <span>${contarFacturas(renglones)} facturas · ${esc(pesos(totalDia))}</span></h3>
+    ${dias.map((d) => `<div class="dia">
+      <h3>${esc(fechaLarga(d.fecha))} <span>${d.facturas} facturas · ${esc(pesos(d.total))}</span></h3>
       <div class="marco"><table>
         <thead><tr><th>Persona</th><th>Plato</th><th class="n">Cant.</th><th class="n">Valor</th></tr></thead>
         <tbody>
-          ${renglones
-            .slice()
-            .sort((a, b) => a.persona.localeCompare(b.persona, "es"))
-            .map((c) => `<tr><td>${esc(c.persona)}</td><td${c.facturable === false ? ' class="nocobra"' : ""}>${esc(c.producto)}${c.facturable === false ? " (no se cobra)" : ""}</td><td class="n">${c.cantidad}</td><td class="n">${c.facturable === false ? "—" : esc(pesos(subtotal(c)))}</td></tr>`)
+          ${d.renglones
+            .map((c) => `<tr><td>${esc(c.persona)}</td><td${c.facturable === false ? ' class="nocobra"' : ""}>${esc(c.producto)}${c.facturable === false ? " (no se cobra)" : ""}${c.observacion ? ' <em class="nota">' + esc(c.observacion) + "</em>" : ""}</td><td class="n">${c.cantidad}</td><td class="n">${c.facturable === false ? "—" : esc(pesos(subtotal(c)))}</td></tr>`)
             .join("\n          ")}
         </tbody>
-      </table></div></div>`;
-    }).join("\n    ")}
+      </table></div></div>`).join("\n    ")}
   </section>
 </main>
 
@@ -177,7 +142,7 @@ export function generarReporteEmpresa(datos, codigoEmpresa, anio, mes) {
 </body>
 </html>`;
 
-  return { html, empresa, total, renglones: mios.length };
+  return { html, empresa, total, renglones: totales.renglones };
 }
 
 /** Genera el reporte y lo baja como archivo, listo para mandar. */

@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<title>Probar la comanda</title>
+<style>
+  body { font-family: system-ui, sans-serif; padding: 1rem; background: #f5eee2; margin: 0; }
+  h1 { font-size: 1.15rem; margin: 0 0 .3rem; }
+  p { margin: 0 0 .8rem; font-size: .9rem; color: #574b45; }
+  iframe { width: 1250px; height: 780px; border: 1px solid #c9b99f; display: block; }
+  pre { background: #fff; padding: .7rem; font-size: .85rem; margin-top: .8rem; }
+</style>
+</head>
+<body>
+<h1>La comanda abierta</h1>
+<p>
+  Se elige una persona sola y se mide que la casilla del <em>nombre</em> y la
+  del <em>plato</em> no se vean iguales. Si se ven iguales, tarde o temprano se
+  escribe el plato donde va el nombre &mdash; que es justo lo que pasaba.
+</p>
+<iframe id="app" src="../index.html#registrar"></iframe>
+<pre id="salida">probando…</pre>
+
+<script type="module">
+const esperar = (ms) => new Promise((l) => setTimeout(l, ms));
+const marco = document.getElementById("app");
+
+await new Promise((listo) => {
+  marco.addEventListener("load", listo, { once: true });
+  setTimeout(listo, 15000);
+});
+await esperar(4000);
+
+const doc = marco.contentDocument;
+const win = marco.contentWindow;
+const lineas = [];
+
+// Se elige una persona escribiendo en el buscador y dandole a la primera.
+const casillaNombre = doc.querySelector(".caja-captura input[type='text']");
+if (!casillaNombre) {
+  lineas.push("MAL  no se encontro la casilla del nombre");
+} else {
+  casillaNombre.focus();
+  casillaNombre.value = "a";
+  casillaNombre.dispatchEvent(new win.Event("input", { bubbles: true }));
+  await esperar(400);
+  const primera = doc.querySelector(".buscador-lista li");
+  if (primera) { primera.click(); await esperar(900); }
+}
+
+const comanda = doc.querySelector(".comanda-abierta");
+lineas.push(comanda ? "OK   la comanda se abrio" : "MAL  no se abrio la comanda");
+
+if (comanda) {
+  const casillaPlato = comanda.querySelector("input[type='text']");
+  const nombreDeNuevo = doc.querySelector(".caja-captura > .campo input[type='text']");
+
+  const estilo = (n) => n ? win.getComputedStyle(n) : null;
+  const a = estilo(nombreDeNuevo);
+  const b = estilo(casillaPlato);
+
+  if (a && b) {
+    lineas.push(`borde del nombre: ${a.borderColor}`);
+    lineas.push(`borde del plato:  ${b.borderColor}`);
+    lineas.push(a.borderColor !== b.borderColor
+      ? "OK   las dos casillas NO se ven iguales"
+      : "MAL  las dos casillas tienen el mismo borde");
+  }
+
+  const fondoComanda = win.getComputedStyle(comanda).backgroundColor;
+  const fondoTarjeta = win.getComputedStyle(doc.querySelector(".caja-captura")).backgroundColor;
+  lineas.push(`fondo de la comanda: ${fondoComanda}`);
+  lineas.push(`fondo de la tarjeta: ${fondoTarjeta}`);
+  lineas.push(fondoComanda !== fondoTarjeta
+    ? "OK   la comanda tiene fondo propio"
+    : "MAL  la comanda se confunde con la tarjeta");
+
+  const rotulo = comanda.querySelector(".comanda-abierta-rotulo");
+  lineas.push(rotulo ? `OK   dice "${rotulo.textContent}" arriba del nombre`
+                     : "MAL  no dice de quien es la comanda");
+
+  // Y que la cantidad escrita adelante funcione de verdad.
+  const casilla = comanda.querySelector("input[type='text']");
+  if (casilla) {
+    casilla.focus();
+    casilla.value = "3 almuerzo";
+    casilla.dispatchEvent(new win.Event("input", { bubbles: true }));
+    await esperar(400);
+    const opcion = comanda.querySelector(".buscador-lista li");
+    if (opcion) {
+      opcion.click();
+      await esperar(900);
+      const nueva = doc.querySelector(".comanda-abierta tbody .num");
+      lineas.push(nueva && nueva.textContent.trim() === "3"
+        ? 'OK   "3 almuerzo" anoto 3 de una'
+        : `MAL  "3 almuerzo" anoto ${nueva ? nueva.textContent.trim() : "nada"}`);
+    } else {
+      lineas.push("OJO  no salio ninguna opcion para '3 almuerzo'");
+    }
+  }
+}
+
+document.getElementById("salida").textContent = lineas.join("\n");
+try { await fetch("/diagnostico", { method: "POST", body: lineas.join("\n") }); } catch {}
+</script>
+</body>
+</html>

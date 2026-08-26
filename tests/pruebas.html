@@ -72,6 +72,8 @@
     await import("./personal.test.mjs");
     await import("./sueltos.test.mjs");
     await import("./habitos.test.mjs");
+    await import("./cantidad.test.mjs");
+    await import("./informe.test.mjs");
     await import("./aceptacion.test.mjs");
 
     const { correrYDevolver } = await import("./probar.mjs");
@@ -113,12 +115,27 @@
         caja.append(detalle);
       }
     }
+
+    // Para poder correrlas sin abrir el navegador a mano: si hay un servidor
+    // de pruebas escuchando, se le manda el resumen. En un navegador normal
+    // esto falla en silencio y no cambia nada de lo que se ve arriba.
+    const renglones = [marcador.textContent];
+    for (const r of resultados) {
+      if (!r.paso) renglones.push(`MAL  [${r.grupo}] ${r.nombre}`, `     ${r.mensaje}`);
+    }
+    try {
+      await fetch("/diagnostico", { method: "POST", body: renglones.join("\n") });
+    } catch {}
   } catch (error) {
     marcador.className = "mal";
     marcador.textContent = "No se pudieron ni cargar las pruebas";
     const detalle = document.createElement("pre");
     detalle.textContent = String(error && error.stack || error);
     salida.append(detalle);
+    try {
+      await fetch("/diagnostico", { method: "POST",
+        body: "NO CARGARON LAS PRUEBAS\n" + String(error && error.stack || error) });
+    } catch {}
   }
 </script>
 </body>

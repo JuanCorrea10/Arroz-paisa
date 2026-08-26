@@ -86,7 +86,11 @@ $peligrosos = git diff --cached --name-only | Where-Object {
     $_ -match 'inicial\.json' -or
     $_ -match 'datos\.json' -or
     $_ -match 'personal-' -or
-    $_ -match 'respaldo-'
+    $_ -match 'respaldo-' -or
+    # Los documentos que generan las pruebas: el informe de una empresa lleva
+    # adentro los nombres de toda su gente y lo que comio cada uno.
+    $_ -match '^tests/salida/' -or
+    $_ -match '\.pdf$'
 } | Where-Object { $_ -notmatch '^vendor/' }
 
 if ($peligrosos) {

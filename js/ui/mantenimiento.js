@@ -13,13 +13,14 @@ import {
 } from "./componentes.js";
 import { estado, cambio, empresas } from "./estado.js";
 import { pesos, normalizar, coincide, aEntero } from "../nucleo/formato.js";
-import { clavePrecio, precioDe, indicePorCodigo } from "../nucleo/calculos.js";
+import { clavePrecio, precioDe, indicePorCodigo, clavePersona } from "../nucleo/calculos.js";
 import {
   agregarEmpresa, agregarProducto, agregarPersona,
   puedeBorrarPersona, borrarPersona, puedeBorrarProducto, borrarProducto,
 } from "../nucleo/modelo.js";
 import {
   limpiarNombre, parecidasEnEmpresa, renombrarPersona, tocayosEnOtrasEmpresas,
+  simularUnion, unirPersonas,
 } from "../nucleo/nombres.js";
 
 // ===========================================================================
@@ -387,6 +388,17 @@ async function renombrarPlato(raiz, producto) {
 let buscaPersona = "";
 let empresaFiltro = "";
 
+/**
+ * Las personas marcadas para unir, por su llave (empresa + nombre).
+ *
+ * Esto hacia falta de verdad. La pantalla Revisar solo muestra los nombres
+ * que se PARECEN. Si la misma persona quedo como "JOSE RAMIREZ" y como
+ * "PEPE R. GOMEZ", no se parecen en nada y no aparece nunca: a ella le tocaba
+ * renombrar las dos para que coincidieran y solo entonces se podian unir.
+ * Aqui se marcan las dos y ya.
+ */
+const marcadas = new Set();
+
 export function pintarPersonas(raiz) {
   vaciar(raiz);
   const lista = empresas();
@@ -420,9 +432,14 @@ export function pintarPersonas(raiz) {
     el("p", { clase: "nota" },
       "Una persona se identifica por su nombre ", el("strong", { texto: "y" }),
       " la empresa donde come. Por eso puede haber dos con el mismo nombre en " +
-      "empresas distintas: son personas diferentes. Si cree que un nombre está " +
-      "repetido por error, use la pantalla ",
-      el("a", { href: "#nombres", texto: "Revisar nombres" }), ".")
+      "empresas distintas: son personas diferentes.")
+    ,
+    el("p", { clase: "nota" },
+      "¿La misma persona quedó anotada dos veces con nombres muy distintos? ",
+      el("strong", { texto: "Márquelas con la casilla de la izquierda y únalas" }),
+      ". La pantalla ", el("a", { href: "#nombres", texto: "Revisar nombres" }),
+      " solo encuentra las que se parecen; si de una quedó el apodo y de la " +
+      "otra el nombre completo, no se parecen en nada y allá no salen nunca.")
   );
 
   const filtro = el("select", {
@@ -461,11 +478,14 @@ export function pintarPersonas(raiz) {
     return;
   }
 
+  poner(raiz, barraDeUnir(raiz, todas));
+
   poner(raiz, 
     tabla(
       [
-        { titulo: "Nombre" }, { titulo: "Come en" }, { titulo: "Se le cobra a" },
-        { titulo: "Cédula", clase: "dato" }, { titulo: "", clase: "dato" },
+        { titulo: "" }, { titulo: "Nombre" }, { titulo: "Come en" },
+        { titulo: "Se le cobra a" }, { titulo: "Cédula", clase: "dato" },
+        { titulo: "", clase: "dato" },
       ],
       visibles.slice(0, 300).map((p) => filaDePersona(raiz, p, lista))
     )
@@ -480,7 +500,21 @@ export function pintarPersonas(raiz) {
 function filaDePersona(raiz, persona, lista) {
   const distinto = normalizar(persona.empresaFactura) !== normalizar(persona.empresaCome);
 
+  const llave = clavePersona(persona.empresaCome, persona.nombre);
+
   return el("tr", { clase: persona.activa === false ? "apagada" : "" },
+    el("td", {},
+      el("input", {
+        type: "checkbox",
+        checked: marcadas.has(llave),
+        "aria-label": `Marcar a ${persona.nombre} para unir`,
+        alCambiar: (ev) => {
+          if (ev.target.checked) marcadas.add(llave);
+          else marcadas.delete(llave);
+          pintarPersonas(raiz);
+        },
+      })
+    ),
     el("td", {},
       el("strong", { texto: persona.nombre }),
       persona.activa === false ? el("span", { clase: "etiqueta", texto: "apagada" }) : null
@@ -732,4 +766,137 @@ async function quitarPlato(raiz, producto) {
   } catch (e) {
     mensaje(e.message, "malo", 9);
   }
+}
+
+
+// ===========================================================================
+//  UNIR DOS PERSONAS A MANO
+//
+//  La pantalla Revisar solo muestra los nombres que SE PARECEN. Si la misma
+//  persona quedo como "JOSE RAMIREZ" y como "PEPE R. GOMEZ", no se parecen en
+//  nada, no aparece nunca, y a ella le tocaba renombrar las dos para que
+//  coincidieran y solo entonces unirlas. Un rodeo absurdo.
+//
+//  Aqui se marcan las dos en la lista y se unen. Por dentro usa unirPersonas,
+//  que es la misma funcion probada de siempre: mueve los renglones, borra la
+//  ficha que sobra y no pierde ni un peso.
+// ===========================================================================
+
+function barraDeUnir(raiz, todas) {
+  const elegidas = todas.filter((p) => marcadas.has(clavePersona(p.empresaCome, p.nombre)));
+  if (!elegidas.length) return null;
+
+  const empresasDistintas = [...new Set(elegidas.map((p) => normalizar(p.empresaCome)))];
+  const sePuede = elegidas.length >= 2 && empresasDistintas.length === 1;
+
+  return el("section", { clase: "tarjeta barra-unir" },
+    el("div", { clase: "fila entre" },
+      el("div", {},
+        el("strong", { texto:
+          elegidas.length === 1
+            ? "1 persona marcada"
+            : `${elegidas.length} personas marcadas` }),
+        el("p", { clase: "nota-suelta", texto: elegidas.map((p) => p.nombre).join("  ·  ") })
+      ),
+      el("div", { clase: "fila" },
+        el("button", {
+          clase: "plano chico",
+          alHacerClic: () => { marcadas.clear(); pintarPersonas(raiz); },
+        }, "Desmarcar"),
+        el("button", {
+          clase: "principal",
+          disabled: !sePuede,
+          alHacerClic: () => unirLasMarcadas(raiz, elegidas),
+        }, "Unir las marcadas")
+      )
+    ),
+
+    elegidas.length < 2
+      ? el("p", { clase: "nota", texto: "Marque otra para poder unirlas." })
+      : empresasDistintas.length > 1
+        ? el("p", { clase: "nota malo" },
+            "Están en empresas distintas (", empresasDistintas.join(" y "), "). ",
+            el("strong", { texto: "Eso no se une nunca" }),
+            ": dos personas de empresas distintas son dos personas, " +
+            "aunque se llamen igual. Si de verdad es la misma que se cambió de " +
+            "sede, déjela en las dos y ya.")
+        : null
+  );
+}
+
+async function unirLasMarcadas(raiz, elegidas) {
+  // La que tenga mas renglones va primera: casi siempre es el nombre bueno.
+  const conPeso = elegidas.map((p) => ({
+    persona: p,
+    renglones: estado.datos.consumos.filter(
+      (c) => clavePersona(c.empresaCome, c.persona) === clavePersona(p.empresaCome, p.nombre)
+    ).length,
+  })).sort((a, b) => b.renglones - a.renglones);
+
+  const r = await pedirDatos({
+    titulo: "¿Cuál nombre se queda?",
+    campos: [
+      {
+        nombre: "bueno",
+        etiqueta: "El nombre bueno",
+        tipo: "seleccion",
+        valor: conPeso[0].persona.nombre,
+        opciones: conPeso.map((x) => ({
+          valor: x.persona.nombre,
+          texto: `${x.persona.nombre}  (${x.renglones} renglones)`,
+        })),
+        ayuda: "Los otros nombres desaparecen y sus renglones pasan a este.",
+      },
+    ],
+    textoAceptar: "Ver qué va a pasar",
+  });
+  if (!r) return;
+
+  const empresa = elegidas[0].empresaCome;
+  const otros = elegidas.map((p) => p.nombre).filter((n) => n !== r.bueno);
+  const previa = simularUnion(estado.datos, empresa, r.bueno, otros);
+
+  ventana({
+    titulo: "¿Unir estas personas?",
+    cuerpo: el("div", {},
+      el("p", {},
+        "Todo lo de ",
+        ...otros.map((n, i) => [i ? " y " : "", el("strong", { texto: n })]).flat(),
+        " va a quedar a nombre de ", el("strong", { texto: r.bueno }),
+        ", en ", el("strong", { texto: empresa }), "."),
+      el("dl", { clase: "cifras" },
+        cifra("Renglones que se mueven", String(previa.renglones)),
+        cifra("Días que tocan", String(previa.dias)),
+        cifra("Plata que se mueve", pesos(previa.plata))
+      ),
+      el("p", { clase: "nota bien" },
+        "El total del negocio NO cambia: los renglones son los mismos, solo " +
+        "cambian de dueño."),
+      previa.facturasQueSePierden > 0
+        ? el("p", { clase: "nota ojo" },
+            `Ojo: ${previa.facturasQueSePierden} ` +
+            (previa.facturasQueSePierden === 1 ? "día tiene" : "días tienen") +
+            " los dos nombres comiendo el mismo día. Después de unir van a " +
+            "contar como una sola factura, así que ese número va a bajar. " +
+            "Revise el Cuadre después.")
+        : null
+    ),
+    botones: [
+      { texto: "Cancelar" },
+      {
+        texto: "Sí, unir",
+        clase: "principal",
+        alHacerClic: () => {
+          const hecho = unirPersonas(estado.datos, empresa, r.bueno, otros);
+          marcadas.clear();
+          cambio();
+          pintarPersonas(raiz);
+          mensaje(
+            `Unidas. Se movieron ${hecho.renglones} renglones a ${hecho.nombreBueno}.`,
+            "bien", 7
+          );
+        },
+      },
+    ],
+  });
 }

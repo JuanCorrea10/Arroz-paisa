@@ -253,12 +253,33 @@ export function pedirDatos({ titulo, campos, textoAceptar = "Guardar" }) {
 //   - funciona con el teclado (flechas y Enter) y con el dedo.
 // ---------------------------------------------------------------------------
 
+/**
+ * Separa una cantidad escrita adelante: "3 almuerzo" -> { cuantos: 3, resto: "almuerzo" }
+ *
+ * Existe porque ella transcribe de un audio donde le van dictando. Oye "tres
+ * almuerzos" y lo natural es escribir "3 almuerzo", no buscar el plato y
+ * despues darle tres veces al mas.
+ *
+ * Aguanta "3 almuerzo", "3almuerzo" y "3x almuerzo". Si no hay numero
+ * adelante, devuelve 1 y el texto tal cual: no se pierde nada.
+ */
+export function separarCantidad(texto) {
+  const m = String(texto || "").match(/^\s*(\d{1,3})\s*[xX*]?\s+?(.*)$/);
+  if (!m) return { cuantos: 1, resto: String(texto || "") };
+  const cuantos = Number(m[1]);
+  const resto = m[2].trim();
+  // "12" solo no es "12 de algo": es alguien buscando un plato con numeros.
+  if (!resto) return { cuantos: 1, resto: String(texto || "") };
+  return { cuantos: Math.max(1, Math.min(cuantos, 99)), resto };
+}
+
 export function buscador({
   etiqueta,
   placeholder = "Escriba para buscar...",
   opciones = [],
   alElegir,
   alCrear = null,
+  permiteCantidad = false,
   textoCrear = (t) => `Crear "${t}"`,
   id = "buscador-" + Math.random().toString(36).slice(2, 8),
 }) {
@@ -284,8 +305,17 @@ export function buscador({
     caja
   );
 
+  /** Cuantos pidio en lo ultimo que escribio. Lo lee elegir(). */
+  let ultimaCantidad = 1;
+
   function opcionesVisibles() {
-    const texto = entrada.value.trim();
+    // Si se permite cantidad, se busca por lo que queda despues del numero.
+    const escrito = entrada.value.trim();
+    const { cuantos, resto } = permiteCantidad
+      ? separarCantidad(escrito)
+      : { cuantos: 1, resto: escrito };
+    const texto = resto;
+    ultimaCantidad = cuantos;
     const encontradas = lista.filter((o) => coincide(o.texto, texto));
     const hayExacta = lista.some((o) => o.texto.toUpperCase() === texto.toUpperCase());
     const items = encontradas.slice(0, 60).map((o) => ({ tipo: "opcion", ...o }));
@@ -294,6 +324,7 @@ export function buscador({
     }
     return items;
   }
+
 
   function pintar() {
     visibles = opcionesVisibles();
@@ -336,7 +367,8 @@ export function buscador({
     }
     entrada.value = "";
     ocultar();
-    alElegir(o.valor, o);
+    alElegir(o.valor, o, ultimaCantidad);
+    ultimaCantidad = 1;
   }
 
   entrada.addEventListener("input", () => { resaltado = visibles.length ? 0 : -1; pintar(); });

@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20260826-0826";
+  --version: "20260826-1128";
 }
 
 /* ===========================================================================
@@ -1160,7 +1160,7 @@ thead th {
    =========================================================================== */
 
 /* El centinela: existe pero no ocupa ni se ve. */
-#tope-pagina { position: absolute; top: 0; height: 1px; width: 1px; }
+#tope-pagina { position: absolute; top: 0; height: 8px; width: 1px; }
 
 .barra {
   transition:
@@ -1484,3 +1484,162 @@ html { scroll-behavior: smooth; }
     print-color-adjust: exact;
   }
 }
+
+/* ---------------------------------------------------------------------
+   El header, con el rojo vivo del logo
+
+   El piso de arriba lleva el rojo exacto del logo (#e02d29). El del menu va
+   un tono mas oscuro, y no es capricho: ese rojo con texto blanco da 4.59 de
+   contraste y el minimo comodo es 4.5. Para la marca (letra grande) alcanza
+   de sobra; para los enlaces del menu (letra chica) queda muy justo.
+
+   Un color de marca se respeta, pero no a costa de que ella no lea el menu.
+   --------------------------------------------------------------------- */
+
+.barra { background: var(--marca-viva); }
+.barra::after { background: rgba(0, 0, 0, 0.13); }
+.menu a { --_color: #ffe9e7; }
+.menu a:hover { background: rgba(0, 0, 0, 0.13); }
+.barra.encogida { box-shadow: 0 4px 16px rgba(120, 20, 14, 0.32); }
+
+/* ===========================================================================
+   La comanda abierta: DOS NIVELES QUE SE VEN
+   ===========================================================================
+
+   El problema real: las dos casillas (nombre de la persona y plato) se veian
+   identicas, y ella terminaba escribiendo el plato donde va el nombre.
+
+   Eso no es descuido suyo. Si dos cosas que hacen cosas distintas se ven
+   igual, tarde o temprano se confunden. La culpa es del diseño.
+
+   El arreglo: la comanda deja de ser "otra casilla mas" en la misma tarjeta
+   blanca y se vuelve una caja aparte, con fondo beige y metida hacia adentro,
+   con el nombre de la persona arriba. Se ve de un vistazo que son dos niveles.
+   =========================================================================== */
+
+.comanda-abierta {
+  margin-top: var(--e4);
+  margin-left: var(--e4);
+  padding: var(--e4);
+  background: var(--beige-claro);
+  border: 1px solid var(--beige);
+  border-left: 5px solid var(--marca);
+  border-radius: var(--radio-g);
+}
+
+.comanda-abierta-cabeza {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--e3);
+  flex-wrap: wrap;
+  margin-bottom: var(--e3);
+}
+
+/* "Pedido de" arriba del nombre: dice de quien es esta caja, sin leer nada mas. */
+.comanda-abierta-rotulo {
+  display: block;
+  font-family: var(--display);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+}
+.comanda-abierta-cabeza h4 { font-size: var(--t-lg); }
+.comanda-abierta-cobro {
+  display: block;
+  font-weight: 400;
+  color: var(--tinta-suave);
+  font-size: var(--t-sm);
+}
+
+/* La casilla de platos, con borde de otro color que la del nombre. */
+.comanda-abierta .buscador input {
+  border-color: var(--marca);
+  background: var(--papel);
+}
+.comanda-abierta .buscador input:focus {
+  border-color: var(--marca-oscuro);
+  box-shadow: 0 0 0 3px var(--marca-claro);
+}
+
+.comanda-abierta-vacia {
+  margin: var(--e3) 0 0;
+  color: var(--tinta-suave);
+  font-size: var(--t-sm);
+}
+
+/* Y la del nombre, en azul, para que NUNCA se parezcan. */
+.caja-captura > .campo .buscador input,
+.caja-captura > .campo input[type="text"] {
+  border-color: var(--azul);
+}
+.caja-captura > .campo .buscador input:focus {
+  border-color: var(--azul-hondo);
+  box-shadow: 0 0 0 3px var(--azul-claro);
+}
+
+@media (max-width: 720px) {
+  .comanda-abierta { margin-left: 0; padding: var(--e3); }
+}
+
+/* ---------------------------------------------------------------------
+   Las notas de los platos
+   --------------------------------------------------------------------- */
+
+/* En la comanda: la nota puesta se ve, la que falta se insinua. */
+.nota-renglon {
+  display: inline-block;
+  margin-top: 3px;
+  padding: 2px 8px;
+  min-height: auto;
+  border: 1px solid var(--amarillo);
+  border-radius: 999px;
+  background: var(--amarillo-claro);
+  color: #6b4708;
+  font-size: var(--t-xs);
+  font-family: var(--cuerpo);
+  cursor: pointer;
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+}
+.nota-renglon:hover { background: #f7e4b8; transform: none; }
+
+.agregar-nota {
+  margin-top: 2px;
+  padding: 0 var(--e2);
+  min-height: auto;
+  font-size: var(--t-xs);
+  color: var(--tinta-suave);
+  border-color: transparent;
+  background: transparent;
+}
+.agregar-nota:hover {
+  color: var(--marca);
+  background: var(--marca-claro);
+  border-color: transparent;
+  transform: none;
+}
+
+/* En Cocina: la seccion aparte, en ambar, porque es un "ojo con esto". */
+.notas-cocina { border-left: 5px solid var(--amarillo); margin-top: var(--e5); }
+.notas-cocina h2 { color: #6b4708; }
+.texto-nota { color: #6b4708; }
+
+@media print {
+  /* En el papel de la cocina las notas van si o si. */
+  .notas-cocina { border-left: 3px solid #000 !important; }
+}
+
+/* La barra que aparece al marcar personas para unir. */
+.barra-unir {
+  position: sticky;
+  top: var(--alto-header);
+  z-index: 15;
+  border-left: 5px solid var(--marca);
+  background: var(--marca-claro);
+  margin-bottom: var(--e3);
+}
+.barra-unir p { margin: 2px 0 0; }

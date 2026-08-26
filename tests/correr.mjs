@@ -5,6 +5,8 @@ import "./nombres.test.mjs";
 import "./personal.test.mjs";
 import "./sueltos.test.mjs";
 import "./habitos.test.mjs";
+import "./cantidad.test.mjs";
+import "./informe.test.mjs";
 import "./aceptacion.test.mjs";
 import { correrTodo } from "./probar.mjs";
 await correrTodo();
