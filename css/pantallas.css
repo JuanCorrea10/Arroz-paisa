@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20260826-0814";
+  --version: "20260826-0826";
 }
 
 /* ===========================================================================
@@ -1452,4 +1452,35 @@ html { scroll-behavior: smooth; }
   font-size: var(--t-sm);
   color: var(--tinta-media);
   margin: 0 0 var(--e4);
+}
+
+/* El logo al lado del nombre.
+   Va en blanco con transparencia (ver tests/sacar-logo.html) porque el JPG
+   original trae fondo rojo, y ese rojo NO es el de la barra: puesto tal cual
+   se veria un parche cuadrado de otro tono. */
+.marca-logo {
+  height: 34px;
+  width: auto;
+  flex: none;
+  transition: height 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+.barra.encogida .marca-logo { height: 26px; }
+
+/* El logo en la cuenta de cobro. Es el unico sitio donde se ve al tamaño
+   para el que fue hecho, y es el papel que llega al cliente. */
+.logo-documento {
+  display: block;
+  width: 76px;
+  height: 76px;
+  border-radius: 8px;
+  margin: 0 auto var(--e3);
+}
+
+@media print {
+  /* En papel el logo tiene que salir SI o SI, aunque el navegador venga
+     configurado para no imprimir fondos ni imagenes de color. */
+  .logo-documento {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }

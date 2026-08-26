@@ -12,6 +12,34 @@ const ACHIOTE = [188, 67, 24];
 const GRIS = [109, 125, 116];
 const RAYA = [244, 248, 242];
 
+/**
+ * El logo, listo para meterlo en un PDF.
+ *
+ * jsPDF NO sabe esperar: cuando uno le pide poner una imagen, la necesita ya
+ * convertida. Por eso se carga una sola vez al arrancar y se guarda aqui.
+ * Si no alcanzo a cargar, el PDF sale sin logo y ya: una cuenta de cobro sin
+ * logo sirve igual, pero una que se queda pegada esperando una imagen, no.
+ */
+let logoListo = null;
+
+export async function prepararLogo(ruta = "img/logo.jpg") {
+  if (logoListo) return logoListo;
+  try {
+    const respuesta = await fetch(ruta);
+    if (!respuesta.ok) return null;
+    const trozo = await respuesta.blob();
+    logoListo = await new Promise((listo, falla) => {
+      const lector = new FileReader();
+      lector.onload = () => listo(lector.result);
+      lector.onerror = falla;
+      lector.readAsDataURL(trozo);
+    });
+    return logoListo;
+  } catch {
+    return null; // sin logo se puede vivir; sin cuenta de cobro no
+  }
+}
+
 function nuevoDocumento(orientacion = "p") {
   if (!window.jspdf || !window.jspdf.jsPDF) {
     throw new Error("No se pudo cargar el creador de PDF. Recargue la página (Ctrl + F5).");
@@ -81,6 +109,12 @@ export function pdfCuentaDeCobro(cuenta, acreedor) {
   const periodo = `Del ${rango.desde} al ${rango.hasta} de ${nombreMes(mes).toLowerCase()} de ${anio}`;
 
   let y = encabezado(doc, "CUENTA DE COBRO", `${nombreMes(mes)} ${anio} · Quincena ${quincena}`, acreedor);
+
+  // El logo del restaurante, arriba a la izquierda. Solo si alcanzo a cargar.
+  if (logoListo) {
+    try { doc.addImage(logoListo, "JPEG", 14, 10, 18, 18); }
+    catch { /* si la imagen sale mal, la cuenta se entrega igual */ }
+  }
 
   // La fecha en que se pasa la cuenta, si ella la puso. No se inventa: un
   // documento con fecha inventada es peor que uno sin fecha.

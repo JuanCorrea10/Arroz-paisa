@@ -133,6 +133,16 @@ function documentoDeCobro(cuenta, acreedor) {
   const { empresa, rango, mes, anio, filas, total, facturas, fechaCuenta } = cuenta;
 
   return el("div", { clase: "documento" },
+
+    // El logo va AQUI y no en la barra de la app: este es el papel que se le
+    // entrega al cliente, y aqui se ve grande y con el fondo blanco del
+    // documento, que es como esta hecho para verse.
+    el("img", {
+      clase: "logo-documento",
+      src: "img/logo.jpg",
+      alt: "Arroz Paisa, Ibagué",
+    }),
+
     el("h2", { texto: "Cuenta de cobro" }),
 
     // La fecha en que se pasa la cuenta. Si ella no la ha puesto, NO se

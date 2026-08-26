@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<title>Sacarle el fondo al logo</title>
+<style>
+  body { font-family: system-ui, sans-serif; padding: 1.5rem; background: #f5eee2; }
+  .muestra { display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap; }
+  .caja { padding: 1rem; border-radius: 8px; }
+  .sobre-rojo { background: #a81e17; }
+  .sobre-blanco { background: #fff; border: 1px solid #ccc; }
+  img, canvas { display: block; }
+  pre { background: #fff; padding: .7rem; font-size: .85rem; }
+</style>
+</head>
+<body>
+<h1>Sacarle el fondo al logo</h1>
+<p>
+  El logo viene en JPG con fondo rojo, y ese rojo NO es el mismo de la barra
+  de la app. Puesto tal cual se vería un parche cuadrado de otro tono.
+</p>
+<p>
+  Aquí se le quita el fondo dejando solo el dibujo blanco, con transparencia.
+  Así se puede poner sobre cualquier rojo y se ve como parte de la barra.
+</p>
+
+<div class="muestra">
+  <div class="caja sobre-blanco"><img id="original" src="../img/logo.jpg" width="160"></div>
+  <div class="caja sobre-rojo"><canvas id="salida" width="160" height="160"></canvas></div>
+  <div class="caja sobre-blanco"><canvas id="salida2" width="160" height="160"></canvas></div>
+</div>
+<pre id="informe"></pre>
+
+<script type="module">
+const informe = [];
+const imagen = document.getElementById("original");
+await imagen.decode();
+
+const LADO = 512; // grande, para que se vea bien en pantallas finas
+const lienzo = document.createElement("canvas");
+lienzo.width = LADO;
+lienzo.height = LADO;
+const ctx = lienzo.getContext("2d", { willReadFrequently: true });
+ctx.drawImage(imagen, 0, 0, LADO, LADO);
+
+const datos = ctx.getImageData(0, 0, LADO, LADO);
+const p = datos.data;
+
+/**
+ * Como se separa el dibujo del fondo, sin librerias:
+ *
+ * El fondo es ROJO y el dibujo es BLANCO. En rojo, el verde y el azul estan
+ * bajos; en blanco, los tres estan altos. Asi que el MENOR entre verde y azul
+ * dice, por si solo, que tan blanco es un pixel.
+ *
+ * Ese numero se usa como transparencia y el color se fuerza a blanco puro.
+ * Los bordes suaves del dibujo quedan medio transparentes, que es justo lo
+ * que hace que no se vea recortado a tijera.
+ */
+let opacos = 0;
+for (let i = 0; i < p.length; i += 4) {
+  const verde = p[i + 1];
+  const azul = p[i + 2];
+  let alfa = Math.min(verde, azul);
+
+  // Un poco de contraste para limpiar la basura que deja el JPG: lo casi
+  // transparente se va del todo y lo casi opaco se vuelve opaco.
+  alfa = alfa < 40 ? 0 : alfa > 215 ? 255 : Math.round(((alfa - 40) / 175) * 255);
+
+  p[i] = 255; p[i + 1] = 255; p[i + 2] = 255;
+  p[i + 3] = alfa;
+  if (alfa > 200) opacos++;
+}
+ctx.putImageData(datos, 0, 0);
+
+informe.push(`tamaño: ${LADO} x ${LADO}`);
+informe.push(`pixeles del dibujo: ${opacos} (${Math.round(opacos / (LADO * LADO) * 100)} % de la imagen)`);
+
+// Las dos muestras: sobre rojo (como va en la barra) y sobre blanco.
+for (const id of ["salida", "salida2"]) {
+  const c = document.getElementById(id);
+  c.getContext("2d").drawImage(lienzo, 0, 0, 160, 160);
+}
+
+// Se manda al servidor para dejarlo en img/logo-blanco.png
+const png = lienzo.toDataURL("image/png");
+informe.push(`png: ${Math.round(png.length / 1024)} KB en base64`);
+
+try {
+  const r = await fetch("/guardar-logo", { method: "POST", body: png });
+  informe.push(r.ok || r.status === 204 ? "guardado en img/logo-blanco.png" : "el servidor no lo guardo");
+} catch (e) {
+  informe.push("no se pudo guardar: " + e.message);
+}
+
+document.getElementById("informe").textContent = informe.join("\n");
+try { await fetch("/diagnostico", { method: "POST", body: informe.join("\n") }); } catch {}
+</script>
+</body>
+</html>

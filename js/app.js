@@ -444,6 +444,11 @@ async function arrancar() {
     );
   }
 
+  // El logo para los PDF, en segundo plano. No se espera: si tarda, la app
+  // arranca igual y el primer PDF sale sin logo, que es preferible a hacerla
+  // esperar por una imagen.
+  import("./exportar/pdf.js").then((m) => m.prepararLogo()).catch(() => {});
+
   window.addEventListener("hashchange", pintar);
   // Si cambia el tamaño de la ventana, la pestaña activa se movió de sitio.
   window.addEventListener("resize", () => marcarMenu(pantallaActual()));

@@ -50,6 +50,10 @@ class Manejador(http.server.SimpleHTTPRequestHandler):
         BUZONES = {
             "/diagnostico": "tests/ultimo-diagnostico.txt",
             "/guardar-inicial": "datos/inicial.json",
+            # Lo usa tests/sacar-logo.html, que le quita el fondo al logo.
+            # Ahora mismo la app no necesita esa version, pero la herramienta
+            # queda por si algun dia hace falta un logo sobre fondo de color.
+            "/guardar-logo": "img/logo-blanco.png",
         }
         destino = BUZONES.get(self.path)
         if destino is None:
@@ -58,6 +62,20 @@ class Manejador(http.server.SimpleHTTPRequestHandler):
 
         largo = int(self.headers.get("Content-Length", 0))
         cuerpo = self.rfile.read(largo).decode("utf-8", "replace")
+
+        # Una imagen llega como texto en base64 ("data:image/png;base64,...").
+        # Hay que devolverla a bytes antes de escribirla, o el archivo queda
+        # siendo un texto que ningun navegador puede abrir.
+        if cuerpo.startswith("data:image/"):
+            import base64
+            crudo = base64.b64decode(cuerpo.split(",", 1)[1])
+            os.makedirs(os.path.dirname(destino), exist_ok=True)
+            with open(destino, "wb") as archivo:
+                archivo.write(crudo)
+            print(f"  guardado: {destino} ({len(crudo):,} bytes)")
+            self.send_response(204)
+            self.end_headers()
+            return
         os.makedirs(os.path.dirname(destino), exist_ok=True)
         with open(destino, "w", encoding="utf-8") as archivo:
             archivo.write(cuerpo)

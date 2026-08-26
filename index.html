@@ -15,12 +15,12 @@
   nueva y el navegador no tiene de donde sacar el viejo. Lo cambia solo el
   script de publicar; a mano no se toca.
 -->
-<meta name="version" content="20260826-0814">
+<meta name="version" content="20260826-0826">
 <title>Arroz Paisa — Control de almuerzos</title>
 
-<link rel="stylesheet" href="css/fuentes.css?v=20260826-0814">
-<link rel="stylesheet" href="css/estilos.css?v=20260826-0814">
-<link rel="stylesheet" href="css/pantallas.css?v=20260826-0814">
+<link rel="stylesheet" href="css/fuentes.css?v=20260826-0826">
+<link rel="stylesheet" href="css/estilos.css?v=20260826-0826">
+<link rel="stylesheet" href="css/pantallas.css?v=20260826-0826">
 
 <!-- El logo del restaurante como icono de la pestaña. Es el mismo que hay
      en el aviso del local, asi que ella lo reconoce de una entre veinte
@@ -59,6 +59,10 @@
 
 <header class="barra">
   <div class="barra-piso barra-piso-alto">
+    <!-- Sin el logo a proposito: a 34 px su texto interno es una mancha, y
+         encima repite el nombre que esta al lado. Ese logo esta hecho para
+         verse grande. Va en la cuenta de cobro, que es donde se ve grande y
+         donde de verdad importa que el cliente lo reconozca. -->
     <div class="marca">Arroz Paisa <span>Ibagué</span></div>
     <div class="periodo" id="periodo"></div>
     <div class="guardado" id="guardado" data-estado="bien" role="status" aria-live="polite" title="Si esta verde, todo esta guardado">
@@ -87,7 +91,7 @@
   </div>
 </noscript>
 
-<script type="module" src="js/app.js?v=20260826-0814"></script>
+<script type="module" src="js/app.js?v=20260826-0826"></script>
 
 <script>
   // Si el navegador es muy viejo y no entiende módulos, el script de arriba ni
