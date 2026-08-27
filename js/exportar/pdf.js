@@ -89,27 +89,105 @@ function nuevoDocumento(orientacion = "p") {
   return new window.jspdf.jsPDF({ orientation: orientacion, unit: "mm", format: "letter" });
 }
 
-/** El encabezado verde que llevan todos los documentos. */
-function encabezado(doc, titulo, subtitulo, acreedor) {
+// ---------------------------------------------------------------------------
+//  Que un nombre quepa
+//
+//  Los nombres de las empresas no miden todos lo mismo: "INDUSTRIAS MGP" y
+//  "BOTAS AGROINDUSTRIAL SAS" no ocupan igual. Con un tamano de letra fijo hay
+//  que escoger el que le sirva al nombre mas largo, y entonces TODOS salen
+//  chiquitos -- que es de lo que se quejo quien recibe los documentos.
+//
+//  Aqui no se escoge un tamano: se escoge un hueco, y el nombre sale con la
+//  letra mas grande que quepa en ese hueco.
+// ---------------------------------------------------------------------------
+
+/**
+ * De un renglon al siguiente, en milimetros.
+ *
+ * jsPDF pide el tamano de letra en puntos pero pinta en milimetros, y un punto
+ * son 0.3528 mm. Separar dos renglones "a ojo" con un numero fijo cuadra con
+ * una letra y se pisa con la de al lado; con esto no hay que adivinar.
+ */
+const ALTO_RENGLON = 1.15 * 0.3528; // el mismo interlineado que usa jsPDF
+
+/**
+ * El tamano de letra mas grande con el que el texto todavia cabe en el ancho.
+ *
+ * Se empieza por el grande y se va bajando de a poco. Del minimo no baja: si
+ * ni asi cabe, se parte en renglones. La letra (negrilla o normal) hay que
+ * ponerla ANTES de llamar, porque la negrilla mide mas y si no la cuenta sale
+ * corta y el texto se sale igual.
+ */
+function medirAjustado(doc, texto, anchoMax, tamMax, tamMin) {
+  const t = String(texto || "-");
+  let tam = tamMax;
+  while (tam > tamMin) {
+    doc.setFontSize(tam);
+    if (doc.getTextWidth(t) <= anchoMax) break;
+    tam -= 0.5;
+  }
+  doc.setFontSize(tam);
+  const renglones = doc.getTextWidth(t) <= anchoMax ? [t] : doc.splitTextToSize(t, anchoMax);
+  return { tam, renglones, alto: renglones.length * tam * ALTO_RENGLON };
+}
+
+/** Lo escribe con esa letra y devuelve la medida, para saber que sigue debajo. */
+function escribirAjustado(doc, texto, x, y, anchoMax, tamMax, tamMin, opciones) {
+  const medida = medirAjustado(doc, texto, anchoMax, tamMax, tamMin);
+  doc.setFontSize(medida.tam);
+  doc.text(medida.renglones, x, y, opciones);
+  return medida;
+}
+
+/** El encabezado rojo que llevan todos los documentos. */
+function encabezado(doc, titulo, subtitulo, acreedor, conLogo = false) {
   const ancho = doc.internal.pageSize.getWidth();
   doc.setFillColor(...MARCA);
   doc.rect(0, 0, ancho, 26, "F");
 
+  // El logo va PRIMERO y en su propio pedazo de la franja, y las letras se
+  // corren para dejarle el sitio.
+  //
+  // Antes se pintaba de ultimo y en el mismo punto donde arranca el subtitulo:
+  // el dibujo es blanco, la letra tambien, y el mes quedaba tapado desde la
+  // primera silaba. Eso no se ve en el codigo -- hay que medir el dibujo para
+  // darse cuenta -- pero en el papel salta a la vista.
+  //
+  // Si el logo no alcanzo a cargar no se deja el hueco vacio: las letras se
+  // corren solo cuando de verdad hay algo que esquivar.
+  const izquierda = conLogo && ponerLogo(doc, 12, 4, 18, 18) ? 34 : 14;
+
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(15);
-  doc.text(titulo, 14, 12);
+  doc.text(titulo, izquierda, 12);
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9.5);
-  doc.text(subtitulo, 14, 19);
-
+  // El bloque de la derecha se pinta primero, para saber cuanto sitio deja.
+  // El subtitulo es donde va el nombre de la empresa, y si se agranda a ciegas
+  // termina montado encima de este bloque: jsPDF no avisa cuando dos textos se
+  // pisan, los pinta uno sobre el otro y quien lee no entiende nada.
+  let ocupaDerecha = 0;
   if (acreedor && acreedor.nombre) {
-    doc.setFontSize(9);
-    doc.text(acreedor.nombre, ancho - 14, 12, { align: "right" });
-    if (acreedor.nit) doc.text("NIT " + acreedor.nit, ancho - 14, 17.5, { align: "right" });
-    if (acreedor.ciudad) doc.text(acreedor.ciudad, ancho - 14, 22.5, { align: "right" });
+    doc.setFont("helvetica", "bold");
+    const nombre = escribirAjustado(doc, acreedor.nombre, ancho - 14, 11.5, 76, 10.5, 7.5, { align: "right" });
+    ocupaDerecha = doc.getTextWidth(nombre.renglones[0]);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    if (acreedor.nit) {
+      doc.text("NIT " + acreedor.nit, ancho - 14, 17.5, { align: "right" });
+      ocupaDerecha = Math.max(ocupaDerecha, doc.getTextWidth("NIT " + acreedor.nit));
+    }
+    if (acreedor.ciudad) {
+      doc.text(acreedor.ciudad, ancho - 14, 22.5, { align: "right" });
+      ocupaDerecha = Math.max(ocupaDerecha, doc.getTextWidth(acreedor.ciudad));
+    }
   }
+
+  // El subtitulo lleva el mes y el nombre de la empresa. Iba en 9.5, la letra
+  // mas chiquita de la hoja, siendo lo que mas se busca al recibir el papel.
+  doc.setFont("helvetica", "normal");
+  escribirAjustado(doc, subtitulo, izquierda, 19.5, ancho - izquierda - 20 - ocupaDerecha, 11.5, 8);
+
   doc.setTextColor(0, 0, 0);
   return 34;
 }
@@ -150,11 +228,9 @@ export function pdfCuentaDeCobro(cuenta, acreedor) {
   const { empresa, anio, mes, quincena, rango, filas, total, facturas, fechaCuenta } = cuenta;
   const periodo = `Del ${rango.desde} al ${rango.hasta} de ${nombreMes(mes).toLowerCase()} de ${anio}`;
 
-  let y = encabezado(doc, "CUENTA DE COBRO", `${nombreMes(mes)} ${anio} · Quincena ${quincena}`, acreedor);
-
-  // El logo del restaurante, arriba a la izquierda. Si no alcanzo a cargar o
-  // sale mal, la cuenta se entrega igual: sin logo se cobra, sin cuenta no.
-  ponerLogo(doc, 14, 10, 18, 18);
+  // Con el logo del restaurante en la franja. Si no alcanzo a cargar, la
+  // cuenta se entrega igual: sin logo se cobra, sin cuenta no.
+  let y = encabezado(doc, "CUENTA DE COBRO", `${nombreMes(mes)} ${anio} · Quincena ${quincena}`, acreedor, true);
 
   // La fecha en que se pasa la cuenta, si ella la puso. No se inventa: un
   // documento con fecha inventada es peor que uno sin fecha.
@@ -168,11 +244,31 @@ export function pdfCuentaDeCobro(cuenta, acreedor) {
   }
 
   // Quién le cobra a quién. Es lo primero que mira el contador del cliente.
+  //
+  // Los dos nombres salen del mismo tamano y lo mas grandes que quepan. Del
+  // mismo tamano porque son la misma cosa vista de los dos lados: si uno sale
+  // grande y el otro chiquito, el documento se ve mal armado.
+  const quienCobra = acreedor.nombre || "-";
+  const aQuienCobra = empresa.razonSocial || empresa.codigo;
+  const utilCaja = 80;
+  doc.setFont("helvetica", "bold");
+  const mideIzq = medirAjustado(doc, quienCobra, utilCaja, 15, 9.5);
+  const mideDer = medirAjustado(doc, aQuienCobra, utilCaja, 15, 9.5);
+  const tamNombre = Math.min(mideIzq.tam, mideDer.tam);
+  const renglonesNombre = Math.max(mideIzq.renglones.length, mideDer.renglones.length);
+
+  // La cajita se hace del alto que pidan los nombres, no al reves. Antes era
+  // de 26 mm fijos y por eso el nombre tenia que ser chiquito para caber.
+  const baseNombre = y + 14;
+  const baseNit = baseNombre + (renglonesNombre - 1) * tamNombre * ALTO_RENGLON + 8;
+  const altoCaja = baseNit - y + 5;
+
   doc.setDrawColor(207, 219, 203);
   doc.setFillColor(251, 252, 250);
-  doc.roundedRect(14, y, 88, 26, 1.5, 1.5, "FD");
-  doc.roundedRect(108, y, 88, 26, 1.5, 1.5, "FD");
+  doc.roundedRect(14, y, 88, altoCaja, 1.5, 1.5, "FD");
+  doc.roundedRect(108, y, 88, altoCaja, 1.5, 1.5, "FD");
 
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
   doc.setTextColor(...GRIS);
   doc.text("QUIEN COBRA", 18, y + 6);
@@ -180,16 +276,16 @@ export function pdfCuentaDeCobro(cuenta, acreedor) {
 
   doc.setTextColor(22, 33, 27);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10.5);
-  doc.text(doc.splitTextToSize(acreedor.nombre || "-", 80), 18, y + 12);
-  doc.text(doc.splitTextToSize(empresa.razonSocial || empresa.codigo, 80), 112, y + 12);
+  doc.setFontSize(tamNombre);
+  doc.text(doc.splitTextToSize(quienCobra, utilCaja), 18, baseNombre);
+  doc.text(doc.splitTextToSize(aQuienCobra, utilCaja), 112, baseNombre);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text("NIT " + (acreedor.nit || "-"), 18, y + 21);
-  doc.text("NIT " + (empresa.nit || "-"), 112, y + 21);
+  doc.text("NIT " + (acreedor.nit || "-"), 18, baseNit);
+  doc.text("NIT " + (empresa.nit || "-"), 112, baseNit);
 
-  y += 33;
+  y += altoCaja + 7;
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   doc.text("Concepto:", 14, y);
@@ -426,11 +522,14 @@ function portada(doc, informe) {
   doc.setFontSize(15);
   doc.text(nombreMes(mes) + " de " + anio, 18, 41);
 
+  // De quien es este documento. Iba en 13, al lado de un "Almuerzos" de 26, y
+  // parecia una nota al pie: el mes se leia mas que la empresa. Ahora sale con
+  // la letra mas grande que quepa en el hueco que deja el logo.
+  doc.setFont("helvetica", "bold");
+  const nombre = escribirAjustado(doc, empresa.razonSocial || empresa.codigo, 18, 58, ancho - 76, 22, 11);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(13);
-  doc.text(empresa.razonSocial || empresa.codigo, 18, 56, { maxWidth: ancho - 82 });
   doc.setFontSize(9.5);
-  doc.text("Sede " + empresa.codigo, 18, 64);
+  doc.text("Sede " + empresa.codigo, 18, 58 + (nombre.renglones.length - 1) * nombre.tam * ALTO_RENGLON + 7);
 
   // Las cuatro cifras grandes, como las tarjetas de la pantalla.
   const cifras = [

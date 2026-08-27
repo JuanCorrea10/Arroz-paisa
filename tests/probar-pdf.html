@@ -132,14 +132,46 @@ if (revento) {
     anotar("OK   las cuatro cifras de la portada caben en su cajita");
   }
 
-  // El nombre de la empresa, que es el que más largo puede salir.
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(13);
+  // --- El nombre de la empresa --------------------------------------------
+  //
+  // Ya no lleva un tamaño fijo: sale con la letra más grande que quepa en el
+  // hueco. Aquí se repite esa misma cuenta para saber con qué tamaño salió de
+  // verdad -- si algún día se achica sin que nadie lo pida, esto lo dice.
+  const cabeEn = (texto, hueco, tamMax, tamMin) => {
+    let tam = tamMax;
+    while (tam > tamMin) {
+      doc.setFontSize(tam);
+      if (doc.getTextWidth(texto) <= hueco) break;
+      tam -= 0.5;
+    }
+    doc.setFontSize(tam);
+    return { tam, ancho: doc.getTextWidth(texto), cabe: doc.getTextWidth(texto) <= hueco };
+  };
+
   const nombre = informe.empresa.razonSocial || informe.empresa.codigo;
-  const anchoNombre = doc.getTextWidth(nombre);
-  anotar(anchoNombre <= ancho - 82
+  const hueco = ancho - 76;
+  doc.setFont("helvetica", "bold");
+  const enPortada = cabeEn(nombre, hueco, 22, 11);
+  anotar(`el nombre "${nombre}" sale en ${enPortada.tam} pt y mide ` +
+         `${enPortada.ancho.toFixed(1)} mm de los ${hueco.toFixed(1)} mm del hueco`);
+  anotar(enPortada.cabe
     ? "OK   el nombre de la empresa cabe en la portada"
-    : `OJO  el nombre "${nombre}" mide ${anchoNombre.toFixed(1)} mm y el hueco es ${(ancho - 82).toFixed(1)} mm (se parte solo)`);
+    : `OJO  ni en ${enPortada.tam} pt cabe: se parte en dos renglones`);
+  // Iba en 13 pt y desde el otro lado se veía chiquito. Que no se devuelva.
+  anotar(enPortada.tam >= 15
+    ? "OK   sale más grande que antes (iba en 13 pt)"
+    : `MAL  quedó en ${enPortada.tam} pt: casi como antes`);
+
+  // Y los dos nombres de la cuenta de cobro, que van en cajitas de 88 mm con
+  // 4 mm de margen a cada lado.
+  const acreedor = datos.config.acreedor || {};
+  const enCaja = Math.min(
+    cabeEn(acreedor.nombre || "-", 80, 15, 9.5).tam,
+    cabeEn(nombre, 80, 15, 9.5).tam
+  );
+  anotar(enCaja >= 12
+    ? `OK   en la cuenta de cobro los dos nombres salen en ${enCaja} pt (iban en 10.5)`
+    : `MAL  en la cuenta de cobro los nombres quedaron en ${enCaja} pt`);
 
   // Se deja verlo con los ojos.
   const marco = document.createElement("iframe");
