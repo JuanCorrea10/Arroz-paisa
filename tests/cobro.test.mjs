@@ -26,8 +26,7 @@ const PRECIO = 12000;
 function renglon(cobro, extra = {}) {
   return {
     fecha: "2026-08-05",
-    empresaCome: "MGP",
-    empresaFactura: "MGP",
+    empresa: "MGP",
     persona: "JUAN GOMEZ",
     producto: "ALMUERZO",
     precioUnitario: PRECIO,
@@ -41,8 +40,8 @@ function negocio(consumos) {
   return {
     empresas: [{ codigo: "MGP", razonSocial: "Metalúrgica MGP", ultimoDiaQ1: 15 }],
     personas: [
-      { nombre: "JUAN GOMEZ", empresaCome: "MGP", empresaFactura: "MGP" },
-      { nombre: "ANA RUIZ", empresaCome: "MGP", empresaFactura: "MGP" },
+      { nombre: "JUAN GOMEZ", empresa: "MGP" },
+      { nombre: "ANA RUIZ", empresa: "MGP" },
     ],
     productos: [{ nombre: "ALMUERZO" }],
     precios: {},

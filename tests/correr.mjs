@@ -9,6 +9,7 @@ import "./cantidad.test.mjs";
 import "./precios.test.mjs";
 import "./cobro.test.mjs";
 import "./informe.test.mjs";
+import "./empresa-unica.test.mjs";
 import "./aceptacion.test.mjs";
 import { correrTodo } from "./probar.mjs";
 await correrTodo();

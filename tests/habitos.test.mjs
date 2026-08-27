@@ -16,7 +16,7 @@ let n = 0;
 function renglon(fecha, empresa, persona, producto, precio = 12000, cantidad = 1) {
   n++;
   return {
-    id: "h" + n, fecha, empresaCome: empresa, empresaFactura: empresa,
+    id: "h" + n, fecha, empresa: empresa,
     persona, producto, cantidad, precioUnitario: precio,
     facturable: true, observacion: "", revisar: [],
   };
@@ -41,8 +41,8 @@ function datosDePrueba() {
       "PLATO APAGADO|AGRO": 9000,
     },
     personas: [
-      { nombre: "ANA", empresaCome: "AGRO", empresaFactura: "AGRO", activa: true },
-      { nombre: "BETO", empresaCome: "AGRO", empresaFactura: "AGRO", activa: true },
+      { nombre: "ANA", empresa: "AGRO", activa: true },
+      { nombre: "BETO", empresa: "AGRO", activa: true },
     ],
     consumos: [
       // ANA pide almuerzo todos los días, y un día se antojó de postre.
@@ -107,7 +107,7 @@ prueba("de alguien que nunca ha venido no hay costumbre", () => {
 
 prueba("solo mira a esa persona en esa empresa", () => {
   const datos = datosDePrueba();
-  datos.personas.push({ nombre: "ANA", empresaCome: "MGP", empresaFactura: "MGP", activa: true });
+  datos.personas.push({ nombre: "ANA", empresa: "MGP", activa: true });
   datos.consumos.push(
     renglon("2026-08-03", "MGP", "ANA", "POSTRE", 5000),
     renglon("2026-08-04", "MGP", "ANA", "POSTRE", 5000)

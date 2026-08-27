@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20260827-0746";
+  --version: "20260827-1812";
 }
 
 /* ===========================================================================
@@ -1547,13 +1547,6 @@ html { scroll-behavior: smooth; }
   color: var(--tinta-suave);
 }
 .comanda-abierta-cabeza h4 { font-size: var(--t-lg); }
-.comanda-abierta-cobro {
-  display: block;
-  font-weight: 400;
-  color: var(--tinta-suave);
-  font-size: var(--t-sm);
-}
-
 /* La casilla de platos, con borde de otro color que la del nombre. */
 .comanda-abierta .buscador input {
   border-color: var(--marca);
@@ -1741,9 +1734,13 @@ input.precio.disparejo { border-color: var(--amarillo, #9c6a06); background: #fb
    Sin esto, la columna del plato se estira y el precio queda a media pantalla
    de distancia del nombre: para leer "ALMUERZO ... 12000" toca cruzar un hueco
    vacío con los ojos. Con el precio pegado al nombre se lee de un golpe. */
-.tabla-catalogo th:nth-child(1), .tabla-catalogo td:nth-child(1) { width: 42%; }
-.tabla-catalogo th:nth-child(2), .tabla-catalogo td:nth-child(2) { width: 1%; white-space: nowrap; }
-.tabla-catalogo th:nth-child(3), .tabla-catalogo td:nth-child(3) { width: auto; }
+/* La primera columna es la casilla de marcar: lo más angosta que se pueda.
+   Si no se le dice, el navegador le reparte parte del ancho sobrante y el
+   nombre del plato termina arrancando en la mitad de la hoja. */
+.tabla-catalogo th:nth-child(1), .tabla-catalogo td:nth-child(1) { width: 1%; white-space: nowrap; }
+.tabla-catalogo th:nth-child(2), .tabla-catalogo td:nth-child(2) { width: 42%; }
+.tabla-catalogo th:nth-child(3), .tabla-catalogo td:nth-child(3) { width: 1%; white-space: nowrap; }
+.tabla-catalogo th:nth-child(4), .tabla-catalogo td:nth-child(4) { width: auto; }
 
 /* El signo de pesos, al lado de la casilla: adentro no se puede, porque una
    casilla de número no deja poner texto. */

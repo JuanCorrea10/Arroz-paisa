@@ -167,7 +167,7 @@ function pintarAjustes(donde) {
     {
       href: "#personas",
       titulo: "Personas",
-      texto: "Quién come en cada empresa y a quién se le cobra.",
+      texto: "Quién come en cada empresa.",
       pendiente: null,
     },
     {

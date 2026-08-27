@@ -271,7 +271,7 @@ async function cruzarArchivo(raiz, codigoEmpresa, archivo) {
             unidas += otros.length;
             // A la que quedó le ponemos el documento, que es lo que lo probó.
             const persona = estado.datos.personas.find(
-              (p) => normalizar(p.empresaCome) === f.empresa &&
+              (p) => normalizar(p.empresa) === f.empresa &&
                      limpiarNombre(p.nombre) === limpiarNombre(f.sugerido));
             if (persona && f.documento) {
               persona.documento = f.documento;
@@ -576,7 +576,7 @@ function tocayosEntreEmpresas(datos) {
 
   const lista = [];
   for (const personas of porEsqueleto.values()) {
-    const empresas = [...new Set(personas.map((p) => normalizar(p.empresaCome)))];
+    const empresas = [...new Set(personas.map((p) => normalizar(p.empresa)))];
     if (empresas.length < 2) continue;
     lista.push({ nombre: personas[0].nombre, empresas: empresas.sort() });
   }

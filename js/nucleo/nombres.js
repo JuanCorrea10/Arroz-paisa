@@ -276,7 +276,7 @@ export function parecidasEnEmpresa(datos, nombre, codigoEmpresa, documento = "")
   const encontradas = [];
 
   for (const p of datos.personas) {
-    if (normalizar(p.empresaCome) !== empresa) continue;
+    if (normalizar(p.empresa) !== empresa) continue;
 
     // Si sabemos los dos documentos, no hay nada que adivinar.
     const veredicto = queDiceElDocumento({ documento }, p);
@@ -306,7 +306,7 @@ export function tocayosEnOtrasEmpresas(datos, nombre, codigoEmpresa) {
   const empresa = normalizar(codigoEmpresa);
   const esq = esqueleto(nombre);
   return datos.personas.filter(
-    (p) => normalizar(p.empresaCome) !== empresa && esqueleto(p.nombre) === esq
+    (p) => normalizar(p.empresa) !== empresa && esqueleto(p.nombre) === esq
   );
 }
 
@@ -342,7 +342,7 @@ export function marcarDistintos(datos, codigoEmpresa, nombreA, nombreB) {
 export function pesoDePersonas(datos) {
   const peso = new Map();
   for (const c of datos.consumos) {
-    const llave = clavePersona(c.empresaCome, c.persona);
+    const llave = clavePersona(c.empresa, c.persona);
     const p = peso.get(llave) || { renglones: 0, total: 0, ultimaFecha: "" };
     p.renglones++;
     p.total += subtotal(c);
@@ -366,7 +366,7 @@ export function gruposParaRevisar(datos, { incluirRevisados = false } = {}) {
   // Primero repartimos las personas por empresa: solo se comparan entre ellas.
   const porEmpresa = new Map();
   for (const p of datos.personas) {
-    const emp = normalizar(p.empresaCome);
+    const emp = normalizar(p.empresa);
     if (!porEmpresa.has(emp)) porEmpresa.set(emp, []);
     porEmpresa.get(emp).push(p);
   }
@@ -428,11 +428,11 @@ export function gruposParaRevisar(datos, { incluirRevisados = false } = {}) {
 
       const integrantes = miembros
         .map((p) => {
-          const w = peso.get(clavePersona(p.empresaCome, p.nombre)) ||
+          const w = peso.get(clavePersona(p.empresa, p.nombre)) ||
             { renglones: 0, total: 0, ultimaFecha: "" };
           return {
             nombre: p.nombre,
-            empresaFactura: p.empresaFactura,
+            empresa: p.empresa,
             activa: p.activa !== false,
             documento: p.documento || "",
             renglones: w.renglones,
@@ -466,7 +466,7 @@ export function nombresSucios(datos) {
   for (const p of datos.personas) {
     if (necesitaLimpieza(p.nombre)) {
       sucios.push({
-        empresa: normalizar(p.empresaCome),
+        empresa: normalizar(p.empresa),
         antes: p.nombre,
         despues: limpiarNombre(p.nombre),
       });
@@ -511,7 +511,7 @@ export function simularUnion(datos, codigoEmpresa, nombreBueno, nombresAbsorbido
   const dias = new Set();
 
   for (const c of datos.consumos) {
-    if (normalizar(c.empresaCome) !== empresa) continue;
+    if (normalizar(c.empresa) !== empresa) continue;
     if (!malos.includes(normalizar(c.persona))) continue;
     renglones++;
     plata += subtotal(c);
@@ -524,7 +524,7 @@ export function simularUnion(datos, codigoEmpresa, nombreBueno, nombresAbsorbido
   // cuadra ese número contra lo que le dice el trabajador.
   const nombresPorDia = new Map();
   for (const c of datos.consumos) {
-    if (normalizar(c.empresaCome) !== empresa) continue;
+    if (normalizar(c.empresa) !== empresa) continue;
     const n = normalizar(c.persona);
     if (n !== guardadoBueno && !malos.includes(n)) continue;
     if (!nombresPorDia.has(c.fecha)) nombresPorDia.set(c.fecha, new Set());
@@ -560,12 +560,12 @@ export function unirPersonas(datos, codigoEmpresa, nombreBueno, nombresAbsorbido
   // Si buscáramos por el nombre limpio podríamos agarrar por error a una de
   // las que están a punto de desaparecer.
   const laBuena = datos.personas.find(
-    (p) => normalizar(p.empresaCome) === empresa && normalizar(p.nombre) === guardadoBueno
+    (p) => normalizar(p.empresa) === empresa && normalizar(p.nombre) === guardadoBueno
   );
 
   // 1) Los renglones pasan al nombre bueno, ya limpio.
   for (const c of datos.consumos) {
-    if (normalizar(c.empresaCome) !== empresa) continue;
+    if (normalizar(c.empresa) !== empresa) continue;
     const guardado = normalizar(c.persona);
     const eraAbsorbido = absorbidos.includes(guardado);
     // Los del bueno también se tocan, para que queden con el nombre limpio.
@@ -573,14 +573,14 @@ export function unirPersonas(datos, codigoEmpresa, nombreBueno, nombresAbsorbido
     c.persona = bueno;
     // A quién se le factura lo manda la persona que se queda, pero solo se
     // les cambia a los que vienen de otra ficha. Los del bueno se respetan.
-    if (eraAbsorbido && laBuena && laBuena.empresaFactura) {
-      c.empresaFactura = normalizar(laBuena.empresaFactura);
+    if (eraAbsorbido && laBuena && laBuena.empresa) {
+      c.empresa = normalizar(laBuena.empresa);
     }
   }
 
   // 2) Las personas absorbidas salen de la lista.
   datos.personas = datos.personas.filter(
-    (p) => !(normalizar(p.empresaCome) === empresa &&
+    (p) => !(normalizar(p.empresa) === empresa &&
              absorbidos.includes(normalizar(p.nombre)))
   );
 
@@ -591,8 +591,8 @@ export function unirPersonas(datos, codigoEmpresa, nombreBueno, nombresAbsorbido
   } else {
     datos.personas.push({
       nombre: bueno,
-      empresaCome: empresa,
-      empresaFactura: empresa,
+      empresa: empresa,
+      empresa: empresa,
       activa: true,
     });
   }
@@ -613,6 +613,99 @@ export function unirPersonas(datos, codigoEmpresa, nombreBueno, nombresAbsorbido
   return { ...previa, hecho: true };
 }
 
+// ---------------------------------------------------------------------------
+//  CAMBIAR DE EMPRESA
+//
+//  Hacía falta por una razón muy concreta: la misma persona quedaba anotada
+//  dos veces, una en cada empresa -- porque se cambió de sede, o porque al
+//  anotarla estaba escogida la empresa equivocada. Y como unir solo se puede
+//  dentro de la misma empresa (y así tiene que ser: hay 79 nombres que existen
+//  en dos sedes y son personas distintas), esas dos fichas se quedaban ahí
+//  para siempre, cada una con la mitad de los renglones.
+//
+//  Con esto se pasa una a la empresa de la otra, y ahí sí se pueden unir. Si
+//  al llegar ya hay alguien con ese mismo nombre, la mudanza ES la unión: los
+//  renglones se juntan y la ficha que sobra se cae.
+//
+//  Lo que NO hace: tocar el precio de un renglón viejo. El precio quedó
+//  congelado el día que se anotó y así se queda -- lo que cambia es a qué
+//  empresa se le cobra, que es justamente lo que se le está pidiendo.
+// ---------------------------------------------------------------------------
+
+/** Qué pasaría si se moviera. No cambia nada. */
+export function simularCambioDeEmpresa(datos, empresaVieja, nombre, empresaNueva) {
+  const vieja = normalizar(empresaVieja);
+  const nueva = normalizar(empresaNueva);
+  const quien = normalizar(nombre);
+
+  let renglones = 0;
+  let plata = 0;
+  const dias = new Set();
+  for (const c of datos.consumos) {
+    if (normalizar(c.empresa) !== vieja) continue;
+    if (normalizar(c.persona) !== quien) continue;
+    renglones++;
+    plata += subtotal(c);
+    dias.add(c.fecha);
+  }
+
+  // ¿Allá ya hay alguien que se llama igual? Entonces esto es una unión.
+  const laOtra = datos.personas.find(
+    (p) => normalizar(p.empresa) === nueva && normalizar(p.nombre) === quien
+  );
+  let renglonesDeLaOtra = 0;
+  if (laOtra) {
+    for (const c of datos.consumos) {
+      if (normalizar(c.empresa) !== nueva) continue;
+      if (normalizar(c.persona) !== quien) continue;
+      renglonesDeLaOtra++;
+    }
+  }
+
+  return {
+    vieja, nueva, nombre: quien,
+    renglones, plata, dias: dias.size,
+    seFusiona: Boolean(laOtra),
+    renglonesDeLaOtra,
+  };
+}
+
+/** La mueve de verdad. Devuelve lo mismo que la simulación, más `hecho`. */
+export function cambiarDeEmpresa(datos, empresaVieja, nombre, empresaNueva) {
+  const previa = simularCambioDeEmpresa(datos, empresaVieja, nombre, empresaNueva);
+  const { vieja, nueva, nombre: quien } = previa;
+  if (!vieja || !nueva || vieja === nueva) return { ...previa, hecho: false };
+
+  for (const c of datos.consumos) {
+    if (normalizar(c.empresa) !== vieja) continue;
+    if (normalizar(c.persona) !== quien) continue;
+    c.empresa = nueva;
+  }
+
+  const ficha = datos.personas.find(
+    (p) => normalizar(p.empresa) === vieja && normalizar(p.nombre) === quien
+  );
+  if (previa.seFusiona) {
+    // Allá ya estaba: la ficha de acá sobra. Los renglones ya se fueron.
+    datos.personas = datos.personas.filter((p) => p !== ficha);
+  } else if (ficha) {
+    ficha.empresa = nueva;
+  }
+
+  // Las marcas de "estos dos son distintos" eran de la empresa vieja y ya no
+  // dicen nada de nadie. Se caen las que hablan de esta persona.
+  if (Array.isArray(datos.nombresDistintos)) {
+    const limpio = limpiarNombre(quien);
+    datos.nombresDistintos = datos.nombresDistintos.filter((llave) => {
+      const [emp, a, b] = llave.split("|");
+      if (emp !== vieja) return true;
+      return a !== limpio && b !== limpio;
+    });
+  }
+
+  return { ...previa, hecho: true };
+}
+
 /** Cambia el nombre de una persona y arrastra todos sus renglones con ella. */
 export function renombrarPersona(datos, codigoEmpresa, nombreViejo, nombreNuevo) {
   const empresa = normalizar(codigoEmpresa);
@@ -626,7 +719,7 @@ export function renombrarPersona(datos, codigoEmpresa, nombreViejo, nombreNuevo)
   if (viejo === nuevo) return { movidos: 0 };
 
   const chocaCon = datos.personas.find(
-    (p) => normalizar(p.empresaCome) === empresa &&
+    (p) => normalizar(p.empresa) === empresa &&
            normalizar(p.nombre) !== viejo &&
            limpiarNombre(p.nombre) === nuevo
   );
@@ -639,13 +732,13 @@ export function renombrarPersona(datos, codigoEmpresa, nombreViejo, nombreNuevo)
 
   let movidos = 0;
   for (const c of datos.consumos) {
-    if (normalizar(c.empresaCome) === empresa && normalizar(c.persona) === viejo) {
+    if (normalizar(c.empresa) === empresa && normalizar(c.persona) === viejo) {
       c.persona = nuevo;
       movidos++;
     }
   }
   const persona = datos.personas.find(
-    (p) => normalizar(p.empresaCome) === empresa && normalizar(p.nombre) === viejo
+    (p) => normalizar(p.empresa) === empresa && normalizar(p.nombre) === viejo
   );
   if (persona) persona.nombre = nuevo;
   return { movidos };
@@ -672,7 +765,7 @@ export function limpiarTodosLosNombres(datos) {
   for (const p of datos.personas) {
     const limpio = limpiarNombre(p.nombre);
     if (limpio !== p.nombre) { p.nombre = limpio; personasArregladas++; }
-    const llave = clavePersona(p.empresaCome, p.nombre);
+    const llave = clavePersona(p.empresa, p.nombre);
     if (vistas.has(llave)) continue; // quedó repetida al limpiar: sobra
     vistas.add(llave);
     quedan.push(p);

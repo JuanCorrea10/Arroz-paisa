@@ -128,8 +128,7 @@ grupo("El cruce completo");
 
 function datosMGP() {
   const consumo = (persona, dia) => ({
-    id: persona + dia, fecha: "2026-08-" + dia, empresaCome: "MGP",
-    empresaFactura: "MGP", persona, producto: "ALMUERZO", cantidad: 1,
+    id: persona + dia, fecha: "2026-08-" + dia, empresa: "MGP", persona, producto: "ALMUERZO", cantidad: 1,
     precioUnitario: 10000, facturable: true, observacion: "", revisar: [],
   });
   return {
@@ -139,10 +138,10 @@ function datosMGP() {
     productos: [{ nombre: "ALMUERZO", activo: true }],
     precios: { "ALMUERZO|MGP": 10000 },
     personas: [
-      { nombre: "MARTA SALGADO", empresaCome: "MGP", empresaFactura: "MGP", activa: true },
-      { nombre: "ELENA QUINTERO", empresaCome: "MGP", empresaFactura: "MGP", activa: true },
-      { nombre: "CAMILO GARZON", empresaCome: "MGP", empresaFactura: "MGP", activa: true },
-      { nombre: "PEDRO INEXISTENTE", empresaCome: "MGP", empresaFactura: "MGP", activa: true },
+      { nombre: "MARTA SALGADO", empresa: "MGP", activa: true },
+      { nombre: "ELENA QUINTERO", empresa: "MGP", activa: true },
+      { nombre: "CAMILO GARZON", empresa: "MGP", activa: true },
+      { nombre: "PEDRO INEXISTENTE", empresa: "MGP", activa: true },
     ],
     consumos: [
       consumo("MARTA SALGADO", "03"),
@@ -198,7 +197,7 @@ prueba("los de la lista que no comen aquí no estorban", () => {
 
 prueba("cuando hay dos candidatos NO adivina: lo deja como dudoso", () => {
   const datos = datosMGP();
-  datos.personas = [{ nombre: "JUAN PEREZ", empresaCome: "MGP", empresaFactura: "MGP", activa: true }];
+  datos.personas = [{ nombre: "JUAN PEREZ", empresa: "MGP", activa: true }];
   const lista = [
     { nombre: "PEREZ GOMEZ JUAN CARLOS", documento: "1111111111" },
     { nombre: "PEREZ SILVA JUAN PABLO", documento: "2222222222" },
@@ -212,11 +211,11 @@ prueba("cuando hay dos candidatos NO adivina: lo deja como dudoso", () => {
 prueba("solo mira la empresa que se le pidió", () => {
   const datos = datosMGP();
   datos.personas.push({
-    nombre: "CAMILO GARZON", empresaCome: "AGRO", empresaFactura: "AGRO", activa: true,
+    nombre: "CAMILO GARZON", empresa: "AGRO", activa: true,
   });
   const plan = cruzarConPersonal(datos, "MGP", LISTA_MGP);
-  cierto(plan.asignaciones.every((a) => a.persona.empresaCome === "MGP"));
-  cierto(plan.sinCruzar.every((p) => p.empresaCome === "MGP"));
+  cierto(plan.asignaciones.every((a) => a.persona.empresa === "MGP"));
+  cierto(plan.sinCruzar.every((p) => p.empresa === "MGP"));
 });
 
 prueba("aplicar guarda el documento en la persona", () => {

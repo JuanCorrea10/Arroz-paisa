@@ -149,9 +149,9 @@ function datosDePrueba() {
     productos: [{ nombre: "ALMUERZO", activo: true }],
     precios: { "ALMUERZO|AGRO": 10000, "ALMUERZO|BASARILI": 10000 },
     personas: [
-      { nombre: "JUAN PEREZ", empresaCome: "AGRO", empresaFactura: "AGRO", activa: true },
-      { nombre: "JUAN.PEREZ", empresaCome: "AGRO", empresaFactura: "AGRO", activa: true },
-      { nombre: "JUAN PEREZ", empresaCome: "BASARILI", empresaFactura: "BASARILI", activa: true },
+      { nombre: "JUAN PEREZ", empresa: "AGRO", activa: true },
+      { nombre: "JUAN.PEREZ", empresa: "AGRO", activa: true },
+      { nombre: "JUAN PEREZ", empresa: "BASARILI", activa: true },
     ],
     consumos: [
       renglon("2026-08-03", "AGRO", "JUAN PEREZ", 1),
@@ -168,7 +168,7 @@ let contador = 0;
 function renglon(fecha, empresa, persona, cantidad) {
   return {
     id: "p" + (++contador),
-    fecha, empresaCome: empresa, empresaFactura: empresa, persona,
+    fecha, empresa: empresa, persona,
     producto: "ALMUERZO", cantidad, precioUnitario: 10000,
     facturable: true, observacion: "", revisar: [],
   };
@@ -187,7 +187,7 @@ prueba("el tocayo de la otra empresa sí se puede consultar, como dato", () => {
   const datos = datosDePrueba();
   const otros = tocayosEnOtrasEmpresas(datos, "JUAN PEREZ", "AGRO");
   igual(otros.length, 1);
-  igual(otros[0].empresaCome, "BASARILI");
+  igual(otros[0].empresa, "BASARILI");
 });
 
 prueba("al buscar parecidas solo mira la empresa que se le pide", () => {
@@ -222,7 +222,7 @@ prueba("unir mueve los renglones y borra la persona sobrante", () => {
   igual(datos.consumos.length, antes, "no se puede perder ni crear ningún renglón");
   igual(datos.personas.length, 2, "JUAN.PEREZ tiene que desaparecer");
 
-  const deAgro = datos.consumos.filter((c) => c.empresaCome === "AGRO");
+  const deAgro = datos.consumos.filter((c) => c.empresa === "AGRO");
   igual(deAgro.length, 3);
   cierto(deAgro.every((c) => c.persona === "JUAN PEREZ"), "todos quedan a nombre del bueno");
 });
@@ -230,9 +230,9 @@ prueba("unir mueve los renglones y borra la persona sobrante", () => {
 prueba("unir NO toca a la persona de la otra empresa", () => {
   const datos = datosDePrueba();
   unirPersonas(datos, "AGRO", "JUAN PEREZ", ["JUAN.PEREZ"]);
-  const enBasarili = datos.personas.filter((p) => p.empresaCome === "BASARILI");
+  const enBasarili = datos.personas.filter((p) => p.empresa === "BASARILI");
   igual(enBasarili.length, 1, "el tocayo de BASARILI se queda quieto");
-  const suRenglon = datos.consumos.filter((c) => c.empresaCome === "BASARILI");
+  const suRenglon = datos.consumos.filter((c) => c.empresa === "BASARILI");
   igual(suRenglon.length, 1);
 });
 
@@ -249,7 +249,7 @@ prueba("unir TRES nombres de una, no de a dos", () => {
   // Y es el caso de verdad: de la misma persona quedaron el nombre completo,
   // el apodo y el nombre con un punto, y hay que juntar los tres.
   const datos = datosDePrueba();
-  datos.personas.push({ nombre: "JUANCHO PEREZ", empresaCome: "AGRO", empresaFactura: "AGRO" });
+  datos.personas.push({ nombre: "JUANCHO PEREZ", empresa: "AGRO" });
   datos.consumos.push(renglon("2026-08-05", "AGRO", "JUANCHO PEREZ", 2));
 
   const antesRenglones = datos.consumos.length;
@@ -265,21 +265,21 @@ prueba("unir TRES nombres de una, no de a dos", () => {
   igual(datos.consumos.reduce((a, c) => a + c.cantidad * c.precioUnitario, 0), antesPlata,
         "la plata del negocio no puede cambiar");
 
-  const deAgro = datos.personas.filter((p) => p.empresaCome === "AGRO");
+  const deAgro = datos.personas.filter((p) => p.empresa === "AGRO");
   igual(deAgro.length, 1, "de los tres nombres tiene que quedar uno solo");
   igual(deAgro[0].nombre, "JUAN PEREZ");
 
-  const renglonesAgro = datos.consumos.filter((c) => c.empresaCome === "AGRO");
+  const renglonesAgro = datos.consumos.filter((c) => c.empresa === "AGRO");
   cierto(renglonesAgro.every((c) => c.persona === "JUAN PEREZ"),
          "quedó algún renglón a nombre de uno de los absorbidos");
 
   // Y el tocayo de la otra empresa sigue intacto: son personas distintas.
-  igual(datos.personas.filter((p) => p.empresaCome === "BASARILI").length, 1);
+  igual(datos.personas.filter((p) => p.empresa === "BASARILI").length, 1);
 });
 
 prueba("unir tres no cuenta dos veces las facturas del mismo día", () => {
   const datos = datosDePrueba();
-  datos.personas.push({ nombre: "JUANCHO PEREZ", empresaCome: "AGRO", empresaFactura: "AGRO" });
+  datos.personas.push({ nombre: "JUANCHO PEREZ", empresa: "AGRO" });
   // Los tres comen el MISMO día: hoy son 3 facturas, mañana 1. Se pierden 2.
   datos.consumos.push(renglon("2026-08-03", "AGRO", "JUAN.PEREZ", 1));
   datos.consumos.push(renglon("2026-08-03", "AGRO", "JUANCHO PEREZ", 1));
@@ -328,7 +328,7 @@ prueba("la limpieza de una sola vez funde los que quedan iguales", () => {
   const datos = datosDePrueba();
   const r = limpiarTodosLosNombres(datos);
   igual(r.personasFundidas, 1, "JUAN.PEREZ y JUAN PEREZ quedan en uno");
-  const enAgro = datos.personas.filter((p) => p.empresaCome === "AGRO");
+  const enAgro = datos.personas.filter((p) => p.empresa === "AGRO");
   igual(enAgro.length, 1);
 });
 
@@ -362,8 +362,8 @@ prueba("dos nombres que no se parecen SÍ se proponen si el documento es el mism
   // (SALGADO QUINTERO MARTA ELENA). No comparten ni una letra.
   const datos = datosDePrueba();
   datos.personas = [
-    { nombre: "MARTA SALGADO", empresaCome: "AGRO", empresaFactura: "AGRO", activa: true, documento: "77777" },
-    { nombre: "ELENA QUINTERO", empresaCome: "AGRO", empresaFactura: "AGRO", activa: true, documento: "77777" },
+    { nombre: "MARTA SALGADO", empresa: "AGRO", activa: true, documento: "77777" },
+    { nombre: "ELENA QUINTERO", empresa: "AGRO", activa: true, documento: "77777" },
   ];
   datos.consumos = [
     renglon("2026-08-03", "AGRO", "MARTA SALGADO", 1),

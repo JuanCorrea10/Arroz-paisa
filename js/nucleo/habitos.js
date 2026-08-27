@@ -59,7 +59,7 @@ export function pedidoHabitual(datos, codigoEmpresa, nombrePersona, fechaExcluid
 
   const porDia = new Map();
   for (const c of datos.consumos) {
-    if (clavePersona(c.empresaCome, c.persona) !== llave) continue;
+    if (clavePersona(c.empresa, c.persona) !== llave) continue;
     if (fechaExcluida && c.fecha === fechaExcluida) continue;
     if (!porDia.has(c.fecha)) porDia.set(c.fecha, []);
     porDia.get(c.fecha).push(c);
@@ -109,10 +109,10 @@ export function tieneCostumbre(habito) {
 export function platosFrecuentes(datos, codigoEmpresa, {
   limite = 6,
   desdeFecha = null,
-  empresaFactura = null,
 } = {}) {
+  // Antes recibía aparte "a qué empresa se le factura", para buscar el precio
+  // con esa. Ya no: la empresa es una sola.
   const empresa = normalizar(codigoEmpresa);
-  const facturaA = normalizar(empresaFactura || codigoEmpresa);
 
   const activos = new Set(
     datos.productos.filter((p) => p.activo !== false).map((p) => normalizar(p.nombre))
@@ -120,7 +120,7 @@ export function platosFrecuentes(datos, codigoEmpresa, {
 
   const cuantas = new Map();
   for (const c of datos.consumos) {
-    if (normalizar(c.empresaCome) !== empresa) continue;
+    if (normalizar(c.empresa) !== empresa) continue;
     if (desdeFecha && c.fecha < desdeFecha) continue;
     const plato = normalizar(c.producto);
     if (!activos.has(plato)) continue;
@@ -131,7 +131,7 @@ export function platosFrecuentes(datos, codigoEmpresa, {
     .map(([producto, veces]) => ({
       producto,
       veces,
-      precio: precioDe(datos, producto, facturaA),
+      precio: precioDe(datos, producto, empresa),
     }))
     .filter((p) => p.precio !== null && p.precio > 0)
     .sort((a, b) => b.veces - a.veces || a.producto.localeCompare(b.producto, "es"))
@@ -152,7 +152,7 @@ export function loDelDiaAnterior(datos, codigoEmpresa, fechaActual) {
   // ayer fue domingo no hay nada, y el sábado tampoco. Buscamos hacia atrás.
   const dias = [...new Set(
     datos.consumos
-      .filter((c) => normalizar(c.empresaCome) === empresa && c.fecha < fechaActual)
+      .filter((c) => normalizar(c.empresa) === empresa && c.fecha < fechaActual)
       .map((c) => c.fecha)
   )].sort();
 
@@ -161,7 +161,7 @@ export function loDelDiaAnterior(datos, codigoEmpresa, fechaActual) {
 
   const porPersona = new Map();
   for (const c of datos.consumos) {
-    if (normalizar(c.empresaCome) !== empresa || c.fecha !== anterior) continue;
+    if (normalizar(c.empresa) !== empresa || c.fecha !== anterior) continue;
     const persona = normalizar(c.persona);
     if (!porPersona.has(persona)) porPersona.set(persona, []);
     // A proposito NO se copia como se pago.
@@ -189,7 +189,7 @@ export function yaAnotadasHoy(datos, codigoEmpresa, fecha) {
   const empresa = normalizar(codigoEmpresa);
   const nombres = new Set();
   for (const c of datos.consumos) {
-    if (normalizar(c.empresaCome) === empresa && c.fecha === fecha) {
+    if (normalizar(c.empresa) === empresa && c.fecha === fecha) {
       nombres.add(normalizar(c.persona));
     }
   }
@@ -197,12 +197,12 @@ export function yaAnotadasHoy(datos, codigoEmpresa, fecha) {
 }
 
 /** Cuánto valdría un pedido, con los precios de hoy de esa empresa. */
-export function cuantoValdria(datos, platos, empresaFactura) {
-  const empresa = normalizar(empresaFactura);
+export function cuantoValdria(datos, platos, empresa) {
+  const cod = normalizar(empresa);
   let total = 0;
   let faltaPrecio = false;
   for (const p of platos) {
-    const precio = datos.precios[clavePrecio(p.producto, empresa)];
+    const precio = datos.precios[clavePrecio(p.producto, cod)];
     if (!Number.isFinite(precio) || precio <= 0) faltaPrecio = true;
     else total += precio * (Number(p.cantidad) || 1);
   }

@@ -225,7 +225,7 @@ function tarjetaProblemas(raiz) {
           g.ejemplos.map((c) =>
             el("tr", {},
               el("td", { texto: c.fecha ? fechaCorta(c.fecha) : "sin día" }),
-              el("td", {}, cinta(c.empresaCome)),
+              el("td", {}, cinta(c.empresa)),
               el("td", { texto: c.persona }),
               el("td", { texto: c.producto }),
               el("td", { clase: "dato", texto: String(c.cantidad) })

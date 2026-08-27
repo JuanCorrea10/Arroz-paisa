@@ -52,24 +52,23 @@ export async function exportarTodoAExcel(datos) {
   ];
 
   const personas = [
-    ["Nombre", "Empresa donde come", "Facturar a", "Activo"],
-    ...datos.personas.map((p) => [p.nombre, p.empresaCome, p.empresaFactura, p.activa === false ? "N" : "S"]),
+    ["Nombre", "Empresa", "Activo"],
+    ...datos.personas.map((p) => [p.nombre, p.empresa, p.activa === false ? "N" : "S"]),
   ];
 
   const registro = [
-    ["Fecha", "Día", "Empresa", "Persona", "Facturar a", "Producto", "Cantidad",
+    ["Fecha", "Día", "Empresa", "Persona", "Producto", "Cantidad",
      "Precio Unit.", "Subtotal", "Quincena", "Facturable", "Observación", "Revisar"],
     ...datos.consumos.map((c) => [
       c.fecha,
       c.fecha ? Number(c.fecha.slice(8, 10)) : "",
-      c.empresaCome,
+      c.empresa,
       c.persona,
-      c.empresaFactura,
       c.producto,
       c.cantidad,
       c.precioUnitario,
       subtotal(c),
-      quincenaDe(c.fecha, empresas[c.empresaFactura]) || "",
+      quincenaDe(c.fecha, empresas[c.empresa]) || "",
       { empresa: "EMPRESA", contado: "PAGO DE UNA", cortesia: "CORTESIA" }[formaDeCobro(c)],
       c.observacion || "",
       (c.revisar || []).join(" "),
@@ -86,16 +85,16 @@ export async function exportarTodoAExcel(datos) {
   for (const e of datos.empresas) {
     const q1 = sumarLoDeLaEmpresa(deQuincena(datos.consumos, datos.config.anio, datos.config.mes, 1, e));
     const q2 = sumarLoDeLaEmpresa(deQuincena(datos.consumos, datos.config.anio, datos.config.mes, 2, e));
-    const suyos = delMes(datos.consumos, datos.config.anio, datos.config.mes).filter((c) => c.empresaFactura === e.codigo);
+    const suyos = delMes(datos.consumos, datos.config.anio, datos.config.mes).filter((c) => c.empresa === e.codigo);
     resumen.push([e.codigo, e.razonSocial, q1, q2, q1 + q2, contarFacturas(suyos)]);
     granTotal += q1 + q2;
   }
   resumen.push([], ["TOTAL DEL MES", "", "", "", granTotal]);
 
   const porPersona = [
-    ["Persona", "Empresa donde come", "Facturar a", "Facturas", "Quincena 1", "Quincena 2", "Mes"],
+    ["Persona", "Empresa", "Facturas", "Quincena 1", "Quincena 2", "Mes"],
     ...informePorPersona(datos.consumos, datos.config.anio, datos.config.mes, empresas).map((f) => [
-      f.persona, f.empresaCome, f.empresaFactura, f.facturas, f.q1, f.q2, f.mes,
+      f.persona, f.empresa, f.facturas, f.q1, f.q2, f.mes,
     ]),
   ];
 
@@ -127,7 +126,7 @@ export async function exportarEmpresaAExcel(datos, codigoEmpresa, anio, mes) {
   const empresa = empresas[codigoEmpresa];
   if (!empresa) throw new Error("Esa empresa no existe.");
 
-  const mios = delMes(datos.consumos, anio, mes).filter((c) => c.empresaFactura === codigoEmpresa);
+  const mios = delMes(datos.consumos, anio, mes).filter((c) => c.empresa === codigoEmpresa);
 
   const detalle = [
     ["Fecha", "Día", "Persona", "Producto", "Cantidad", "Precio Unit.", "Subtotal", "Quincena", "Se cobra"],
@@ -162,7 +161,7 @@ export async function exportarEmpresaAExcel(datos, codigoEmpresa, anio, mes) {
   const personas = [
     ["Persona", "Facturas", "Quincena 1", "Quincena 2", "Mes"],
     ...informePorPersona(datos.consumos, anio, mes, empresas)
-      .filter((f) => f.empresaFactura === codigoEmpresa)
+      .filter((f) => f.empresa === codigoEmpresa)
       .map((f) => [f.persona, f.facturas, f.q1, f.q2, f.mes]),
   ];
 

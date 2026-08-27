@@ -69,7 +69,56 @@ export function completarDatos(datos) {
     if (!c.id) c.id = nuevoId();
     if (!Array.isArray(c.revisar)) c.revisar = [];
   }
+  salida.unificadas = unificarEmpresa(salida);
   return salida;
+}
+
+/**
+ * De dos empresas a una sola.
+ *
+ * Hasta ahora cada renglón traía DOS empresas: "empresaCome" (dónde comió) y
+ * "empresaFactura" (a quién se le cobra). En los datos de verdad nunca fueron
+ * distintas -- 1135 renglones, 1135 veces la misma -- pero la app dejaba que
+ * se separaran, y eso costaba caro:
+ *
+ *   - Dos personas de empresas distintas no se podían unir aunque fueran la
+ *     misma persona anotada dos veces.
+ *   - Cada pantalla tenía que decidir cuál de las dos mirar, y equivocarse
+ *     ahí no se ve: los totales salen mal en silencio.
+ *
+ * Ahora hay UNA sola: "empresa". Esta función traduce los datos viejos.
+ *
+ * Cuando las dos venían distintas manda la de cobro, NUNCA la de comer. Es la
+ * regla que no cambia la plata: a esa empresa fue a la que se le pasó la
+ * cuenta, y una cuenta ya entregada no se corrige sola. Se devuelve cuántos
+ * eran así, para poder avisarle -- si se cambiaran calladamente, un total del
+ * mes pasado cambiaría sin que nadie sepa por qué.
+ */
+export function unificarEmpresa(datos) {
+  let renglones = 0;
+  let personas = 0;
+
+  for (const c of datos.consumos) {
+    if (c.empresa !== undefined && c.empresaCome === undefined && c.empresaFactura === undefined) continue;
+    const come = normalizar(c.empresaCome);
+    const cobra = normalizar(c.empresaFactura);
+    if (come && cobra && come !== cobra) renglones++;
+    c.empresa = cobra || come || normalizar(c.empresa);
+    delete c.empresaCome;
+    delete c.empresaFactura;
+  }
+
+  for (const p of datos.personas) {
+    if (p.empresa !== undefined && p.empresaCome === undefined && p.empresaFactura === undefined) continue;
+    const come = normalizar(p.empresaCome);
+    const cobra = normalizar(p.empresaFactura);
+    if (come && cobra && come !== cobra) personas++;
+    p.empresa = cobra || come || normalizar(p.empresa);
+    delete p.empresaCome;
+    delete p.empresaFactura;
+  }
+
+  return { renglones, personas };
 }
 
 // ---------------------------------------------------------------------------
@@ -117,17 +166,16 @@ export function agregarPersona(datos, persona) {
   // en la pantalla "Revisar nombres". Si los limpiáramos al importar,
   // cambiarían los totales de un Excel ya cerrado, y eso no se hace solo.
   const nombre = limpiarNombre(persona.nombre);
-  const empresaCome = normalizar(persona.empresaCome);
+  const empresa = normalizar(persona.empresa);
   if (!nombre) throw new Error("La persona necesita un nombre.");
-  if (!empresaCome) throw new Error("Hay que decir en qué empresa come.");
-  const llave = clavePersona(empresaCome, nombre);
-  if (datos.personas.some((p) => clavePersona(p.empresaCome, p.nombre) === llave)) {
-    throw new Error(`${nombre} ya está en ${empresaCome}.`);
+  if (!empresa) throw new Error("Hay que decir en qué empresa come.");
+  const llave = clavePersona(empresa, nombre);
+  if (datos.personas.some((p) => clavePersona(p.empresa, p.nombre) === llave)) {
+    throw new Error(`${nombre} ya está en ${empresa}.`);
   }
   datos.personas.push({
     nombre,
-    empresaCome,
-    empresaFactura: normalizar(persona.empresaFactura) || empresaCome,
+    empresa,
     activa: persona.activa !== false,
     // Del documento se guardan solo los ultimos 5 digitos, y solo si lo dieron.
     // Ver ultimos5() en personal.js para el porque.
@@ -161,7 +209,7 @@ function soloDigitos(txt) {
 export function puedeBorrarPersona(datos, codigoEmpresa, nombre) {
   const llave = clavePersona(codigoEmpresa, nombre);
   const renglones = datos.consumos.filter(
-    (c) => clavePersona(c.empresaCome, c.persona) === llave
+    (c) => clavePersona(c.empresa, c.persona) === llave
   ).length;
   return { puede: renglones === 0, renglones };
 }
@@ -178,7 +226,7 @@ export function borrarPersona(datos, codigoEmpresa, nombre) {
   const llave = clavePersona(codigoEmpresa, nombre);
   const antes = datos.personas.length;
   datos.personas = datos.personas.filter(
-    (p) => clavePersona(p.empresaCome, p.nombre) !== llave
+    (p) => clavePersona(p.empresa, p.nombre) !== llave
   );
   return { borradas: antes - datos.personas.length };
 }
@@ -217,7 +265,7 @@ export function borrarProducto(datos, nombre) {
  * distintas de hacerlo (que es como se cuelan los bugs).
  */
 export function nuevoConsumo({
-  fecha, empresaCome, persona, empresaFactura, producto,
+  fecha, empresa, persona, producto,
   cantidad, precioUnitario, facturable = true, observacion = "",
 }) {
   const revisar = [];
@@ -228,9 +276,8 @@ export function nuevoConsumo({
   return {
     id: nuevoId(),
     fecha,
-    empresaCome: normalizar(empresaCome),
+    empresa: normalizar(empresa),
     persona: normalizar(persona),
-    empresaFactura: normalizar(empresaFactura) || normalizar(empresaCome),
     producto: normalizar(producto),
     cantidad: cant,
     precioUnitario: precio,

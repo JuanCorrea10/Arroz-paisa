@@ -249,8 +249,8 @@ export function leerPersonas(hoja) {
   for (let i = 1; i < hoja.length; i++) {
     const nombre = normalizar(celda(hoja[i], cNombre));
     if (!nombre) continue;
-    const empresaCome = normalizar(celda(hoja[i], cCome === -1 ? 1 : cCome));
-    if (!empresaCome) {
+    const empresa = normalizar(celda(hoja[i], cCome === -1 ? 1 : cCome));
+    if (!empresa) {
       avisos.push({
         hoja: "Personas",
         fila: i + 1,
@@ -260,22 +260,29 @@ export function leerPersonas(hoja) {
     }
     // La llave real es EMPRESA + NOMBRE. Puede haber dos personas con el
     // mismo nombre en empresas distintas, y son personas diferentes.
-    const llave = clavePersona(empresaCome, nombre);
+    const llave = clavePersona(empresa, nombre);
     if (yaVistas.has(llave)) {
       avisos.push({
         hoja: "Personas",
         fila: i + 1,
-        mensaje: `${nombre} aparece dos veces en ${empresaCome}. Dejé la primera.`,
+        mensaje: `${nombre} aparece dos veces en ${empresa}. Dejé la primera.`,
       });
       continue;
     }
     yaVistas.add(llave);
-    const facturaBruto = normalizar(celda(hoja[i], cFactura === -1 ? 2 : cFactura));
-    const activoBruto = normalizar(celda(hoja[i], cActivo === -1 ? 3 : cActivo));
+    // El Excel viejo traía una columna "Facturar a" aparte de la empresa. Ya
+    // no hay dos empresas, pero los archivos viejos siguen existiendo: si esa
+    // columna está y dice algo, manda ella, porque es a la que se le pasó la
+    // cuenta de verdad. Ver unificarEmpresa() en modelo.js.
+    //
+    // Ojo con el "si no está": antes se caía a la casilla 2 a ciegas. En el
+    // Excel nuevo la casilla 2 es "Activo", así que eso metía una "S" donde
+    // va el nombre de una empresa. Si la columna no está, no se inventa nada.
+    const facturaBruto = cFactura === -1 ? "" : normalizar(celda(hoja[i], cFactura));
+    const activoBruto = normalizar(celda(hoja[i], cActivo === -1 ? cCome + 1 : cActivo));
     personas.push({
       nombre,
-      empresaCome,
-      empresaFactura: facturaBruto || empresaCome,
+      empresa: facturaBruto || empresa,
       activa: activoBruto !== "N" && activoBruto !== "NO",
     });
   }
@@ -300,12 +307,12 @@ export function leerRegistro(hoja, { personas, productos, precios }) {
   }
 
   const porLlave = new Map();
-  for (const p of personas) porLlave.set(clavePersona(p.empresaCome, p.nombre), p);
+  for (const p of personas) porLlave.set(clavePersona(p.empresa, p.nombre), p);
   const nombresConocidos = new Map();
   for (const p of personas) {
     const n = normalizar(p.nombre);
     if (!nombresConocidos.has(n)) nombresConocidos.set(n, []);
-    nombresConocidos.get(n).push(p.empresaCome);
+    nombresConocidos.get(n).push(p.empresa);
   }
   const productosConocidos = new Set(productos.map((p) => normalizar(p.nombre)));
 
@@ -324,12 +331,18 @@ export function leerRegistro(hoja, { personas, productos, precios }) {
     const fila = hoja[i];
     if (!fila) continue;
     const brutoFecha = celda(fila, c.fecha);
-    const empresaCome = normalizar(celda(fila, c.empresa));
+    // Dos cosas distintas con nombres distintos, a propósito:
+    //   escrita   lo que dice la casilla del Excel
+    //   empresa   la que vale, que sale de la persona en la hoja Personas
+    // Antes se llamaban empresaCome y empresaFactura. Ya no son dos empresas
+    // -- es una sola -- pero el Excel puede traerla mal escrita en el renglón
+    // y bien en la lista de personas, y ahí manda la lista.
+    const escrita = normalizar(celda(fila, c.empresa));
     const persona = normalizar(celda(fila, c.persona));
     const producto = normalizar(celda(fila, c.producto));
 
     // Fila totalmente vacía: se salta en silencio, es normal en un Excel.
-    if (!brutoFecha && !empresaCome && !persona && !producto) continue;
+    if (!brutoFecha && !escrita && !persona && !producto) continue;
 
     const revisar = [];
     const fecha = aFechaISO(brutoFecha);
@@ -342,11 +355,10 @@ export function leerRegistro(hoja, { personas, productos, precios }) {
       });
     }
 
-    // ¿A quién se le factura? Sale de la persona, buscándola por EMPRESA+NOMBRE.
-    let empresaFactura = empresaCome;
-    const p = porLlave.get(clavePersona(empresaCome, persona));
+    let empresa = escrita;
+    const p = porLlave.get(clavePersona(escrita, persona));
     if (p) {
-      empresaFactura = p.empresaFactura || empresaCome;
+      empresa = p.empresa || escrita;
     } else {
       revisar.push("PERSONA_NO_ESTA");
       const dondeSiEsta = nombresConocidos.get(persona);
@@ -354,14 +366,14 @@ export function leerRegistro(hoja, { personas, productos, precios }) {
         hoja: "Registro",
         fila: i + 1,
         mensaje: dondeSiEsta
-          ? `${persona} no está en ${empresaCome}. Está en ${dondeSiEsta.join(", ")}.`
+          ? `${persona} no está en ${escrita}. Está en ${dondeSiEsta.join(", ")}.`
           : `${persona} no aparece en la hoja Personas.`,
       });
     }
 
-    // El precio se busca con la empresa A LA QUE SE LE FACTURA, no con la
-    // empresa donde come. Y queda CONGELADO en el renglón para siempre.
-    let precioUnitario = precios[clavePrecio(producto, empresaFactura)];
+    // El precio se busca con la empresa del renglón y queda CONGELADO ahí
+    // para siempre: si mañana sube el almuerzo, lo ya cobrado no cambia.
+    let precioUnitario = precios[clavePrecio(producto, empresa)];
     if (!Number.isFinite(precioUnitario)) {
       precioUnitario = 0;
       revisar.push("SIN_PRECIO");
@@ -369,7 +381,7 @@ export function leerRegistro(hoja, { personas, productos, precios }) {
         hoja: "Registro",
         fila: i + 1,
         mensaje: productosConocidos.has(producto)
-          ? `"${producto}" no tiene precio para ${empresaFactura}. Entró en $ 0.`
+          ? `"${producto}" no tiene precio para ${empresa}. Entró en $ 0.`
           : `"${producto}" no está en el catálogo. Entró en $ 0.`,
       });
     }
@@ -380,9 +392,8 @@ export function leerRegistro(hoja, { personas, productos, precios }) {
     consumos.push({
       id: "imp-" + (consumos.length + 1),
       fecha: fecha || "",
-      empresaCome,
+      empresa,
       persona,
-      empresaFactura,
       producto,
       cantidad,
       precioUnitario,

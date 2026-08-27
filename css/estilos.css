@@ -527,15 +527,6 @@ tfoot td.n { font-family: var(--dato); }
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.comanda-nota {
-  font-size: var(--t-xs);
-  color: var(--tinta-suave);
-  font-family: var(--cuerpo);
-  font-weight: 400;
-  display: block;
-  margin-top: 0.15rem;
-}
-
 .comanda-platos { list-style: none; margin: 0; padding: var(--e2) var(--e3); flex: 1 1 auto; }
 .comanda-platos li {
   display: grid;
@@ -563,6 +554,65 @@ tfoot td.n { font-family: var(--dato); }
 .comanda-total { font-family: var(--dato); font-weight: 600; font-size: var(--t-md); }
 
 .comanda[data-revisar="si"] { border-color: var(--rojo); background: #fffaf9; }
+
+/* --------------------------------------------------------------------- */
+/*  El título de la lista del día                                          */
+/*                                                                         */
+/*  Esta pantalla se fotografía: el pantallazo se le manda a los           */
+/*  trabajadores para que vean lo que se anotó. Por eso la sede va del      */
+/*  tamaño de un título y no de una cintica -- en la foto tiene que leerse  */
+/*  de lejos, y quien la recibe no siempre ve de cerca.                     */
+/* --------------------------------------------------------------------- */
+
+.titulo-lista {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--e3);
+  flex-wrap: wrap;
+  margin-bottom: var(--e4);
+  padding-left: var(--e3);
+  /* El mismo color que la cinta de las comandas de esta empresa. */
+  border-left: 6px solid var(--cinta, var(--marca));
+}
+
+/* Sin esto, un nombre largo no puede encogerse y saca la fila de la hoja. */
+.titulo-lista-quien { min-width: 0; }
+
+.titulo-lista-arriba {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: var(--t-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--tinta-media);
+}
+.titulo-lista-sede {
+  margin: 0;
+  /*
+    Grande de verdad, pero sin romper nada.
+
+    El pantallazo se ve en un celular, donde todo llega encogido: por eso en
+    pantalla ancha se va hasta 3rem. Y como no puede reventar la fila cuando
+    ella abre la app en el celular, el tamaño lo pone clamp() -- crece con el
+    ancho de la pantalla y nunca se sale de esos dos topes.
+  */
+  font-size: clamp(var(--t-xl), 5vw, var(--t-3xl));
+  line-height: 1.05;
+  color: var(--marca-hondo);
+  overflow-wrap: anywhere; /* un código largo se parte, no empuja la fila */
+}
+.titulo-lista-pie {
+  margin: var(--e1) 0 0;
+  /* También se lee en la foto: dice de qué empresa y de qué día es. */
+  font-size: var(--t-base);
+  color: var(--tinta-media);
+}
+.titulo-lista-cuenta {
+  font-size: var(--t-lg);
+  font-weight: 600;
+}
 
 /* --------------------------------------------------------------------- */
 /*  Cifras grandes                                                         */

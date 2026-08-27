@@ -60,7 +60,7 @@ const total = () => estado.datos.consumos.reduce(
 // sean cero: es que unir dos personas no cree ni uno mas.
 const huerfanos = () => estado.datos.consumos.filter((c) =>
   !estado.datos.personas.some(
-    (p) => p.empresaCome === c.empresaCome && p.nombre === c.persona)).length;
+    (p) => p.empresa === c.empresa && p.nombre === c.persona)).length;
 
 const antes = {
   plata: total(),
@@ -74,13 +74,13 @@ anotar(`antes:   ${antes.filas} renglones, ${antes.personas} personas, ` +
 // --- Dos personas de la misma empresa que TENGAN renglones -----------------
 const cuantos = new Map();
 for (const c of estado.datos.consumos) {
-  const k = c.empresaCome + "||" + c.persona;
+  const k = c.empresa + "||" + c.persona;
   cuantos.set(k, (cuantos.get(k) || 0) + 1);
 }
 const conRenglones = estado.datos.personas.filter(
-  (p) => cuantos.get(p.empresaCome + "||" + p.nombre) > 0);
-const empresaA = conRenglones.length ? conRenglones[0].empresaCome : null;
-const pareja = conRenglones.filter((p) => p.empresaCome === empresaA).slice(0, 2);
+  (p) => cuantos.get(p.empresa + "||" + p.nombre) > 0);
+const empresaA = conRenglones.length ? conRenglones[0].empresa : null;
+const pareja = conRenglones.filter((p) => p.empresa === empresaA).slice(0, 2);
 
 const marcarA = (nombre) => {
   for (const fila of doc.querySelectorAll("tbody tr")) {
@@ -175,7 +175,7 @@ if (pareja.length < 2) {
       : `MAL  las personas pasaron de ${antes.personas} a ${despues.personas}`);
 
     const sobrevive = estado.datos.personas.some(
-      (p) => p.empresaCome === empresaA && p.nombre === queSeQueda);
+      (p) => p.empresa === empresaA && p.nombre === queSeQueda);
     anotar(sobrevive
       ? `OK   quedó el nombre escogido ("${queSeQueda}")`
       : "MAL  desapareció el nombre que se iba a quedar");
@@ -196,9 +196,9 @@ if (pareja.length < 2) {
 // quería evitarle: antes tocaba renombrar a mano para poder juntarlas.
 const conRenglones2 = estado.datos.personas.filter(
   (p) => estado.datos.consumos.some(
-    (c) => c.empresaCome === p.empresaCome && c.persona === p.nombre));
-const empresaB = conRenglones2.length ? conRenglones2[0].empresaCome : null;
-const trio = conRenglones2.filter((p) => p.empresaCome === empresaB).slice(0, 3);
+    (c) => c.empresa === p.empresa && c.persona === p.nombre));
+const empresaB = conRenglones2.length ? conRenglones2[0].empresa : null;
+const trio = conRenglones2.filter((p) => p.empresa === empresaB).slice(0, 3);
 
 if (trio.length < 3) {
   anotar("OJO  no hay tres personas con renglones en la misma empresa");
@@ -274,7 +274,7 @@ if (trio.length < 3) {
 // --- La otra mitad: dos de empresas distintas NO se pueden unir ------------
 const porEmpresa = new Map();
 for (const p of estado.datos.personas) {
-  if (!porEmpresa.has(p.empresaCome)) porEmpresa.set(p.empresaCome, p);
+  if (!porEmpresa.has(p.empresa)) porEmpresa.set(p.empresa, p);
 }
 const dosEmpresas = [...porEmpresa.values()].slice(0, 2);
 

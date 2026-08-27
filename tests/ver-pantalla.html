@@ -60,7 +60,10 @@ const raiz = document.getElementById("pantalla");
 
 try {
   const { estado } = await import("../js/ui/estado.js");
-  const datos = await (await fetch("../datos/inicial.json")).json();
+  const { completarDatos } = await import("../js/nucleo/modelo.js");
+  // Igual que la app: los datos del archivo pasan por completarDatos(), que
+  // es donde se traducen los datos viejos al modelo de ahora.
+  const datos = completarDatos(await (await fetch("../datos/inicial.json")).json());
 
   estado.datos = datos;
   const fechas = datos.consumos.map((c) => c.fecha).sort();
@@ -80,6 +83,20 @@ try {
   const [ruta, fn] = PANTALLAS[cual] || PANTALLAS.catalogo;
   const modulo = await import(ruta);
   await modulo[fn](raiz);
+
+  // Sin esto la foto sale mala: el buscador de personas se lleva el foco solo
+  // -- que es lo correcto cuando ella la usa -- y despliega la lista de
+  // nombres encima de media pantalla. Aquí la pantalla no se está usando: se
+  // está retratando.
+  //
+  // Se insiste unas cuantas veces porque la pantalla pide el foco DESPUÉS de
+  // pintarse, y una sola quitada se la gana la app. Además el buscador se
+  // cierra 180 ms después de perder el foco, así que hay que darle ese tiempo.
+  for (let i = 1; i <= 6; i++) {
+    setTimeout(() => {
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    }, i * 150);
+  }
 
   rotulo.textContent =
     `#${cual}  ·  ${datos.consumos.length} renglones  ·  ${datos.personas.length} personas  ` +

@@ -424,7 +424,7 @@ export function pdfPorPersona(filas, anio, mes, nombreEmpresa, acreedor) {
     startY: y,
     head: [["Persona", "Empresa", "Facturas", "Quincena 1", "Quincena 2", "Mes"]],
     body: filas.map((f) => [
-      f.persona, f.empresaCome, String(f.facturas), pesos(f.q1), pesos(f.q2), pesos(f.mes),
+      f.persona, f.empresa, String(f.facturas), pesos(f.q1), pesos(f.q2), pesos(f.mes),
     ]),
     columnStyles: {
       0: { cellWidth: "auto" },

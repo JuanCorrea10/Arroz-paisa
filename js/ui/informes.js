@@ -293,15 +293,14 @@ export function pintarPorPersona(raiz) {
     ),
     tabla(
       [
-        { titulo: "Persona" }, { titulo: "Come en" }, { titulo: "Se cobra a" },
+        { titulo: "Persona" }, { titulo: "Empresa" },
         { titulo: "Facturas", clase: "n" }, { titulo: "Quincena 1", clase: "n" },
         { titulo: "Quincena 2", clase: "n" }, { titulo: "Mes", clase: "n" },
       ],
       filas.map((f) =>
         el("tr", {},
           el("td", { texto: f.persona }),
-          el("td", {}, cinta(f.empresaCome)),
-          el("td", {}, f.empresaFactura === f.empresaCome ? el("span", { estilo: "color:var(--tinta-suave)", texto: "la misma" }) : cinta(f.empresaFactura)),
+          el("td", {}, cinta(f.empresa)),
           el("td", { clase: "n", texto: String(f.facturas) }),
           el("td", { clase: "n", texto: pesos(f.q1) }),
           el("td", { clase: "n", texto: pesos(f.q2) }),

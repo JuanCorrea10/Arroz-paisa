@@ -98,7 +98,7 @@ function tarjetaDeEmpresa(empresa) {
   const mes = estado.mes;
 
   const delMesEmpresa = delMes(datos.consumos, anio, mes)
-    .filter((c) => c.empresaFactura === empresa.codigo);
+    .filter((c) => c.empresa === empresa.codigo);
   const cobrables = delMesEmpresa.filter(loPagaLaEmpresa);
   const q1 = cobrables.filter((c) => quincenaDe(c.fecha, empresa) === 1);
   const q2 = cobrables.filter((c) => quincenaDe(c.fecha, empresa) === 2);

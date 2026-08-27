@@ -125,14 +125,14 @@ prueba("dos tocayos en empresas distintas son dos personas distintas", () => {
 });
 
 prueba("una factura es una persona un día, aunque pida 5 cosas", () => {
-  const base = { fecha: "2026-08-20", empresaCome: "AGRO", persona: "JUAN PEREZ" };
+  const base = { fecha: "2026-08-20", empresa: "AGRO", persona: "JUAN PEREZ" };
   igual(claveFactura({ ...base, producto: "ALMUERZO" }), claveFactura({ ...base, producto: "GASEOSA" }));
   cierto(
     claveFactura(base) !== claveFactura({ ...base, fecha: "2026-08-21" }),
     "otro día es otra factura"
   );
   cierto(
-    claveFactura(base) !== claveFactura({ ...base, empresaCome: "BASARILI" }),
+    claveFactura(base) !== claveFactura({ ...base, empresa: "BASARILI" }),
     "el tocayo de la otra empresa es otra factura"
   );
 });
@@ -169,10 +169,10 @@ function mundo() {
     { codigo: "AGRO", razonSocial: "BOTAS AGROINDUSTRIAL SAS", nit: "900.735.112 - 6", ultimoDiaQ1: 14, ultimoDiaQ2: 31, activa: true },
   ];
   const personas = [
-    { nombre: "JUAN PEREZ", empresaCome: "AGRO", empresaFactura: "AGRO", activa: true },
-    { nombre: "JUAN PEREZ", empresaCome: "MGP", empresaFactura: "MGP", activa: true },
-    { nombre: "ANA GOMEZ", empresaCome: "AGRO", empresaFactura: "MGP", activa: true },
-    { nombre: "PEDRO RUIZ", empresaCome: "MGP", empresaFactura: "MGP", activa: false },
+    { nombre: "JUAN PEREZ", empresa: "AGRO", activa: true },
+    { nombre: "JUAN PEREZ", empresa: "MGP", activa: true },
+    { nombre: "ANA GOMEZ", empresa: "MGP", activa: true },
+    { nombre: "PEDRO RUIZ", empresa: "MGP", activa: false },
   ];
   const productos = [{ nombre: "ALMUERZO", activo: true }, { nombre: "GASEOSA", activo: true }];
   const precios = {
@@ -181,25 +181,27 @@ function mundo() {
     [clavePrecio("GASEOSA", "MGP")]: 4000,
     [clavePrecio("GASEOSA", "AGRO")]: 4000,
   };
-  const c = (fecha, empresaCome, persona, empresaFactura, producto, cantidad, precioUnitario, extra = {}) => ({
+  const c = (fecha, empresa, persona, producto, cantidad, precioUnitario, extra = {}) => ({
     id: Math.random().toString(36).slice(2),
-    fecha, empresaCome, persona, empresaFactura, producto, cantidad, precioUnitario,
+    fecha, empresa, persona, producto, cantidad, precioUnitario,
     facturable: true, observacion: "", revisar: [], ...extra,
   });
   const consumos = [
     // AGOSTO — Juan de AGRO pide dos cosas el mismo día: 1 factura, 2 renglones
-    c("2026-08-10", "AGRO", "JUAN PEREZ", "AGRO", "ALMUERZO", 1, 10000),
-    c("2026-08-10", "AGRO", "JUAN PEREZ", "AGRO", "GASEOSA", 1, 4000),
+    c("2026-08-10", "AGRO", "JUAN PEREZ", "ALMUERZO", 1, 10000),
+    c("2026-08-10", "AGRO", "JUAN PEREZ", "GASEOSA", 1, 4000),
     // El tocayo de MGP el mismo día: otra factura distinta
-    c("2026-08-10", "MGP", "JUAN PEREZ", "MGP", "ALMUERZO", 1, 12000),
-    // Ana come en AGRO pero se le cobra a MGP: su quincena se mide con MGP
-    c("2026-08-14", "AGRO", "ANA GOMEZ", "MGP", "ALMUERZO", 1, 12000),
+    c("2026-08-10", "MGP", "JUAN PEREZ", "ALMUERZO", 1, 12000),
+    // Ana es de MGP: su quincena se mide con el corte de MGP (el 15), no con
+    // el de AGRO (el 14). Antes esta prueba era "come en AGRO pero se le cobra
+    // a MGP"; eso ya no existe -- la empresa es una sola.
+    c("2026-08-14", "MGP", "ANA GOMEZ", "ALMUERZO", 1, 12000),
     // Juan de AGRO el 14: para AGRO todavía es Q1
-    c("2026-08-14", "AGRO", "JUAN PEREZ", "AGRO", "ALMUERZO", 1, 10000),
+    c("2026-08-14", "AGRO", "JUAN PEREZ", "ALMUERZO", 1, 10000),
     // Un almuerzo que no se cobra
-    c("2026-08-20", "MGP", "JUAN PEREZ", "MGP", "ALMUERZO", 1, 12000, { facturable: false }),
+    c("2026-08-20", "MGP", "JUAN PEREZ", "ALMUERZO", 1, 12000, { facturable: false }),
     // SEPTIEMBRE — mismo día del mes, para ver si se mezcla con agosto
-    c("2026-09-10", "AGRO", "JUAN PEREZ", "AGRO", "ALMUERZO", 1, 10000),
+    c("2026-09-10", "AGRO", "JUAN PEREZ", "ALMUERZO", 1, 10000),
   ];
   return { version: 1, config: { anio: 2026, mes: 8, acreedor: {} }, empresas, personas, productos, precios, consumos, cuadres: {} };
 }
@@ -262,11 +264,11 @@ prueba("el consumo por persona separa a los dos Juanes", () => {
   const filas = informePorPersona(D.consumos, 2026, 8, E);
   const juanes = filas.filter((f) => f.persona === "JUAN PEREZ");
   igual(juanes.length, 2, "son dos personas distintas");
-  const juanAgro = juanes.find((f) => f.empresaCome === "AGRO");
+  const juanAgro = juanes.find((f) => f.empresa === "AGRO");
   igual(juanAgro.q1, 24000, "10.000 + 4.000 el día 10, más 10.000 el 14");
   igual(juanAgro.q2, 0);
   igual(juanAgro.mes, 24000);
-  const juanMgp = juanes.find((f) => f.empresaCome === "MGP");
+  const juanMgp = juanes.find((f) => f.empresa === "MGP");
   igual(juanMgp.q1, 12000, "el almuerzo del 20 no se cobra, no suma");
   igual(juanMgp.facturas, 2, "el del 10 y el del 20, aunque uno no se cobre");
 });
@@ -315,7 +317,8 @@ prueba("un renglón bueno no genera ni un aviso", () => {
 });
 
 prueba("avisa cuando la persona no es de esa empresa", () => {
-  const malo = { ...D.consumos[0], persona: "ANA GOMEZ", empresaCome: "MGP" };
+  // Ana es de MGP; en AGRO no está, así que este renglón tiene que chillar.
+  const malo = { ...D.consumos[0], persona: "ANA GOMEZ", empresa: "AGRO" };
   const avisos = revisarConsumo(malo, D);
   cierto(avisos.some((a) => a.codigo === "PERSONA_NO_ESTA"));
   cierto(avisos.every((a) => a.comoArreglar && a.comoArreglar.length > 10), "todos dicen cómo arreglarlo");
@@ -349,10 +352,10 @@ prueba("precioDe encuentra el precio por empresa, o dice null", () => {
 
 prueba("personasDe solo trae la gente de esa empresa y ordenada", () => {
   const agro = personasDe(D, "AGRO");
-  igual(agro.map((p) => p.nombre), ["ANA GOMEZ", "JUAN PEREZ"]);
+  igual(agro.map((p) => p.nombre), ["JUAN PEREZ"]);
   const mgp = personasDe(D, "MGP");
-  igual(mgp.map((p) => p.nombre), ["JUAN PEREZ"], "Pedro está inactivo, no sale");
-  igual(personasDe(D, "MGP", true).length, 2, "salvo que se pidan las inactivas");
+  igual(mgp.map((p) => p.nombre), ["ANA GOMEZ", "JUAN PEREZ"], "Pedro está inactivo, no sale");
+  igual(personasDe(D, "MGP", true).length, 3, "salvo que se pidan las inactivas");
 });
 
 prueba("contarFacturas y facturasPorEmpresa dan lo mismo sumadas", () => {

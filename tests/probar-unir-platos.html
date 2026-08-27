@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<title>Probar unir dos platos del catálogo</title>
+<style>
+  body { font-family: system-ui, sans-serif; padding: 1rem; background: #f5eee2; margin: 0; }
+  h1 { font-size: 1.15rem; margin: 0 0 .3rem; }
+  p { margin: 0 0 .8rem; font-size: .9rem; color: #574b45; max-width: 62ch; }
+  iframe { width: 1250px; height: 800px; border: 1px solid #c9b99f; display: block; }
+  pre { background: #fff; padding: .7rem; font-size: .85rem; margin-top: .8rem; }
+</style>
+</head>
+<body>
+<h1>Unir dos platos marcándolos en el catálogo</h1>
+<p>
+  Se marcan dos platos, se unen, y se revisa lo único que de verdad importa:
+  que <strong>ningún renglón se pierda</strong> y que la plata se mueva
+  exactamente lo que la app dijo que se iba a mover &mdash; ni un peso más.
+  A diferencia de unir personas, aquí el total <em>sí</em> puede cambiar
+  (los renglones se quedan con el precio del plato que gana), y por eso hay
+  que medirlo contra la cifra que la app le mostró antes de aceptar.
+</p>
+<iframe id="app" src="../index.html#catalogo"></iframe>
+<pre id="salida">probando…</pre>
+
+<script type="module">
+const esperar = (ms) => new Promise((l) => setTimeout(l, ms));
+const marco = document.getElementById("app");
+const lineas = [];
+const anotar = (t) => {
+  lineas.push(t);
+  document.getElementById("salida").textContent = lineas.join("\n");
+};
+
+await new Promise((listo) => {
+  marco.addEventListener("load", listo, { once: true });
+  setTimeout(listo, 15000);
+});
+await esperar(4500);
+
+const doc = marco.contentDocument;
+const win = marco.contentWindow;
+
+// El estado vive DENTRO del marco. Ver la explicación larga en probar-unir.html:
+// si esta página hiciera el import, tendría una copia vacía y mediría un
+// almacén imaginario.
+const { estado } = await win.eval('import("/js/ui/estado.js")');
+
+const total = () => estado.datos.consumos.reduce(
+  (s, c) => s + (Number(c.cantidad) || 0) * (Number(c.precioUnitario) || 0), 0);
+const renglonesDe = (plato) => estado.datos.consumos.filter(
+  (c) => c.producto === plato).length;
+
+// Dos platos que TENGAN renglones: si se unen dos que no se usan, no se mueve
+// nada y la prueba pasaría sin haber medido un solo peso.
+const cuantos = new Map();
+for (const c of estado.datos.consumos) {
+  cuantos.set(c.producto, (cuantos.get(c.producto) || 0) + 1);
+}
+const conRenglones = estado.datos.productos
+  .filter((p) => cuantos.get(p.nombre) > 0)
+  .sort((a, b) => cuantos.get(b.nombre) - cuantos.get(a.nombre));
+const pareja = conRenglones.slice(0, 2);
+
+const marcar = (nombre) => {
+  for (const fila of doc.querySelectorAll("tbody tr")) {
+    const suyo = fila.querySelector("strong");
+    if (!suyo || suyo.textContent.trim() !== nombre) continue;
+    const casilla = fila.querySelector('input[type="checkbox"]');
+    if (!casilla) return false;
+    casilla.click();
+    return true;
+  }
+  return false;
+};
+
+const botonQueDice = (texto) =>
+  [...doc.querySelectorAll("button")].find((b) => b.textContent.trim() === texto);
+
+if (pareja.length < 2) {
+  anotar("OJO  no hay dos platos con renglones; no se puede probar");
+} else {
+  const [bueno, malo] = pareja;
+  const antes = {
+    plata: total(),
+    filas: estado.datos.consumos.length,
+    platos: estado.datos.productos.length,
+    delBueno: renglonesDe(bueno.nombre),
+    delMalo: renglonesDe(malo.nombre),
+  };
+  anotar(`antes:   ${antes.filas} renglones, ${antes.platos} platos, total ${antes.plata}`);
+  anotar(`pareja:  "${bueno.nombre}" (${antes.delBueno}) + "${malo.nombre}" (${antes.delMalo})`);
+
+  anotar(marcar(bueno.nombre) && marcar(malo.nombre)
+    ? "OK   se marcaron los dos"
+    : "MAL  no se pudieron marcar");
+
+  await esperar(300);
+  const barra = doc.querySelector(".barra-unir");
+  anotar(barra ? "OK   salió la barra de unir" : "MAL  no salió la barra de unir");
+
+  const botonUnir = botonQueDice("Unir los marcados");
+  anotar(botonUnir && !botonUnir.disabled
+    ? "OK   el botón de unir está habilitado"
+    : "MAL  el botón de unir no sirve");
+
+  if (botonUnir && !botonUnir.disabled) {
+    botonUnir.click();
+    await esperar(400);
+
+    // Primero pregunta cuál nombre se queda. Se deja el que trae por defecto.
+    const aceptarPrimera = botonQueDice("Ver qué va a pasar");
+    anotar(aceptarPrimera ? "OK   pregunta cuál nombre se queda" : "MAL  no preguntó el nombre");
+    if (aceptarPrimera) {
+      aceptarPrimera.click();
+      await esperar(400);
+
+      // La ventana de confirmación tiene que decir la plata ANTES de tocar nada.
+      const texto = (doc.querySelector(".ventana, dialog, .modal") || doc.body).textContent;
+      anotar(/Renglones que se mueven/.test(texto)
+        ? "OK   avisa cuántos renglones se mueven"
+        : "MAL  no dice cuántos renglones se mueven");
+      anotar(/Val[íi]an/.test(texto) && /Van a valer/.test(texto)
+        ? "OK   muestra cuánto valían y cuánto van a valer"
+        : "MAL  no muestra la plata antes y después");
+
+      const siUnir = botonQueDice("Sí, unir");
+      anotar(siUnir ? "OK   hay botón de confirmar" : "MAL  no hay botón de confirmar");
+      if (siUnir) {
+        siUnir.click();
+        await esperar(600);
+
+        const despues = {
+          plata: total(),
+          filas: estado.datos.consumos.length,
+          platos: estado.datos.productos.length,
+        };
+        anotar(`después: ${despues.filas} renglones, ${despues.platos} platos, total ${despues.plata}`);
+
+        anotar(despues.filas === antes.filas
+          ? "OK   no se perdió ningún renglón"
+          : `MAL  los renglones pasaron de ${antes.filas} a ${despues.filas}`);
+        anotar(despues.platos === antes.platos - 1
+          ? "OK   quedó un plato menos, como debe ser"
+          : `MAL  los platos pasaron de ${antes.platos} a ${despues.platos}`);
+        anotar(renglonesDe(malo.nombre) === 0
+          ? `OK   no quedó ningún renglón con "${malo.nombre}"`
+          : `MAL  todavía hay renglones con "${malo.nombre}"`);
+        anotar(renglonesDe(bueno.nombre) === antes.delBueno + antes.delMalo
+          ? `OK   los ${antes.delMalo} renglones se pasaron a "${bueno.nombre}"`
+          : "MAL  no llegaron todos los renglones al plato bueno");
+        anotar(estado.datos.productos.some((p) => p.nombre === malo.nombre)
+          ? "MAL  el plato absorbido sigue en el catálogo"
+          : "OK   el plato absorbido salió del catálogo");
+
+        // La plata puede cambiar (los renglones toman el precio del bueno),
+        // pero solo eso: nada de renglones que se evaporen.
+        anotar(Number.isFinite(despues.plata) && despues.plata > 0
+          ? `OK   el total quedó en ${despues.plata}`
+          : "MAL  el total quedó en algo raro");
+      }
+    }
+  }
+}
+
+try { await fetch("/diagnostico", { method: "POST", body: lineas.join("\n") }); } catch {}
+</script>
+</body>
+</html>

@@ -179,7 +179,7 @@ export function parecidasParaSuelto(datos, nombre, codigoEmpresa) {
   const esq = esqueleto(nombre);
   const sueltas = [];
   for (const p of datos.personas) {
-    if (normalizar(p.empresaCome) !== empresa) continue;
+    if (normalizar(p.empresa) !== empresa) continue;
     const d = distancia(esq, esqueleto(p.nombre), 2);
     if (d >= 1 && d <= 2) {
       sueltas.push({
@@ -194,22 +194,22 @@ export function parecidasParaSuelto(datos, nombre, codigoEmpresa) {
 
 export function personasSueltas(datos, { incluirRevisadas = false } = {}) {
   const existentes = new Set(
-    datos.personas.map((p) => clavePersona(p.empresaCome, p.nombre))
+    datos.personas.map((p) => clavePersona(p.empresa, p.nombre))
   );
 
   // Juntamos los renglones por (empresa, nombre): se decide una vez para todos.
   const grupos = new Map();
   for (const c of datos.consumos) {
-    const llave = clavePersona(c.empresaCome, c.persona);
+    const llave = clavePersona(c.empresa, c.persona);
     if (existentes.has(llave)) continue;
     if (!grupos.has(llave)) {
       grupos.set(llave, {
-        empresa: normalizar(c.empresaCome),
+        empresa: normalizar(c.empresa),
         nombre: normalizar(c.persona),
         renglones: 0,
         plata: 0,
         dias: new Set(),
-        empresaFactura: normalizar(c.empresaFactura),
+        empresa: normalizar(c.empresa),
       });
     }
     const g = grupos.get(llave);
@@ -226,7 +226,7 @@ export function personasSueltas(datos, { incluirRevisadas = false } = {}) {
       tipo: "PERSONA",
       empresa: g.empresa,
       nombre: g.nombre,
-      empresaFactura: g.empresaFactura,
+      empresa: g.empresa,
       renglones: g.renglones,
       plata: g.plata,
       dias: g.dias.size,
@@ -246,17 +246,15 @@ export function unirPersonaSuelta(datos, empresa, nombreSuelto, nombreBueno) {
   const emp = normalizar(empresa);
   const suelto = normalizar(nombreSuelto);
   const buena = datos.personas.find(
-    (p) => normalizar(p.empresaCome) === emp && normalizar(p.nombre) === normalizar(nombreBueno)
+    (p) => normalizar(p.empresa) === emp && normalizar(p.nombre) === normalizar(nombreBueno)
   );
   if (!buena) throw new Error(`${nombreBueno} no está en ${emp}.`);
 
   let movidos = 0;
   for (const c of datos.consumos) {
-    if (normalizar(c.empresaCome) !== emp) continue;
+    if (normalizar(c.empresa) !== emp) continue;
     if (normalizar(c.persona) !== suelto) continue;
     c.persona = buena.nombre;
-    // A quién se le factura lo manda la persona de verdad.
-    if (buena.empresaFactura) c.empresaFactura = normalizar(buena.empresaFactura);
     c.revisar = (c.revisar || []).filter((x) => x !== "PERSONA_NO_ESTA");
     movidos++;
   }
@@ -265,17 +263,16 @@ export function unirPersonaSuelta(datos, empresa, nombreSuelto, nombreBueno) {
 }
 
 /** "Es otra persona": se crea en la lista y los renglones quedan válidos. */
-export function crearPersonaSuelta(datos, empresa, nombreSuelto, empresaFactura, documento = "") {
+export function crearPersonaSuelta(datos, empresa, nombreSuelto, documento = "") {
   const emp = normalizar(empresa);
   const nombre = limpiarNombre(nombreSuelto);
   const yaEsta = datos.personas.some(
-    (p) => normalizar(p.empresaCome) === emp && limpiarNombre(p.nombre) === nombre
+    (p) => normalizar(p.empresa) === emp && limpiarNombre(p.nombre) === nombre
   );
   if (!yaEsta) {
     datos.personas.push({
       nombre,
-      empresaCome: emp,
-      empresaFactura: normalizar(empresaFactura) || emp,
+      empresa: emp,
       activa: true,
       documento: String(documento || "").replace(/[^0-9]/g, "").slice(-5),
     });
@@ -283,7 +280,7 @@ export function crearPersonaSuelta(datos, empresa, nombreSuelto, empresaFactura,
   // Si el nombre venía sucio, los renglones se van con él para que coincidan.
   let arreglados = 0;
   for (const c of datos.consumos) {
-    if (normalizar(c.empresaCome) !== emp) continue;
+    if (normalizar(c.empresa) !== emp) continue;
     if (normalizar(c.persona) !== normalizar(nombreSuelto)) continue;
     c.persona = nombre;
     c.revisar = (c.revisar || []).filter((x) => x !== "PERSONA_NO_ESTA");
@@ -321,7 +318,7 @@ export function platosSueltos(datos, { incluirRevisados = false } = {}) {
     const g = grupos.get(plato);
     g.renglones++;
     g.cantidad += Number(c.cantidad) || 0;
-    g.empresas.add(normalizar(c.empresaFactura));
+    g.empresas.add(normalizar(c.empresa));
     if (sinPrecio) g.sinPrecio++;
   }
 
@@ -385,7 +382,7 @@ export function simularUnionDePlato(datos, nombreSuelto, nombreBueno) {
 
   for (const c of datos.consumos) {
     if (normalizar(c.producto) !== suelto) continue;
-    const empresa = normalizar(c.empresaFactura);
+    const empresa = normalizar(c.empresa);
     const precioNuevo = datos.precios[clavePrecio(bueno, empresa)];
     const nuevo = Number.isFinite(precioNuevo) ? precioNuevo : Number(c.precioUnitario) || 0;
 
@@ -425,7 +422,7 @@ export function unirPlatoSuelto(datos, nombreSuelto, nombreBueno) {
 
   for (const c of datos.consumos) {
     if (normalizar(c.producto) !== suelto) continue;
-    const empresa = normalizar(c.empresaFactura);
+    const empresa = normalizar(c.empresa);
     const precio = datos.precios[clavePrecio(producto.nombre, empresa)];
     c.producto = producto.nombre;
     if (Number.isFinite(precio)) c.precioUnitario = precio;
@@ -435,6 +432,88 @@ export function unirPlatoSuelto(datos, nombreSuelto, nombreBueno) {
   }
   volverARevisar(datos, "PLATO", "", nombreSuelto);
   return previa;
+}
+
+// ---------------------------------------------------------------------------
+//  UNIR DOS PLATOS DEL CATÁLOGO
+//
+//  Lo de arriba une un plato SUELTO (uno que está en los renglones pero no en
+//  el catálogo) con uno del catálogo. Esto es el otro caso: los dos están en
+//  el catálogo y son el mismo plato, escrito de dos formas.
+//
+//      AGUA GAS   y   AGUA CON GAS
+//      COMBO COSTILLA   y   COMBO DE COSTILLA
+//
+//  Hasta ahora no había forma de arreglarlo: borrar no deja (el plato está en
+//  renglones ya registrados) y apagar solo lo esconde al anotar, pero sigue
+//  saliendo en la cocina y en la cuenta como si fuera otro plato. Así que la
+//  cuenta de cobro llegaba con el mismo plato en dos renglones distintos.
+//
+//  OJO CON LA PLATA: los renglones que se mudan quedan con el precio del plato
+//  que se queda. Si los dos valían lo mismo -- que es lo normal -- no cambia
+//  nada; si no, el total del mes se mueve. Por eso simularUnionDePlatos()
+//  existe: para poder mostrarle la diferencia ANTES de tocar nada.
+// ---------------------------------------------------------------------------
+
+/** Qué pasaría si se unieran. No cambia nada. */
+export function simularUnionDePlatos(datos, nombreBueno, nombresAbsorbidos) {
+  const bueno = normalizar(nombreBueno);
+  const malos = nombresAbsorbidos.map(normalizar).filter((n) => n && n !== bueno);
+
+  let renglones = 0;
+  let antes = 0;
+  let despues = 0;
+  const porEmpresa = new Map();
+
+  for (const malo of malos) {
+    const p = simularUnionDePlato(datos, malo, bueno);
+    renglones += p.renglones;
+    antes += p.antes;
+    despues += p.despues;
+    for (const e of p.porEmpresa) {
+      if (!porEmpresa.has(e.empresa)) porEmpresa.set(e.empresa, { antes: 0, despues: 0 });
+      const acumulado = porEmpresa.get(e.empresa);
+      acumulado.antes += e.antes;
+      acumulado.despues += e.despues;
+    }
+  }
+
+  return {
+    bueno,
+    malos,
+    renglones,
+    antes,
+    despues,
+    diferencia: despues - antes,
+    porEmpresa: [...porEmpresa.entries()]
+      .map(([empresa, v]) => ({ empresa, ...v, diferencia: v.despues - v.antes }))
+      .sort((a, b) => Math.abs(b.diferencia) - Math.abs(a.diferencia)),
+  };
+}
+
+/** Los une de verdad: los renglones se mudan y los platos que sobran se van. */
+export function unirPlatosDelCatalogo(datos, nombreBueno, nombresAbsorbidos) {
+  const previa = simularUnionDePlatos(datos, nombreBueno, nombresAbsorbidos);
+  if (!previa.malos.length) return { ...previa, hecho: false };
+
+  const producto = datos.productos.find((p) => normalizar(p.nombre) === previa.bueno);
+  if (!producto) throw new Error(`${nombreBueno} no está en el catálogo.`);
+
+  // 1) Los renglones se mudan al plato bueno, con su precio.
+  for (const malo of previa.malos) unirPlatoSuelto(datos, malo, producto.nombre);
+
+  // 2) Los platos que sobran salen del catálogo.
+  datos.productos = datos.productos.filter(
+    (p) => !previa.malos.includes(normalizar(p.nombre))
+  );
+
+  // 3) Y sus precios también. Si se quedaran, volverían a aparecer solos el
+  //    día que alguien cree otro plato con ese mismo nombre.
+  for (const llave of Object.keys(datos.precios)) {
+    if (previa.malos.includes(llave.split("|")[0])) delete datos.precios[llave];
+  }
+
+  return { ...previa, hecho: true };
 }
 
 /** "Es un plato diferente": entra al catálogo con el precio que ella diga. */
@@ -452,7 +531,7 @@ export function crearPlatoSuelto(datos, nombreSuelto, precioPorEmpresa) {
   for (const c of datos.consumos) {
     if (normalizar(c.producto) !== normalizar(nombreSuelto)) continue;
     c.producto = nombre;
-    const precio = datos.precios[clavePrecio(nombre, normalizar(c.empresaFactura))];
+    const precio = datos.precios[clavePrecio(nombre, normalizar(c.empresa))];
     if (Number.isFinite(precio)) c.precioUnitario = precio;
     c.revisar = (c.revisar || []).filter(
       (x) => x !== "PLATO_NO_ESTA" && !(x === "SIN_PRECIO" && Number(precio) > 0)

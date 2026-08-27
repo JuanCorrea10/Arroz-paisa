@@ -22,8 +22,7 @@ const CORRIENTE = 10000;
 function consumo(fecha, empresa, persona, producto, precio, cantidad = 1, extra = {}) {
   return {
     fecha,
-    empresaCome: empresa,
-    empresaFactura: empresa,
+    empresa: empresa,
     persona,
     producto,
     precioUnitario: precio,
@@ -39,9 +38,9 @@ function negocio() {
       { codigo: "AGRO", razonSocial: "Agroindustrias del Tolima", ultimoDiaQ1: 15 },
     ],
     personas: [
-      { nombre: "ANA GOMEZ", empresaCome: "MGP", empresaFactura: "MGP" },
-      { nombre: "LUIS PEÑA", empresaCome: "MGP", empresaFactura: "MGP" },
-      { nombre: "ANA GOMEZ", empresaCome: "AGRO", empresaFactura: "AGRO" },
+      { nombre: "ANA GOMEZ", empresa: "MGP" },
+      { nombre: "LUIS PEÑA", empresa: "MGP" },
+      { nombre: "ANA GOMEZ", empresa: "AGRO" },
     ],
     productos: [{ nombre: "ALMUERZO" }, { nombre: "CORRIENTE" }],
     precios: {},
@@ -80,7 +79,7 @@ prueba("solo entra lo de esa empresa, de ese mes", () => {
 
   // Ni un solo renglón puede venir de otra empresa. Esto es lo que hace que
   // el archivo se pueda mandar sin miedo.
-  const deOtra = i.dias.flatMap((d) => d.renglones).filter((c) => c.empresaFactura !== "MGP");
+  const deOtra = i.dias.flatMap((d) => d.renglones).filter((c) => c.empresa !== "MGP");
   igual(deOtra.length, 0, "se coló un renglón de otra empresa");
 
   // Y la tocaya de AGRO no puede salir en la lista de personas de MGP.
@@ -94,7 +93,7 @@ prueba("el informe de AGRO no ve nada de MGP", () => {
   igual(i.personas.length, 1);
   igual(i.totales.mes, ALMUERZO * 2);
   cierto(
-    i.dias.flatMap((d) => d.renglones).every((c) => c.empresaFactura === "AGRO"),
+    i.dias.flatMap((d) => d.renglones).every((c) => c.empresa === "AGRO"),
     "el informe de AGRO trae renglones de otra empresa"
   );
 });

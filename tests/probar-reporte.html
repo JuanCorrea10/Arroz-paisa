@@ -32,7 +32,8 @@ const anotar = (t) => {
 const { generarReporteEmpresa } = await import("../js/exportar/reporte-empresa.js");
 const { informeCompletoDeEmpresa } = await import("../js/nucleo/calculos.js");
 const { pesos } = await import("../js/nucleo/formato.js");
-const datos = await (await fetch("../datos/inicial.json")).json();
+const { completarDatos } = await import("../js/nucleo/modelo.js");
+const datos = completarDatos(await (await fetch("../datos/inicial.json")).json());
 
 const mes = 8, anio = 2026;
 
@@ -86,7 +87,7 @@ for (const empresa of datos.empresas) {
   // puede pedir lo mismo dos veces el mismo día, y las dos son válidas).
   const permitidos = new Map();
   for (const c of datos.consumos) {
-    if (c.empresaFactura !== empresa.codigo) continue;
+    if (c.empresa !== empresa.codigo) continue;
     if (c.fecha.slice(0, 7) !== "2026-08") continue;
     const llave = c.persona + "|" + c.producto + "|" + c.cantidad;
     permitidos.set(llave, (permitidos.get(llave) || 0) + 1);

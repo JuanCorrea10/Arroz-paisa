@@ -254,18 +254,12 @@ function unirla(raiz, p, nombreBueno) {
 }
 
 async function crearla(raiz, p) {
-  const lista = empresas();
   const datos = await pedirDatos({
     titulo: `Crear a ${p.nombre}`,
     campos: [
       { nombre: "nombre", etiqueta: "Nombre", valor: p.nombre, requerido: true },
-      {
-        nombre: "empresaFactura",
-        etiqueta: "¿A qué empresa se le cobra?",
-        tipo: "seleccion",
-        valor: p.empresaFactura || p.empresa,
-        opciones: lista.map((e) => ({ valor: e.codigo, texto: e.codigo + " — " + e.razonSocial })),
-      },
+      // Ya no se pregunta a qué empresa se le cobra: es la misma donde come,
+      // que es la del renglón que la trajo hasta aquí.
       {
         nombre: "documento", etiqueta: "Cédula (opcional)", tipo: "text",
         ayuda: "Sirve para no confundirla con otra del mismo nombre. La app " +
@@ -276,17 +270,17 @@ async function crearla(raiz, p) {
   });
   if (!datos) return;
 
-  const r = crearPersonaSuelta(estado.datos, p.empresa, p.nombre, datos.empresaFactura, datos.documento);
+  const r = crearPersonaSuelta(estado.datos, p.empresa, p.nombre, datos.documento);
   // Si además le cambió el nombre, lo aplicamos.
   if (normalizar(datos.nombre) !== normalizar(p.nombre)) {
     for (const persona of estado.datos.personas) {
-      if (normalizar(persona.empresaCome) === p.empresa &&
+      if (normalizar(persona.empresa) === p.empresa &&
           normalizar(persona.nombre) === normalizar(r.nombre)) {
         persona.nombre = normalizar(datos.nombre);
       }
     }
     for (const c of estado.datos.consumos) {
-      if (normalizar(c.empresaCome) === p.empresa && normalizar(c.persona) === normalizar(r.nombre)) {
+      if (normalizar(c.empresa) === p.empresa && normalizar(c.persona) === normalizar(r.nombre)) {
         c.persona = normalizar(datos.nombre);
       }
     }

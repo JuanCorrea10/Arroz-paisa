@@ -34,13 +34,14 @@ const { informeCompletoDeEmpresa } = await import("../js/nucleo/calculos.js");
 const pdf = await import("../js/exportar/pdf.js");
 
 // Los datos de verdad, los mismos que arranca la app.
-const datos = await (await fetch("../datos/inicial.json")).json();
+const { completarDatos } = await import("../js/nucleo/modelo.js");
+const datos = completarDatos(await (await fetch("../datos/inicial.json")).json());
 await pdf.prepararLogo("../img/logo-blanco.png");
 
 // Qué empresa y qué mes tienen más movimiento: es el caso que más se rompe.
 const cuenta = new Map();
 for (const c of datos.consumos) {
-  const k = c.empresaFactura + "|" + c.fecha.slice(0, 7);
+  const k = c.empresa + "|" + c.fecha.slice(0, 7);
   cuenta.set(k, (cuenta.get(k) || 0) + 1);
 }
 const [mejor] = [...cuenta.entries()].sort((a, b) => b[1] - a[1]);

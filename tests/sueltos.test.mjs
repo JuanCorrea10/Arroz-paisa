@@ -63,7 +63,7 @@ let contador = 0;
 function renglon(fecha, empresa, persona, producto, precio, cantidad = 1) {
   contador++;
   return {
-    id: "s" + contador, fecha, empresaCome: empresa, empresaFactura: empresa,
+    id: "s" + contador, fecha, empresa: empresa,
     persona, producto, cantidad, precioUnitario: precio,
     facturable: true, observacion: "", revisar: [],
   };
@@ -86,8 +86,8 @@ function datosDePrueba() {
       "AGUA GAS|MGP": 3000, "AGUA GAS|AGRO": 3000,
     },
     personas: [
-      { nombre: "MARTA SALGADO", empresaCome: "MGP", empresaFactura: "MGP", activa: true },
-      { nombre: "PEDRO SOLO", empresaCome: "AGRO", empresaFactura: "AGRO", activa: true },
+      { nombre: "MARTA SALGADO", empresa: "MGP", activa: true },
+      { nombre: "PEDRO SOLO", empresa: "AGRO", activa: true },
     ],
     consumos: [
       renglon("2026-08-03", "MGP", "MARTA SALGADO", "ALMUERZO", 12000),
@@ -197,7 +197,7 @@ prueba("es otra persona: se crea y los renglones quedan válidos", () => {
   const r = crearPersonaSuelta(datos, "MGP", "MARTHA SALGADO", "MGP");
   igual(r.arreglados, 2);
   igual(personasSueltas(datos).length, 0);
-  cierto(datos.personas.some((p) => p.nombre === "MARTHA SALGADO" && p.empresaCome === "MGP"));
+  cierto(datos.personas.some((p) => p.nombre === "MARTHA SALGADO" && p.empresa === "MGP"));
 });
 
 // ---------------------------------------------------------------------------

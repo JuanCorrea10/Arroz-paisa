@@ -183,7 +183,7 @@ export function nombreCortoCabeEn(nombreCorto, nombreLargo) {
 export function cruzarConPersonal(datos, codigoEmpresa, gente) {
   const empresa = normalizar(codigoEmpresa);
   const deLaEmpresa = datos.personas.filter(
-    (p) => normalizar(p.empresaCome) === empresa
+    (p) => normalizar(p.empresa) === empresa
   );
 
   const asignaciones = [];
@@ -232,7 +232,7 @@ export function cruzarConPersonal(datos, codigoEmpresa, gente) {
     const conPeso = personasApp.map((p) => ({
       persona: p,
       renglones: datos.consumos.filter(
-        (c) => clavePersona(c.empresaCome, c.persona) === clavePersona(p.empresaCome, p.nombre)
+        (c) => clavePersona(c.empresa, c.persona) === clavePersona(p.empresa, p.nombre)
       ).length,
     })).sort((a, b) => b.renglones - a.renglones);
 
@@ -265,8 +265,8 @@ export function aplicarDocumentos(datos, asignaciones) {
 
   for (const a of asignaciones) {
     const persona = datos.personas.find(
-      (p) => clavePersona(p.empresaCome, p.nombre) ===
-             clavePersona(a.persona.empresaCome, a.persona.nombre)
+      (p) => clavePersona(p.empresa, p.nombre) ===
+             clavePersona(a.persona.empresa, a.persona.nombre)
     );
     if (!persona) continue;
     if (persona.documento === a.documento) continue;
@@ -300,8 +300,8 @@ export function anotarDocumentoDeFusiones(datos, fusiones) {
     if (!f.documento) continue;
     for (const x of f.integrantes) {
       const persona = datos.personas.find(
-        (p) => clavePersona(p.empresaCome, p.nombre) ===
-               clavePersona(x.persona.empresaCome, x.persona.nombre)
+        (p) => clavePersona(p.empresa, p.nombre) ===
+               clavePersona(x.persona.empresa, x.persona.nombre)
       );
       if (!persona) continue;
       persona.documento = f.documento;
@@ -320,7 +320,7 @@ export function anotarDocumentoDeFusiones(datos, fusiones) {
 export function coberturaDeDocumentos(datos) {
   const porEmpresa = new Map();
   for (const p of datos.personas) {
-    const emp = normalizar(p.empresaCome);
+    const emp = normalizar(p.empresa);
     if (!porEmpresa.has(emp)) porEmpresa.set(emp, { total: 0, conDocumento: 0 });
     const c = porEmpresa.get(emp);
     c.total++;

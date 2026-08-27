@@ -14,6 +14,7 @@ import {
 import { estado, cambio, empresas } from "./estado.js";
 import { pesos, normalizar, coincide, aEntero } from "../nucleo/formato.js";
 import { clavePrecio, precioDe, indicePorCodigo, clavePersona, precioDelPlato, precioSeVeRaro} from "../nucleo/calculos.js";
+import { simularUnionDePlatos, unirPlatosDelCatalogo } from "../nucleo/sueltos.js";
 import {
   agregarEmpresa, agregarProducto, agregarPersona,
   puedeBorrarPersona, borrarPersona, puedeBorrarProducto, borrarProducto,
@@ -21,7 +22,7 @@ import {
 } from "../nucleo/modelo.js";
 import {
   limpiarNombre, parecidasEnEmpresa, renombrarPersona, tocayosEnOtrasEmpresas,
-  simularUnion, unirPersonas,
+  simularUnion, unirPersonas, simularCambioDeEmpresa, cambiarDeEmpresa,
 } from "../nucleo/nombres.js";
 
 // ===========================================================================
@@ -174,6 +175,9 @@ async function editarEmpresa(raiz, empresa) {
 
 let buscaPlato = "";
 
+/** Los platos marcados para unir. Se guardan por nombre ya normalizado. */
+const platosMarcados = new Set();
+
 export function pintarCatalogo(raiz) {
   vaciar(raiz);
   const lista = empresas();
@@ -209,7 +213,14 @@ export function pintarCatalogo(raiz) {
       cifra("Platos", String(productos.length)),
       cifra("Sin precio", String(sinPrecio.length), sinPrecio.length > 0),
       cifra("Con precios distintos", String(disparejos.length), disparejos.length > 0)
-    )
+    ),
+    el("p", { clase: "nota" },
+      "¿El mismo plato quedó dos veces con nombres parecidos ",
+      el("em", { texto: "(AGUA GAS y AGUA CON GAS)" }), "? ",
+      el("strong", { texto: "Márquelos con la casilla y únalos" }),
+      ": los renglones ya registrados se pasan al nombre que se quede. " +
+      "Borrarlos no se puede -- están en renglones viejos -- y apagarlos solo " +
+      "los esconde al anotar: seguirían saliendo separados en la cuenta.")
   );
 
   if (sinPrecio.length) {
@@ -277,8 +288,11 @@ export function pintarCatalogo(raiz) {
     return;
   }
 
+  poner(raiz, barraDeUnirPlatos(raiz, productos));
+
   const suTabla = tabla(
     [
+      { titulo: "" },
       { titulo: "Plato" },
       { titulo: "Precio", clase: "dato" },
       { titulo: "", clase: "dato" },
@@ -294,7 +308,21 @@ function filaDePlato(raiz, producto, lista) {
   const codigos = lista.map((e) => e.codigo);
   const info = precioDelPlato(estado.datos, producto.nombre, codigos);
 
+  const llave = normalizar(producto.nombre);
+
   return el("tr", { clase: producto.activo === false ? "apagada" : "" },
+    el("td", {},
+      el("input", {
+        type: "checkbox",
+        checked: platosMarcados.has(llave),
+        "aria-label": `Marcar ${producto.nombre} para unir`,
+        alCambiar: (ev) => {
+          if (ev.target.checked) platosMarcados.add(llave);
+          else platosMarcados.delete(llave);
+          pintarCatalogo(raiz);
+        },
+      })
+    ),
     el("td", {},
       el("strong", { texto: producto.nombre }),
       producto.activo === false ? el("span", { clase: "etiqueta", texto: "apagado" }) : null,
@@ -529,6 +557,129 @@ async function renombrarPlato(raiz, producto) {
   mensaje(`Renombrado. Se cambiaron ${cuantos} renglones.`, "bien", 6);
 }
 
+// ---------------------------------------------------------------------------
+//  Unir platos que son el mismo plato
+// ---------------------------------------------------------------------------
+
+function barraDeUnirPlatos(raiz, productos) {
+  const elegidos = productos.filter((p) => platosMarcados.has(normalizar(p.nombre)));
+  if (!elegidos.length) return null;
+
+  return el("section", { clase: "tarjeta barra-unir" },
+    el("div", { clase: "fila entre" },
+      el("div", {},
+        el("strong", { texto:
+          elegidos.length === 1 ? "1 plato marcado" : `${elegidos.length} platos marcados` }),
+        el("p", { clase: "nota-suelta", texto: elegidos.map((p) => p.nombre).join("  ·  ") })
+      ),
+      el("div", { clase: "fila" },
+        el("button", {
+          clase: "plano chico",
+          alHacerClic: () => { platosMarcados.clear(); pintarCatalogo(raiz); },
+        }, "Desmarcar"),
+        el("button", {
+          clase: "principal",
+          disabled: elegidos.length < 2,
+          alHacerClic: () => unirLosPlatosMarcados(raiz, elegidos),
+        }, "Unir los marcados")
+      )
+    ),
+    elegidos.length < 2
+      ? el("p", { clase: "nota", texto: "Marque otro para poder unirlos." })
+      : null
+  );
+}
+
+async function unirLosPlatosMarcados(raiz, elegidos) {
+  // El que más renglones tenga va primero: casi siempre es el nombre bueno.
+  const conPeso = elegidos.map((p) => ({
+    producto: p,
+    renglones: estado.datos.consumos.filter(
+      (c) => normalizar(c.producto) === normalizar(p.nombre)).length,
+  })).sort((a, b) => b.renglones - a.renglones);
+
+  const r = await pedirDatos({
+    titulo: "¿Cuál nombre se queda?",
+    campos: [
+      {
+        nombre: "bueno",
+        etiqueta: "El nombre bueno",
+        tipo: "seleccion",
+        valor: conPeso[0].producto.nombre,
+        opciones: conPeso.map((x) => ({
+          valor: x.producto.nombre,
+          texto: `${x.producto.nombre}  (${x.renglones} renglones)`,
+        })),
+        ayuda: "Los otros desaparecen del catálogo y sus renglones pasan a este.",
+      },
+    ],
+    textoAceptar: "Ver qué va a pasar",
+  });
+  if (!r) return;
+
+  const otros = elegidos.map((p) => p.nombre).filter((n) => n !== r.bueno);
+  const previa = simularUnionDePlatos(estado.datos, r.bueno, otros);
+
+  ventana({
+    titulo: "¿Unir estos platos?",
+    cuerpo: el("div", {},
+      el("p", {},
+        "Todo lo de ",
+        ...otros.map((n, i) => [i ? " y " : "", el("strong", { texto: n })]).flat(),
+        " va a quedar como ", el("strong", { texto: r.bueno }), "."),
+      el("dl", { clase: "cifras" },
+        cifra("Renglones que se mueven", String(previa.renglones)),
+        cifra("Valían", pesos(previa.antes)),
+        cifra("Van a valer", pesos(previa.despues), previa.diferencia !== 0)
+      ),
+      // La plata SÍ puede cambiar aquí, al revés que al unir personas: los
+      // renglones se quedan con el precio del plato que se queda. Si los dos
+      // valían lo mismo la diferencia es cero y no se dice nada; si no, hay
+      // que decirlo con todas las letras y por empresa, porque eso mueve la
+      // cuenta de cobro de este mes.
+      previa.diferencia === 0
+        ? el("p", { clase: "nota bien" },
+            "Valían lo mismo, así que ningún total cambia.")
+        : el("div", {},
+            el("p", { clase: "nota ojo" },
+              "Ojo: no valían lo mismo. El total ",
+              el("strong", { texto: previa.diferencia > 0 ? "sube " : "baja " }),
+              el("strong", { texto: pesos(Math.abs(previa.diferencia)) }),
+              ", porque los renglones se quedan con el precio de ",
+              el("strong", { texto: r.bueno }), "."),
+            el("ul", { clase: "lista-disparejos" },
+              ...previa.porEmpresa.map((e) => el("li", {},
+                el("strong", { texto: e.empresa }), " — de ", pesos(e.antes),
+                " a ", pesos(e.despues),
+                el("span", { clase: "nota-suelta",
+                  texto: ` (${e.diferencia > 0 ? "+" : ""}${pesos(e.diferencia)})` })))
+            )
+          )
+    ),
+    botones: [
+      { texto: "Cancelar" },
+      {
+        texto: "Sí, unir",
+        clase: "principal",
+        alHacerClic: () => {
+          try {
+            const hecho = unirPlatosDelCatalogo(estado.datos, r.bueno, otros);
+            platosMarcados.clear();
+            cambio();
+            pintarCatalogo(raiz);
+            mensaje(
+              `Unidos. ${hecho.renglones} renglones quedaron como ${hecho.bueno}.`,
+              "bien", 7
+            );
+          } catch (e) {
+            mensaje(e.message, "malo", 8);
+          }
+        },
+      },
+    ],
+  });
+}
+
 // ===========================================================================
 //  PERSONAS
 // ===========================================================================
@@ -551,30 +702,30 @@ export function pintarPersonas(raiz) {
   vaciar(raiz);
   const lista = empresas();
   const todas = [...estado.datos.personas].sort(
-    (a, b) => a.empresaCome.localeCompare(b.empresaCome, "es") ||
+    (a, b) => a.empresa.localeCompare(b.empresa, "es") ||
               a.nombre.localeCompare(b.nombre, "es"));
 
   const visibles = todas.filter((p) =>
-    (!empresaFiltro || normalizar(p.empresaCome) === empresaFiltro) &&
+    (!empresaFiltro || normalizar(p.empresa) === empresaFiltro) &&
     coincide(p.nombre, buscaPersona));
 
-  // Cuánta gente se le factura a otra empresa distinta de donde come.
-  const cruzadas = todas.filter(
-    (p) => normalizar(p.empresaFactura) !== normalizar(p.empresaCome));
+  // Cuántas están apagadas. Antes aquí se contaba "a cuántas se les factura a
+  // otra empresa", pero ya no hay dos empresas que puedan no coincidir.
+  const apagadas = todas.filter((p) => p.activa === false);
   const conDocumento = todas.filter((p) => p.documento);
 
   poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Personas" }),
-        el("p", { texto: "Quién come en cada empresa y a quién se le cobra." })
+        el("p", { texto: "Quién come en cada empresa." })
       ),
       el("button", { clase: "principal", alHacerClic: () => nuevaPersona(raiz) }, "Agregar persona")
     ),
     el("dl", { clase: "cifras" },
       cifra("Personas", String(todas.length)),
       cifra("Con cédula", `${conDocumento.length} de ${todas.length}`),
-      cifra("Se le cobra a otra empresa", String(cruzadas.length)),
+      cifra("Apagadas", String(apagadas.length)),
       cifra("Mostrando", String(visibles.length))
     ),
     el("p", { clase: "nota" },
@@ -587,7 +738,11 @@ export function pintarPersonas(raiz) {
       el("strong", { texto: "Márquelas con la casilla de la izquierda y únalas" }),
       ". La pantalla ", el("a", { href: "#nombres", texto: "Revisar nombres" }),
       " solo encuentra las que se parecen; si de una quedó el apodo y de la " +
-      "otra el nombre completo, no se parecen en nada y allá no salen nunca.")
+      "otra el nombre completo, no se parecen en nada y allá no salen nunca."),
+    el("p", { clase: "nota" },
+      "¿Y si quedaron en ", el("strong", { texto: "empresas distintas" }), "? ",
+      'Ábrala con "Editar" y cámbiele la empresa: cuando las dos estén en la ' +
+      "misma, se pueden unir.")
   );
 
   const filtro = el("select", {
@@ -607,7 +762,7 @@ export function pintarPersonas(raiz) {
       if (!cuerpo) return;
       vaciar(cuerpo);
       const nuevas = todas.filter((p) =>
-        (!empresaFiltro || normalizar(p.empresaCome) === empresaFiltro) &&
+        (!empresaFiltro || normalizar(p.empresa) === empresaFiltro) &&
         coincide(p.nombre, buscaPersona));
       for (const p of nuevas.slice(0, 300)) cuerpo.append(filaDePersona(raiz, p, lista));
     },
@@ -631,8 +786,8 @@ export function pintarPersonas(raiz) {
   poner(raiz,
     tabla(
       [
-        { titulo: "" }, { titulo: "Nombre" }, { titulo: "Come en" },
-        { titulo: "Se le cobra a" }, { titulo: "Cédula", clase: "dato" },
+        { titulo: "" }, { titulo: "Nombre" }, { titulo: "Empresa" },
+        { titulo: "Cédula", clase: "dato" },
         { titulo: "", clase: "dato" },
       ],
       visibles.slice(0, 300).map((p) => filaDePersona(raiz, p, lista))
@@ -646,9 +801,7 @@ export function pintarPersonas(raiz) {
 }
 
 function filaDePersona(raiz, persona, lista) {
-  const distinto = normalizar(persona.empresaFactura) !== normalizar(persona.empresaCome);
-
-  const llave = clavePersona(persona.empresaCome, persona.nombre);
+  const llave = clavePersona(persona.empresa, persona.nombre);
 
   return el("tr", { clase: persona.activa === false ? "apagada" : "" },
     el("td", {},
@@ -667,11 +820,7 @@ function filaDePersona(raiz, persona, lista) {
       el("strong", { texto: persona.nombre }),
       persona.activa === false ? el("span", { clase: "etiqueta", texto: "apagada" }) : null
     ),
-    el("td", {}, cinta(persona.empresaCome)),
-    el("td", {},
-      cinta(persona.empresaFactura),
-      distinto ? el("span", { clase: "etiqueta", texto: "distinta" }) : null
-    ),
+    el("td", {}, cinta(persona.empresa)),
     el("td", { clase: "dato" },
       persona.documento
         ? el("code", { clase: "documento-corto", texto: "···" + persona.documento })
@@ -703,15 +852,10 @@ async function nuevaPersona(raiz) {
       { nombre: "nombre", etiqueta: "Nombre completo", requerido: true,
         ayuda: "Los puntos y los espacios de sobra se quitan solos." },
       {
-        nombre: "empresaCome", etiqueta: "¿En qué empresa come?", tipo: "seleccion",
+        nombre: "empresa", etiqueta: "¿En qué empresa come?", tipo: "seleccion",
         valor: empresaFiltro || lista[0].codigo,
         opciones: lista.map((e) => ({ valor: e.codigo, texto: e.codigo + " — " + e.razonSocial })),
-      },
-      {
-        nombre: "empresaFactura", etiqueta: "¿A qué empresa se le cobra?", tipo: "seleccion",
-        valor: empresaFiltro || lista[0].codigo,
-        opciones: lista.map((e) => ({ valor: e.codigo, texto: e.codigo + " — " + e.razonSocial })),
-        ayuda: "Casi siempre es la misma de arriba.",
+        ayuda: "Es la misma a la que se le cobra.",
       },
       {
         nombre: "documento", etiqueta: "Cédula (opcional)", tipo: "text",
@@ -726,13 +870,13 @@ async function nuevaPersona(raiz) {
   const nombre = limpiarNombre(r.nombre);
 
   // La misma defensa que en la pantalla de registrar: no dejamos nacer el duplicado.
-  const parecidas = parecidasEnEmpresa(estado.datos, nombre, r.empresaCome)
+  const parecidas = parecidasEnEmpresa(estado.datos, nombre, r.empresa)
     .filter((p) => p.fuerza >= 2);
   if (parecidas.length) {
     const sigo = await confirmar({
       titulo: "Ojo: hay alguien parecido",
       mensaje:
-        `En ${r.empresaCome} ya está "${parecidas[0].persona.nombre}" (${parecidas[0].razon}). ` +
+        `En ${r.empresa} ya está "${parecidas[0].persona.nombre}" (${parecidas[0].razon}). ` +
         `¿De verdad quiere crear a "${nombre}" aparte?`,
       siTexto: "Sí, es otra persona",
       noTexto: "No, cancelar",
@@ -743,8 +887,7 @@ async function nuevaPersona(raiz) {
   try {
     agregarPersona(estado.datos, {
       nombre,
-      empresaCome: r.empresaCome,
-      empresaFactura: r.empresaFactura,
+      empresa: r.empresa,
       documento: r.documento,
     });
   } catch (e) {
@@ -754,10 +897,10 @@ async function nuevaPersona(raiz) {
   cambio();
   pintarPersonas(raiz);
 
-  const tocayos = tocayosEnOtrasEmpresas(estado.datos, nombre, r.empresaCome);
+  const tocayos = tocayosEnOtrasEmpresas(estado.datos, nombre, r.empresa);
   mensaje(
-    `${nombre} quedó en ${r.empresaCome}.` +
-    (tocayos.length ? ` Hay otra persona con ese nombre en ${[...new Set(tocayos.map((t) => t.empresaCome))].join(" y ")}, y son distintas.` : ""),
+    `${nombre} quedó en ${r.empresa}.` +
+    (tocayos.length ? ` Hay otra persona con ese nombre en ${[...new Set(tocayos.map((t) => t.empresa))].join(" y ")}, y son distintas.` : ""),
     tocayos.length ? "ojo" : "bien", tocayos.length ? 8 : 4
   );
 }
@@ -768,9 +911,10 @@ async function editarPersona(raiz, persona, lista) {
     campos: [
       { nombre: "nombre", etiqueta: "Nombre completo", valor: persona.nombre, requerido: true },
       {
-        nombre: "empresaFactura", etiqueta: "¿A qué empresa se le cobra?", tipo: "seleccion",
-        valor: persona.empresaFactura,
+        nombre: "empresa", etiqueta: "Empresa", tipo: "seleccion",
+        valor: persona.empresa,
         opciones: lista.map((e) => ({ valor: e.codigo, texto: e.codigo + " — " + e.razonSocial })),
+        ayuda: "Si se cambió de sede, cámbiela aquí: se lleva sus renglones.",
       },
       {
         nombre: "documento", etiqueta: "Cédula (opcional)", tipo: "text",
@@ -785,12 +929,13 @@ async function editarPersona(raiz, persona, lista) {
   if (!r) return;
 
   const nuevo = limpiarNombre(r.nombre);
-  const cambiaFactura = normalizar(r.empresaFactura) !== normalizar(persona.empresaFactura);
+  const otraEmpresa = normalizar(r.empresa);
+  const cambiaEmpresa = otraEmpresa !== normalizar(persona.empresa);
 
   // Cambiar el nombre arrastra todos los renglones ya registrados.
   if (nuevo !== persona.nombre) {
     const cuantos = estado.datos.consumos.filter(
-      (c) => normalizar(c.empresaCome) === normalizar(persona.empresaCome) &&
+      (c) => normalizar(c.empresa) === normalizar(persona.empresa) &&
              normalizar(c.persona) === normalizar(persona.nombre)).length;
     const seguro = await confirmar({
       titulo: "Cambiar el nombre",
@@ -801,7 +946,7 @@ async function editarPersona(raiz, persona, lista) {
     });
     if (!seguro) return;
     try {
-      renombrarPersona(estado.datos, persona.empresaCome, persona.nombre, nuevo);
+      renombrarPersona(estado.datos, persona.empresa, persona.nombre, nuevo);
     } catch (e) {
       mensaje(e.message, "malo", 9);
       return;
@@ -812,20 +957,51 @@ async function editarPersona(raiz, persona, lista) {
   const doc = String(r.documento || "").replace(/[^0-9]/g, "").slice(-5);
   if (doc !== (persona.documento || "")) persona.documento = doc;
 
-  if (cambiaFactura) {
-    // OJO: solo cambia de aquí en adelante. Lo ya cobrado NO se toca, porque
-    // esas cuentas de cobro ya se entregaron.
-    persona.empresaFactura = normalizar(r.empresaFactura);
+  // --- Cambiarla de empresa ------------------------------------------------
+  //
+  //  Esto NO es un cambio cosmético: los renglones se van con ella, así que el
+  //  mes de una empresa baja y el de la otra sube. Por eso se le dice antes,
+  //  con la cifra exacta, y ella decide. Si en la otra empresa ya hay alguien
+  //  con ese mismo nombre, la mudanza es además una unión: se avisa aparte,
+  //  porque después ya no hay dos fichas que separar.
+  if (cambiaEmpresa) {
+    const previa = simularCambioDeEmpresa(estado.datos, persona.empresa, nuevo, otraEmpresa);
+    const desde = persona.empresa;
+
+    const seguro = await confirmar({
+      titulo: previa.seFusiona
+        ? `Pasarla a ${otraEmpresa} y unirla con la que ya está allá`
+        : `Pasar a ${nuevo} a ${otraEmpresa}`,
+      mensaje:
+        `Se llevan ${previa.renglones} renglones (${pesos(previa.plata)}, ` +
+        `${previa.dias} ${previa.dias === 1 ? "día" : "días"}) de ${desde} a ${otraEmpresa}. ` +
+        `El mes de ${desde} baja eso mismo y el de ${otraEmpresa} sube.` +
+        (previa.seFusiona
+          ? ` Y ojo: en ${otraEmpresa} ya hay un "${nuevo}" con ` +
+            `${previa.renglonesDeLaOtra} renglones. Van a quedar como una sola ` +
+            "persona, y eso no se puede deshacer."
+          : ""),
+      siTexto: previa.seFusiona ? "Sí, pasarla y unirla" : "Sí, pasarla",
+      noTexto: "No",
+    });
+    if (!seguro) { cambio(); pintarPersonas(raiz); return; }
+
+    const hecho = cambiarDeEmpresa(estado.datos, desde, nuevo, otraEmpresa);
+    cambio();
+    pintarPersonas(raiz);
     mensaje(
-      `De ahora en adelante a ${nuevo} se le cobra a ${persona.empresaFactura}. ` +
-      "Los renglones ya registrados se quedan como estaban.",
-      "ojo", 8
+      hecho.seFusiona
+        ? `${nuevo} quedó en ${otraEmpresa}, unida con la que ya estaba allá ` +
+          `(${hecho.renglones + hecho.renglonesDeLaOtra} renglones en total).`
+        : `${nuevo} pasó a ${otraEmpresa} con sus ${hecho.renglones} renglones.`,
+      "bien", 8
     );
+    return;
   }
 
   cambio();
   pintarPersonas(raiz);
-  if (!cambiaFactura) mensaje("Guardado.", "bien");
+  mensaje("Guardado.", "bien");
 }
 
 // ===========================================================================
@@ -837,7 +1013,7 @@ async function editarPersona(raiz, persona, lista) {
 // ===========================================================================
 
 async function quitarPersona(raiz, persona) {
-  const { puede, renglones } = puedeBorrarPersona(estado.datos, persona.empresaCome, persona.nombre);
+  const { puede, renglones } = puedeBorrarPersona(estado.datos, persona.empresa, persona.nombre);
 
   if (!puede) {
     const apagar = await confirmar({
@@ -868,10 +1044,10 @@ async function quitarPersona(raiz, persona) {
   if (!seguro) return;
 
   try {
-    borrarPersona(estado.datos, persona.empresaCome, persona.nombre);
+    borrarPersona(estado.datos, persona.empresa, persona.nombre);
     cambio();
     pintarPersonas(raiz);
-    mensaje(`${persona.nombre} se borró de ${persona.empresaCome}.`, "bien");
+    mensaje(`${persona.nombre} se borró de ${persona.empresa}.`, "bien");
   } catch (e) {
     mensaje(e.message, "malo", 9);
   }
@@ -931,10 +1107,10 @@ async function quitarPlato(raiz, producto) {
 // ===========================================================================
 
 function barraDeUnir(raiz, todas) {
-  const elegidas = todas.filter((p) => marcadas.has(clavePersona(p.empresaCome, p.nombre)));
+  const elegidas = todas.filter((p) => marcadas.has(clavePersona(p.empresa, p.nombre)));
   if (!elegidas.length) return null;
 
-  const empresasDistintas = [...new Set(elegidas.map((p) => normalizar(p.empresaCome)))];
+  const empresasDistintas = [...new Set(elegidas.map((p) => normalizar(p.empresa)))];
   const sePuede = elegidas.length >= 2 && empresasDistintas.length === 1;
 
   return el("section", { clase: "tarjeta barra-unir" },
@@ -962,12 +1138,14 @@ function barraDeUnir(raiz, todas) {
     elegidas.length < 2
       ? el("p", { clase: "nota", texto: "Marque otra para poder unirlas." })
       : empresasDistintas.length > 1
-        ? el("p", { clase: "nota malo" },
-            "Están en empresas distintas (", empresasDistintas.join(" y "), "). ",
-            el("strong", { texto: "Eso no se une nunca" }),
-            ": dos personas de empresas distintas son dos personas, " +
-            "aunque se llamen igual. Si de verdad es la misma que se cambió de " +
-            "sede, déjela en las dos y ya.")
+        ? el("p", { clase: "nota ojo" },
+            "Están en empresas distintas (", empresasDistintas.join(" y "), "), ",
+            "así que desde aquí no se unen: dos personas de empresas distintas ",
+            "son, casi siempre, dos personas que se llaman igual. ",
+            el("strong", { texto: "Si de verdad es la misma" }),
+            ' —se cambió de sede, o se anotó con la empresa equivocada— ábrala ' +
+            'con "Editar", cámbiele la empresa, y al llegar a la otra se une ' +
+            "sola con la que ya está allá.")
         : null
   );
 }
@@ -977,7 +1155,7 @@ async function unirLasMarcadas(raiz, elegidas) {
   const conPeso = elegidas.map((p) => ({
     persona: p,
     renglones: estado.datos.consumos.filter(
-      (c) => clavePersona(c.empresaCome, c.persona) === clavePersona(p.empresaCome, p.nombre)
+      (c) => clavePersona(c.empresa, c.persona) === clavePersona(p.empresa, p.nombre)
     ).length,
   })).sort((a, b) => b.renglones - a.renglones);
 
@@ -1000,7 +1178,7 @@ async function unirLasMarcadas(raiz, elegidas) {
   });
   if (!r) return;
 
-  const empresa = elegidas[0].empresaCome;
+  const empresa = elegidas[0].empresa;
   const otros = elegidas.map((p) => p.nombre).filter((n) => n !== r.bueno);
   const previa = simularUnion(estado.datos, empresa, r.bueno, otros);
 

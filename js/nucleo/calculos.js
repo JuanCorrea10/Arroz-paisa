@@ -19,8 +19,8 @@ import { normalizar, diaDe, mesDe, anioDe, esFechaISO, diasDelMes } from "./form
  * vecinas y hay tocayos). Si usáramos solo el nombre, se rompería el 25%
  * de los datos. Por eso la llave es EMPRESA + NOMBRE.
  */
-export function clavePersona(empresaCome, nombre) {
-  return normalizar(empresaCome) + "|" + normalizar(nombre);
+export function clavePersona(empresa, nombre) {
+  return normalizar(empresa) + "|" + normalizar(nombre);
 }
 
 /** La llave de un precio: un mismo plato puede valer distinto en cada empresa. */
@@ -35,7 +35,7 @@ export function clavePrecio(producto, empresa) {
  * poder cuadrar ese número contra el sistema.
  */
 export function claveFactura(consumo) {
-  return consumo.fecha + "|" + normalizar(consumo.empresaCome) + "|" + normalizar(consumo.persona);
+  return consumo.fecha + "|" + normalizar(consumo.empresa) + "|" + normalizar(consumo.persona);
 }
 
 // ---------------------------------------------------------------------------
@@ -183,7 +183,7 @@ export function delDia(consumos, fechaISO) {
 export function deQuincena(consumos, anio, mes, quincena, empresa) {
   const codigo = normalizar(empresa.codigo);
   return delMes(consumos, anio, mes).filter(
-    (c) => normalizar(c.empresaFactura) === codigo && quincenaDe(c.fecha, empresa) === quincena
+    (c) => normalizar(c.empresa) === codigo && quincenaDe(c.fecha, empresa) === quincena
   );
 }
 
@@ -202,7 +202,7 @@ export function contarFacturas(consumos) {
 export function facturasPorEmpresa(consumos) {
   const porEmpresa = new Map();
   for (const c of consumos) {
-    const emp = normalizar(c.empresaCome);
+    const emp = normalizar(c.empresa);
     if (!porEmpresa.has(emp)) porEmpresa.set(emp, new Set());
     porEmpresa.get(emp).add(claveFactura(c));
   }
@@ -232,7 +232,7 @@ export function informeCocina(consumos, fechaISO, codigosEmpresa) {
       porPlato.set(plato, { producto: plato, porEmpresa: {}, total: 0 });
     }
     const fila = porPlato.get(plato);
-    const emp = normalizar(c.empresaCome);
+    const emp = normalizar(c.empresa);
     const cant = Number(c.cantidad) || 0;
     fila.porEmpresa[emp] = (fila.porEmpresa[emp] || 0) + cant;
     fila.total += cant;
@@ -252,7 +252,7 @@ export function informeDia(consumos, fechaISO, codigoEmpresa) {
   let dia = delDia(consumos, fechaISO);
   if (codigoEmpresa) {
     const cod = normalizar(codigoEmpresa);
-    dia = dia.filter((c) => normalizar(c.empresaCome) === cod);
+    dia = dia.filter((c) => normalizar(c.empresa) === cod);
   }
   const porPlato = new Map();
   for (const c of dia) {
@@ -311,9 +311,9 @@ export function notasDelDia(consumos, fechaISO, codigosEmpresa) {
 
   return delDia(consumos, fechaISO)
     .filter((c) => String(c.observacion || "").trim())
-    .filter((c) => !permitidas || permitidas.has(normalizar(c.empresaCome)))
+    .filter((c) => !permitidas || permitidas.has(normalizar(c.empresa)))
     .map((c) => ({
-      empresa: normalizar(c.empresaCome),
+      empresa: normalizar(c.empresa),
       persona: normalizar(c.persona),
       producto: normalizar(c.producto),
       cantidad: Number(c.cantidad) || 0,
@@ -332,16 +332,15 @@ export function informePorPersona(consumos, anio, mes, empresasPorCodigo, codigo
   let lista = delMes(consumos, anio, mes);
   if (codigoEmpresa) {
     const cod = normalizar(codigoEmpresa);
-    lista = lista.filter((c) => normalizar(c.empresaCome) === cod);
+    lista = lista.filter((c) => normalizar(c.empresa) === cod);
   }
   const porPersona = new Map();
   for (const c of lista) {
-    const llave = clavePersona(c.empresaCome, c.persona);
+    const llave = clavePersona(c.empresa, c.persona);
     if (!porPersona.has(llave)) {
       porPersona.set(llave, {
         persona: normalizar(c.persona),
-        empresaCome: normalizar(c.empresaCome),
-        empresaFactura: normalizar(c.empresaFactura),
+        empresa: normalizar(c.empresa),
         // q1, q2 y mes son lo que va a la cuenta de la empresa: lo que le van
         // a descontar. Lo que la persona ya pago de su bolsillo NO puede
         // estar aqui, o se le descontaria dos veces.
@@ -353,7 +352,7 @@ export function informePorPersona(consumos, anio, mes, empresasPorCodigo, codigo
       });
     }
     const fila = porPersona.get(llave);
-    const empresa = empresasPorCodigo[normalizar(c.empresaFactura)];
+    const empresa = empresasPorCodigo[normalizar(c.empresa)];
     const q = quincenaDe(c.fecha, empresa);
     const alaEmpresa = subtotalAcreditoDeEmpresa(c);
     if (q === 1) fila.q1 += alaEmpresa;
@@ -492,26 +491,21 @@ export function revisarConsumo(consumo, datos) {
       comoArreglar: "Bórrelo y vuelva a registrarlo eligiendo la fecha en el calendario.",
     });
   }
-  if (!empresasPorCodigo[normalizar(consumo.empresaCome)]) {
+  // Antes esto se revisaba dos veces, una por cada empresa del renglón. Ahora
+  // la empresa es una sola, y el aviso también.
+  if (!empresasPorCodigo[normalizar(consumo.empresa)]) {
     avisos.push({
-      codigo: "EMPRESA_COME_DESCONOCIDA",
-      mensaje: 'La empresa "' + consumo.empresaCome + '" no existe.',
+      codigo: "EMPRESA_DESCONOCIDA",
+      mensaje: 'La empresa "' + consumo.empresa + '" no existe.',
       comoArreglar: "Créela en la pantalla Empresas, o corrija el renglón.",
     });
   }
-  if (!empresasPorCodigo[normalizar(consumo.empresaFactura)]) {
-    avisos.push({
-      codigo: "EMPRESA_FACTURA_DESCONOCIDA",
-      mensaje: 'No se sabe a quién cobrarle este renglón ("' + consumo.empresaFactura + '").',
-      comoArreglar: "Revise en la pantalla Personas a qué empresa se le factura.",
-    });
-  }
-  const laClave = clavePersona(consumo.empresaCome, consumo.persona);
-  const existePersona = datos.personas.some((p) => clavePersona(p.empresaCome, p.nombre) === laClave);
+  const laClave = clavePersona(consumo.empresa, consumo.persona);
+  const existePersona = datos.personas.some((p) => clavePersona(p.empresa, p.nombre) === laClave);
   if (!existePersona) {
     avisos.push({
       codigo: "PERSONA_NO_ESTA",
-      mensaje: consumo.persona + " no está en la lista de " + consumo.empresaCome + ".",
+      mensaje: consumo.persona + " no está en la lista de " + consumo.empresa + ".",
       comoArreglar: "Agréguela en la pantalla Personas, o cambie el renglón de empresa.",
     });
   }
@@ -633,7 +627,7 @@ export function precioSeVeRaro(precioViejo, precioNuevo) {
 export function personasDe(datos, codigoEmpresa, incluirInactivas) {
   const cod = normalizar(codigoEmpresa);
   return datos.personas
-    .filter((p) => normalizar(p.empresaCome) === cod && (incluirInactivas || p.activa !== false))
+    .filter((p) => normalizar(p.empresa) === cod && (incluirInactivas || p.activa !== false))
     .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 }
 
@@ -656,7 +650,7 @@ export function informeCompletoDeEmpresa(datos, codigoEmpresa, anio, mes) {
 
   const cod = normalizar(codigoEmpresa);
   const mios = delMes(datos.consumos, anio, mes).filter(
-    (c) => normalizar(c.empresaFactura) === cod);
+    (c) => normalizar(c.empresa) === cod);
   const cobrables = mios.filter(loPagaLaEmpresa);
 
   const q1 = cobrables.filter((c) => quincenaDe(c.fecha, empresa) === 1);
@@ -705,7 +699,7 @@ export function informeCompletoDeEmpresa(datos, codigoEmpresa, anio, mes) {
   const platos = [...porPlato.values()].sort((a, b) => b.total - a.total);
 
   const personas = informePorPersona(datos.consumos, anio, mes, empresasPorCodigo)
-    .filter((f) => f.empresaFactura === cod);
+    .filter((f) => f.empresa === cod);
 
   return {
     empresa, anio, mes,

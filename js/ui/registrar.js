@@ -12,7 +12,7 @@
 //  plato de la misma persona que no sumaba en ninguna parte.
 // ============================================================================
 
-import { el, vaciar, buscador, mensaje, pedirDatos, confirmar, ventana, tabla, cifra, cifraPlata, cinta, colorDeEmpresa, vacio, poner } from "./componentes.js";
+import { el, vaciar, buscador, mensaje, pedirDatos, confirmar, ventana, tabla, cifra, cifraPlata, colorDeEmpresa, vacio, poner } from "./componentes.js";
 import { estado, cambio, empresas, asegurarEmpresa, empresaPorCodigo } from "./estado.js";
 import { pesos, fechaLarga, normalizar, hoyISO } from "../nucleo/formato.js";
 import {
@@ -125,11 +125,7 @@ function cajaDeCaptura(raiz) {
   const buscaPersona = buscador({
     etiqueta: "¿Quién comió?",
     placeholder: `Escriba el nombre (hay ${gente.length} personas en ${estado.empresa})`,
-    opciones: gente.map((p) => ({
-      texto: p.nombre,
-      valor: p.nombre,
-      apunte: p.empresaFactura !== p.empresaCome ? "se le cobra a " + p.empresaFactura : "",
-    })),
+    opciones: gente.map((p) => ({ texto: p.nombre, valor: p.nombre })),
     alElegir: (nombre) => { personaActiva = nombre; pintarRegistrar(raiz); },
     alCrear: (nombre) => crearPersona(nombre, raiz),
     textoCrear: (t) => `Crear a "${t}" en ${estado.empresa}`,
@@ -157,9 +153,11 @@ function cajaDeCaptura(raiz) {
 /** La comanda de la persona activa, con su buscador de platos. */
 function comandaEnCurso(raiz) {
   const persona = estado.datos.personas.find(
-    (p) => clavePersona(p.empresaCome, p.nombre) === clavePersona(estado.empresa, personaActiva)
+    (p) => clavePersona(p.empresa, p.nombre) === clavePersona(estado.empresa, personaActiva)
   );
-  const facturaA = persona ? persona.empresaFactura : estado.empresa;
+  // La empresa de la persona es la de la pantalla: la lista de gente ya viene
+  // filtrada por ella. Se deja por si la persona se borró en otra pestaña.
+  const laEmpresa = persona ? persona.empresa : estado.empresa;
 
   const buscaPlato = buscador({
     etiqueta: `¿Qué pidió ${personaActiva}?`,
@@ -168,12 +166,12 @@ function comandaEnCurso(raiz) {
     opciones: estado.datos.productos
       .filter((p) => p.activo !== false)
       .map((p) => {
-        const v = precioDe(estado.datos, p.nombre, facturaA);
+        const v = precioDe(estado.datos, p.nombre, laEmpresa);
         return { texto: p.nombre, valor: p.nombre, apunte: v === null ? "sin precio" : pesos(v) };
       })
       .sort((a, b) => a.texto.localeCompare(b.texto, "es")),
     alElegir: (plato, _opcion, cuantos) => { agregarPlato(plato, raiz, cuantos); },
-    alCrear: (plato) => crearPlato(plato, facturaA, raiz),
+    alCrear: (plato) => crearPlato(plato, laEmpresa, raiz),
     textoCrear: (t) => `Crear el plato "${t}"`,
   });
 
@@ -192,19 +190,14 @@ function comandaEnCurso(raiz) {
     el("div", { clase: "comanda-abierta-cabeza" },
       el("div", {},
         el("span", { clase: "comanda-abierta-rotulo", texto: "Pedido de" }),
-        el("h4", {},
-          personaActiva,
-          facturaA !== estado.empresa
-            ? el("span", { clase: "comanda-abierta-cobro", texto: `se le cobra a ${facturaA}` })
-            : null
-        )
+        el("h4", { texto: personaActiva })
       ),
       el("button", {
         clase: "chico",
         alHacerClic: () => { personaActiva = null; pintarRegistrar(raiz); },
       }, "Terminar con esta persona")
     ),
-    atajosDePedido(raiz, facturaA, mios.length),
+    atajosDePedido(raiz, laEmpresa, mios.length),
     buscaPlato.nodo,
     mios.length ? tablaDePlatos(mios, raiz) : el("p", {
       clase: "comanda-abierta-vacia",
@@ -299,7 +292,7 @@ function tablaDePlatos(renglones, raiz) {
 
 function resumenEnVivo() {
   const delDiaTodas = delDia(estado.datos.consumos, estado.fecha);
-  const deLaEmpresa = delDiaTodas.filter((c) => c.empresaCome === estado.empresa);
+  const deLaEmpresa = delDiaTodas.filter((c) => c.empresa === estado.empresa);
   const total = deLaEmpresa.reduce((a, c) => a + subtotal(c), 0);
   const totalTodas = delDiaTodas.reduce((a, c) => a + subtotal(c), 0);
 
@@ -315,12 +308,46 @@ function resumenEnVivo() {
 //  Las comandas ya anotadas
 // ---------------------------------------------------------------------------
 
+/**
+ * El título de la lista del día, con la sede GRANDE.
+ *
+ * Esto no es adorno. Ella le manda a los trabajadores un pantallazo de esta
+ * lista, y en el pantallazo NO sale la barra de arriba donde uno escoge la
+ * empresa: si la sede aparece solo en una cintica de letra chiquita, al otro
+ * lado nadie sabe de quién es la lista que está mirando -- y varios de ellos
+ * no ven de cerca.
+ *
+ * Va la SEDE en grande, no la razón social: tres de las sedes se llaman
+ * "BOTAS AGROINDUSTRIAL SAS", así que poner eso grande sería decirles lo mismo
+ * a las tres. La razón social y el día van debajo, chiquitos, para que el
+ * pantallazo se entienda solo y no le toque contestar "es de hoy" cada vez.
+ */
+function tituloDeLaLista(cuantas, totalDia) {
+  const emp = empresaPorCodigo(estado.empresa) || {};
+  // "hoy" solo cuando de verdad es hoy. Con la fecha ahí abajo, decir "hoy"
+  // mirando el lunes pasado se ve como un error de la app.
+  const arriba = estado.fecha === hoyISO() ? "Comandas de hoy" : "Comandas del día";
+  const abajo = [emp.razonSocial, fechaLarga(estado.fecha)].filter(Boolean).join(" · ");
+
+  return el("div", { clase: "titulo-lista", estilo: `--cinta:${colorDeEmpresa(estado.empresa)}` },
+    el("div", { clase: "titulo-lista-quien" },
+      el("p", { clase: "titulo-lista-arriba", texto: arriba }),
+      el("h3", { clase: "titulo-lista-sede", texto: estado.empresa || "?" }),
+      abajo ? el("p", { clase: "titulo-lista-pie", texto: abajo }) : null
+    ),
+    cuantas
+      ? el("span", { clase: "titulo-lista-cuenta plata" },
+          `${cuantas} comandas · ${pesos(totalDia)}`)
+      : null
+  );
+}
+
 function listaDeComandas(raiz) {
-  const renglones = delDia(estado.datos.consumos, estado.fecha).filter((c) => c.empresaCome === estado.empresa);
+  const renglones = delDia(estado.datos.consumos, estado.fecha).filter((c) => c.empresa === estado.empresa);
 
   if (!renglones.length) {
     return el("div", {},
-      el("h3", { estilo: "margin-bottom:var(--e3)", texto: "Comandas de hoy" }),
+      tituloDeLaLista(0, 0),
       vacio(`Todavía no hay nada anotado para ${estado.empresa}`, "Busque la primera persona arriba y agréguele sus platos.")
     );
   }
@@ -336,21 +363,15 @@ function listaDeComandas(raiz) {
   const tarjetas = orden.map(([nombre, platos], i) => {
     const total = platos.reduce((a, c) => a + subtotal(c), 0);
     const hayProblema = platos.some((c) => c.revisar && c.revisar.length);
-    const facturaA = platos[0].empresaFactura;
 
     return el("article", {
       clase: "comanda",
       datos: { revisar: hayProblema ? "si" : "no" },
-      estilo: `--cinta:${colorDeEmpresa(facturaA)}`,
+      estilo: `--cinta:${colorDeEmpresa(platos[0].empresa)}`,
     },
       el("header", { clase: "comanda-cabeza" },
         el("span", { clase: "comanda-numero", texto: String(i + 1).padStart(2, "0") }),
-        el("h4", { clase: "comanda-nombre" },
-          nombre,
-          facturaA !== estado.empresa
-            ? el("span", { clase: "comanda-nota", texto: `se le cobra a ${facturaA}` })
-            : null
-        )
+        el("h4", { clase: "comanda-nombre", texto: nombre })
       ),
       el("ul", { clase: "comanda-platos" },
         ...platos.map((c) =>
@@ -385,11 +406,7 @@ function listaDeComandas(raiz) {
 
   const totalDia = renglones.reduce((a, c) => a + subtotal(c), 0);
   return el("div", {},
-    el("div", { clase: "entre", estilo: "margin-bottom:var(--e3)" },
-      el("h3", {}, "Comandas de hoy ", cinta(estado.empresa)),
-      el("span", { clase: "plata", estilo: "font-size:var(--t-lg);font-weight:600" },
-        `${orden.length} comandas · ${pesos(totalDia)}`)
-    ),
+    tituloDeLaLista(orden.length, totalDia),
     el("div", { clase: "comandas" }, ...tarjetas)
   );
 }
@@ -400,7 +417,7 @@ function listaDeComandas(raiz) {
 
 function renglonesDe(nombre) {
   return estado.datos.consumos.filter(
-    (c) => c.fecha === estado.fecha && c.empresaCome === estado.empresa && c.persona === nombre
+    (c) => c.fecha === estado.fecha && c.empresa === estado.empresa && c.persona === nombre
   );
 }
 
@@ -417,7 +434,7 @@ function renglonesDe(nombre) {
 
 function tarjetaDeAyer(raiz) {
   const hoyEnEstaEmpresa = delDia(estado.datos.consumos, estado.fecha)
-    .filter((c) => normalizar(c.empresaCome) === normalizar(estado.empresa));
+    .filter((c) => normalizar(c.empresa) === normalizar(estado.empresa));
   if (hoyEnEstaEmpresa.length) return null;
 
   const ayer = loDelDiaAnterior(estado.datos, estado.empresa, estado.fecha);
@@ -497,19 +514,17 @@ function ventanaDeAyer(raiz, ayer) {
           let renglones = 0;
           for (const g of elegidos) {
             const persona = estado.datos.personas.find(
-              (p) => clavePersona(p.empresaCome, p.nombre) === clavePersona(estado.empresa, g.persona)
+              (p) => clavePersona(p.empresa, p.nombre) === clavePersona(estado.empresa, g.persona)
             );
             if (!persona) continue; // ya no está en la empresa: se salta
-            const facturaA = persona.empresaFactura || estado.empresa;
             for (const plato of g.platos) {
               // El precio se congela con el catálogo de HOY, no con el de ese
               // día: si subió el almuerzo, lo de hoy se cobra a lo de hoy.
-              const precio = precioDe(estado.datos, plato.producto, facturaA);
+              const precio = precioDe(estado.datos, plato.producto, estado.empresa);
               estado.datos.consumos.push(nuevoConsumo({
                 fecha: estado.fecha,
-                empresaCome: estado.empresa,
+                empresa: estado.empresa,
                 persona: persona.nombre,
-                empresaFactura: facturaA,
                 producto: plato.producto,
                 cantidad: plato.cantidad,
                 precioUnitario: precio === null ? 0 : precio,
@@ -538,7 +553,7 @@ function ventanaDeAyer(raiz, ayer) {
 //  Ojo: son ATAJOS, no automatismos. Nada se anota sin que ella lo toque.
 // ---------------------------------------------------------------------------
 
-function atajosDePedido(raiz, facturaA, yaTieneAlgo) {
+function atajosDePedido(raiz, laEmpresa, yaTieneAlgo) {
   const caja = el("div", { clase: "atajos" });
 
   // 1) Lo de siempre. Solo si todavía no le ha anotado nada hoy: si ya empezó,
@@ -546,7 +561,7 @@ function atajosDePedido(raiz, facturaA, yaTieneAlgo) {
   if (!yaTieneAlgo) {
     const habito = pedidoHabitual(estado.datos, estado.empresa, personaActiva, estado.fecha);
     if (tieneCostumbre(habito)) {
-      const { total, faltaPrecio } = cuantoValdria(estado.datos, habito.platos, facturaA);
+      const { total, faltaPrecio } = cuantoValdria(estado.datos, habito.platos, laEmpresa);
       const resumen = habito.platos
         .map((p) => (p.cantidad > 1 ? `${p.cantidad} ${p.producto}` : p.producto))
         .join(" + ");
@@ -572,10 +587,7 @@ function atajosDePedido(raiz, facturaA, yaTieneAlgo) {
   }
 
   // 2) Los platos que más se piden en esta empresa, a un toque.
-  const frecuentes = platosFrecuentes(estado.datos, estado.empresa, {
-    limite: 5,
-    empresaFactura: facturaA,
-  });
+  const frecuentes = platosFrecuentes(estado.datos, estado.empresa, { limite: 5 });
   if (frecuentes.length) {
     poner(caja,
       el("div", { clase: "fila fichas-platos" },
@@ -632,7 +644,7 @@ async function ponerNota(renglon, raiz) {
 function agregarPlato(plato, raiz, cuantos = 1) {
   const cantidad = Math.max(1, Math.min(Number(cuantos) || 1, 99));
   const persona = estado.datos.personas.find(
-    (p) => clavePersona(p.empresaCome, p.nombre) === clavePersona(estado.empresa, personaActiva)
+    (p) => clavePersona(p.empresa, p.nombre) === clavePersona(estado.empresa, personaActiva)
   );
   if (!persona) {
     mensaje(`${personaActiva} ya no está en ${estado.empresa}. Vuelva a elegir la persona.`, "malo", 7);
@@ -640,7 +652,7 @@ function agregarPlato(plato, raiz, cuantos = 1) {
     pintarRegistrar(raiz);
     return;
   }
-  const facturaA = persona.empresaFactura || estado.empresa;
+  const laEmpresa = persona.empresa || estado.empresa;
 
   // Si ya le habían anotado ese mismo plato hoy, se le suma uno en vez de
   // abrir un renglón nuevo. Así la comanda no se llena de renglones repetidos.
@@ -656,12 +668,11 @@ function agregarPlato(plato, raiz, cuantos = 1) {
     return;
   }
 
-  const precio = precioDe(estado.datos, plato, facturaA);
+  const precio = precioDe(estado.datos, plato, laEmpresa);
   const renglon = nuevoConsumo({
     fecha: estado.fecha,
-    empresaCome: estado.empresa,
+    empresa: laEmpresa,
     persona: personaActiva,
-    empresaFactura: facturaA,
     producto: plato,
     cantidad,
     precioUnitario: precio === null ? 0 : precio,
@@ -670,7 +681,7 @@ function agregarPlato(plato, raiz, cuantos = 1) {
   cambio();
   pintarRegistrar(raiz);
   if (precio === null) {
-    mensaje(`"${plato}" no tiene precio para ${facturaA}. Quedó en $ 0 y marcado en rojo.`, "ojo", 7);
+    mensaje(`"${plato}" no tiene precio para ${laEmpresa}. Quedó en $ 0 y marcado en rojo.`, "ojo", 7);
   }
 }
 
@@ -704,7 +715,7 @@ async function ponerPrecio(renglon, raiz) {
     campos: [
       {
         nombre: "precio",
-        etiqueta: `¿Cuánto vale para ${renglon.empresaFactura}?`,
+        etiqueta: `¿Cuánto vale para ${renglon.empresa}?`,
         tipo: "number",
         valor: "",
         requerido: true,
@@ -729,7 +740,7 @@ async function ponerPrecio(renglon, raiz) {
     // bajo "ARROZ" y el renglón seguiría diciendo "ARROZ." y nunca se
     // encontrarían: es exactamente el error que estamos matando.
     renglon.producto = limpiarNombre(renglon.producto);
-    agregarProducto(estado.datos, renglon.producto, { [renglon.empresaFactura]: valor });
+    agregarProducto(estado.datos, renglon.producto, { [renglon.empresa]: valor });
   }
   cambio();
   pintarRegistrar(raiz);
@@ -824,9 +835,10 @@ async function crearPersona(nombreEscrito, raiz) {
     titulo: `Crear a ${nombre}`,
     campos: [
       { nombre: "nombre", etiqueta: "Nombre", tipo: "text", valor: nombre, requerido: true },
+      // Ya no se pregunta a qué empresa se le cobra: es la de la pantalla.
       {
-        nombre: "empresaFactura",
-        etiqueta: "¿A qué empresa se le cobra?",
+        nombre: "empresa",
+        etiqueta: "Empresa",
         tipo: "seleccion",
         valor: estado.empresa,
         opciones: lista.map((e) => ({ valor: e.codigo, texto: e.codigo + " — " + e.razonSocial })),
@@ -844,8 +856,7 @@ async function crearPersona(nombreEscrito, raiz) {
   try {
     agregarPersona(estado.datos, {
       nombre: datos.nombre,
-      empresaCome: estado.empresa,
-      empresaFactura: datos.empresaFactura,
+      empresa: datos.empresa || estado.empresa,
       documento: datos.documento,
     });
   } catch (e) {
@@ -861,7 +872,7 @@ async function crearPersona(nombreEscrito, raiz) {
   // repetido en las listas y cree que se dañó algo.
   const tocayos = tocayosEnOtrasEmpresas(estado.datos, personaActiva, estado.empresa);
   if (tocayos.length) {
-    const donde = [...new Set(tocayos.map((t) => t.empresaCome))].join(" y ");
+    const donde = [...new Set(tocayos.map((t) => t.empresa))].join(" y ");
     mensaje(
       `${personaActiva} quedó en ${estado.empresa}. Ojo: hay otra persona con ` +
       `ese mismo nombre en ${donde}, y son distintas.`,
@@ -872,13 +883,13 @@ async function crearPersona(nombreEscrito, raiz) {
   }
 }
 
-async function crearPlato(plato, facturaA, raiz) {
+async function crearPlato(plato, laEmpresa, raiz) {
   const lista = empresas();
   const datos = await pedirDatos({
     titulo: `Crear el plato "${plato}"`,
     campos: [
       { nombre: "nombre", etiqueta: "Nombre del plato", tipo: "text", valor: plato, requerido: true },
-      { nombre: "precio", etiqueta: `Precio para ${facturaA}`, tipo: "number", valor: "", requerido: true, min: 0 },
+      { nombre: "precio", etiqueta: `Precio para ${laEmpresa}`, tipo: "number", valor: "", requerido: true, min: 0 },
       {
         nombre: "todas",
         etiqueta: "Vale lo mismo en todas las empresas",
@@ -893,7 +904,7 @@ async function crearPlato(plato, facturaA, raiz) {
   const valor = Number(datos.precio) || 0;
   const precios = {};
   if (datos.todas) for (const e of lista) precios[e.codigo] = valor;
-  else precios[facturaA] = valor;
+  else precios[laEmpresa] = valor;
   agregarProducto(estado.datos, datos.nombre, precios);
   cambio();
   agregarPlato(limpiarNombre(datos.nombre), raiz);
