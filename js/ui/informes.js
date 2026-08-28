@@ -267,7 +267,7 @@ export function pintarPorPersona(raiz) {
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Consumo por persona" }),
-        el("p", { texto: "Cuánto lleva cada persona: el día que elija, cada quincena y el mes." })
+        el("p", { texto: "Cuánto lleva cada persona: el día que elija, la quincena que va corriendo y el mes." })
       ),
       acciones(
         botonImprimir(),
@@ -310,23 +310,33 @@ export function pintarPorPersona(raiz) {
     return;
   }
 
-  const tQ1 = filas.reduce((a, f) => a + f.q1, 0);
-  const tQ2 = filas.reduce((a, f) => a + f.q2, 0);
   const tDia = filas.reduce((a, f) => a + f.dia, 0);
+  const tEnCurso = filas.reduce((a, f) => a + f.enCurso, 0);
+  const tMes = filas.reduce((a, f) => a + f.mes, 0);
   const conDia = filas.filter((f) => f.dia > 0).length;
+
+  // De las dos quincenas se muestra UNA: la que va corriendo el día que se
+  // está mirando. La otra ya se cobró, así que ponerla al lado solo da pie a
+  // leer el número que no es cuando alguien pregunta cuánto lleva.
+  //
+  // Cuál es "la que va corriendo" depende de la empresa: MGP cierra el 13 y
+  // las demás el 14, así que el día 14 hay gente en la primera y gente en la
+  // segunda a la vez. Ese día -- uno al mes -- el rótulo lo dice.
+  const quincenas = [...new Set(filas.map((f) => f.quincenaActual))];
+  const mezcladas = quincenas.length > 1;
+  const rotuloQuincena = mezcladas ? "Quincena en curso" : `Quincena ${quincenas[0]}`;
 
   poner(raiz,
     el("dl", { clase: "cifras", estilo: "margin-bottom:var(--e5)" },
       cifra("Personas", String(filas.length)),
       cifraPlata(`El ${fechaCorta(estado.fecha)}`, tDia),
-      cifraPlata("Quincena 1", tQ1),
-      cifraPlata("Quincena 2", tQ2),
-      cifraPlata("Total del mes", tQ1 + tQ2, true)
+      cifraPlata(rotuloQuincena, tEnCurso),
+      cifraPlata("Total del mes", tMes, true)
     ),
     el("p", { clase: "nota" },
       soloDelDia
         ? `Solo las ${filas.length} personas que comieron el ${fechaLarga(estado.fecha)}. ` +
-          "Las quincenas y el mes son los de cada una, completos."
+          "La quincena y el mes son los de cada una, completos."
         : conDia
           ? `El ${fechaLarga(estado.fecha)} comieron ${conDia} de estas ${filas.length} personas. ` +
             'Para ver solo esas, marque "Solo los que comieron ese día" arriba.'
@@ -336,8 +346,8 @@ export function pintarPorPersona(raiz) {
         { titulo: "Persona" }, { titulo: "Empresa" },
         { titulo: "Facturas", clase: "n" },
         { titulo: fechaCorta(estado.fecha), clase: "n" },
-        { titulo: "Quincena 1", clase: "n" },
-        { titulo: "Quincena 2", clase: "n" }, { titulo: "Mes", clase: "n" },
+        { titulo: rotuloQuincena, clase: "n" },
+        { titulo: "Mes", clase: "n" },
       ],
       filas.map((f) =>
         el("tr", {},
@@ -348,8 +358,13 @@ export function pintarPorPersona(raiz) {
           // solo a los que sí comieron ese día.
           el("td", { clase: "n", estilo: f.dia ? "" : "color:var(--tinta-suave)",
                      texto: f.dia ? pesos(f.dia) : "—" }),
-          el("td", { clase: "n", texto: pesos(f.q1) }),
-          el("td", { clase: "n", texto: pesos(f.q2) }),
+          el("td", { clase: "n" },
+            pesos(f.enCurso),
+            // Solo cuando hay de las dos a la vez se dice cuál es cuál.
+            mezcladas
+              ? el("span", { clase: "marca-quincena", texto: "Q" + f.quincenaActual })
+              : null
+          ),
           el("td", { clase: "n", estilo: "font-weight:700", texto: pesos(f.mes) })
         )
       ),
@@ -357,9 +372,8 @@ export function pintarPorPersona(raiz) {
         el("td", { colspan: "2", texto: "TOTAL" }),
         el("td", { clase: "n", texto: String(filas.reduce((a, f) => a + f.facturas, 0)) }),
         el("td", { clase: "n", texto: pesos(tDia) }),
-        el("td", { clase: "n", texto: pesos(tQ1) }),
-        el("td", { clase: "n", texto: pesos(tQ2) }),
-        el("td", { clase: "n", texto: pesos(tQ1 + tQ2) })
+        el("td", { clase: "n", texto: pesos(tEnCurso) }),
+        el("td", { clase: "n", texto: pesos(tMes) })
       )
     )
   );

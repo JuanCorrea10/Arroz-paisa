@@ -528,22 +528,34 @@ export function pdfPorPersona(filas, anio, mes, nombreEmpresa, acreedor, fechaDi
   const conDia = Boolean(fechaDia);
   const y = encabezado(doc, "CONSUMO POR PERSONA", `${nombreMes(mes)} ${anio} · ${nombreEmpresa}`, acreedor);
 
+  // De las dos quincenas va UNA: la que corre el día que se está mirando. La
+  // otra ya se cobró. Igual que en la pantalla -- si el papel dijera otra cosa
+  // que la pantalla, no se sabría a cuál creerle.
+  //
+  // El día 14 hay gente en las dos a la vez (MGP cierra el 13), y solo ese día
+  // el rótulo lo dice y cada renglón lleva su Q1 o Q2.
+  const quincenas = conDia ? [...new Set(filas.map((f) => f.quincenaActual))] : [];
+  const mezcladas = quincenas.length > 1;
+  const rotuloQuincena = !conDia ? "Quincena 1"
+    : mezcladas ? "Quincena en curso"
+    : `Quincena ${quincenas[0]}`;
+
   const cabeza = ["Persona", "Empresa", "Facturas"];
   if (conDia) cabeza.push(fechaCorta(fechaDia));
-  cabeza.push("Quincena 1", "Quincena 2", "Mes");
+  cabeza.push(rotuloQuincena, "Mes");
 
   const anchos = { 0: { cellWidth: "auto" }, 1: { cellWidth: 24 }, 2: { halign: "right", cellWidth: 20 } };
   let i = 3;
   if (conDia) anchos[i++] = { halign: "right", cellWidth: 30 };
-  anchos[i++] = { halign: "right", cellWidth: 30 };
-  anchos[i++] = { halign: "right", cellWidth: 30 };
+  anchos[i++] = { halign: "right", cellWidth: 34 };
   anchos[i] = { halign: "right", cellWidth: 32, fontStyle: "bold" };
+
+  const enCursoDe = (f) => (conDia ? f.enCurso : f.q1);
 
   const pie = ["TOTAL", "", String(filas.reduce((a, f) => a + f.facturas, 0))];
   if (conDia) pie.push(pesos(filas.reduce((a, f) => a + (f.dia || 0), 0)));
   pie.push(
-    pesos(filas.reduce((a, f) => a + f.q1, 0)),
-    pesos(filas.reduce((a, f) => a + f.q2, 0)),
+    pesos(filas.reduce((a, f) => a + enCursoDe(f), 0)),
     pesos(filas.reduce((a, f) => a + f.mes, 0))
   );
 
@@ -554,7 +566,10 @@ export function pdfPorPersona(filas, anio, mes, nombreEmpresa, acreedor, fechaDi
     body: filas.map((f) => {
       const fila = [f.persona, f.empresa, String(f.facturas)];
       if (conDia) fila.push(f.dia ? pesos(f.dia) : "—");
-      fila.push(pesos(f.q1), pesos(f.q2), pesos(f.mes));
+      fila.push(
+        pesos(enCursoDe(f)) + (mezcladas ? "  Q" + f.quincenaActual : ""),
+        pesos(f.mes)
+      );
       return fila;
     }),
     columnStyles: anchos,

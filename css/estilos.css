@@ -644,6 +644,16 @@ tfoot td.n { font-family: var(--dato); }
   line-height: 1.1;
   overflow-wrap: anywhere;
 }
+/* El "Q1"/"Q2" que sale al lado de una cifra solo el día en que hay gente en
+   las dos quincenas a la vez (el 14: MGP ya cerró, las demás no). */
+.marca-quincena {
+  font-family: var(--display);
+  font-size: var(--t-xs);
+  font-weight: 700;
+  color: var(--tinta-suave);
+  margin-left: 0.35rem;
+}
+
 /* Una casilla con su letrero al lado, del alto de los demás campos de la
    barra de arriba, para que la fila no quede coja. El letrero es parte de la
    etiqueta: se puede tocar el texto y no solo el cuadrito, que en un celular

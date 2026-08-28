@@ -12,7 +12,7 @@
 //  plato de la misma persona que no sumaba en ninguna parte.
 // ============================================================================
 
-import { el, vaciar, buscador, mensaje, pedirDatos, confirmar, ventana, tabla, cifra, cifraPlata, colorDeEmpresa, vacio, poner, acciones, botonQueTrabaja } from "./componentes.js";
+import { el, vaciar, buscador, mensaje, pedirDatos, confirmar, ventana, tabla, cifra, cifraPlata, cinta, colorDeEmpresa, vacio, poner, acciones, botonQueTrabaja } from "./componentes.js";
 import { estado, cambio, empresas, asegurarEmpresa, empresaPorCodigo } from "./estado.js";
 import { pesos, fechaLarga, normalizar, hoyISO } from "../nucleo/formato.js";
 import {
@@ -221,7 +221,7 @@ function comandaEnCurso(raiz) {
     el("div", { clase: "comanda-abierta-cabeza" },
       el("div", {},
         el("span", { clase: "comanda-abierta-rotulo", texto: "Pedido de" }),
-        el("h4", { texto: personaActiva })
+        el("h4", {}, personaActiva, " ", cinta(laEmpresa))
       ),
       el("button", {
         clase: "chico",
@@ -401,7 +401,8 @@ function listaDeComandas(raiz) {
     },
       el("header", { clase: "comanda-cabeza" },
         el("span", { clase: "comanda-numero", texto: String(i + 1).padStart(2, "0") }),
-        el("h4", { clase: "comanda-nombre", texto: nombre })
+        el("h4", { clase: "comanda-nombre", texto: nombre }),
+        cinta(com.empresa)
       ),
       el("ul", { clase: "comanda-platos" },
         ...platos.map((c) =>

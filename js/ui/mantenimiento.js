@@ -685,6 +685,8 @@ async function unirLosPlatosMarcados(raiz, elegidos) {
 // ===========================================================================
 
 let buscaPersona = "";
+/** Cómo se ordena la lista: "nombre" o "empresa". */
+let ordenPersonas = "empresa";
 let empresaFiltro = "";
 
 /**
@@ -701,9 +703,14 @@ const marcadas = new Set();
 export function pintarPersonas(raiz) {
   vaciar(raiz);
   const lista = empresas();
+  // Ordenar por empresa NO es agrupar por empresa y ya: dentro de cada una la
+  // gente sigue yendo por nombre. Si no, buscar a alguien dentro de MGP sería
+  // recorrer 124 renglones sin orden.
+  const porNombre = (a, b) => a.nombre.localeCompare(b.nombre, "es");
   const todas = [...estado.datos.personas].sort(
-    (a, b) => a.empresa.localeCompare(b.empresa, "es") ||
-              a.nombre.localeCompare(b.nombre, "es"));
+    ordenPersonas === "nombre"
+      ? porNombre
+      : (a, b) => a.empresa.localeCompare(b.empresa, "es") || porNombre(a, b));
 
   const visibles = todas.filter((p) =>
     (!empresaFiltro || normalizar(p.empresa) === empresaFiltro) &&
@@ -761,6 +768,7 @@ export function pintarPersonas(raiz) {
       const cuerpo = raiz.querySelector("tbody");
       if (!cuerpo) return;
       vaciar(cuerpo);
+      // "todas" ya viene ordenada como toque, así que filtrar respeta el orden.
       const nuevas = todas.filter((p) =>
         (!empresaFiltro || normalizar(p.empresa) === empresaFiltro) &&
         coincide(p.nombre, buscaPersona));
@@ -768,10 +776,20 @@ export function pintarPersonas(raiz) {
     },
   });
 
+  const orden = el("select", {
+    id: "orden-personas",
+    alCambiar: (ev) => { ordenPersonas = ev.target.value; pintarPersonas(raiz); },
+  },
+    el("option", { value: "empresa", selected: ordenPersonas === "empresa" }, "Empresa, y luego nombre"),
+    el("option", { value: "nombre", selected: ordenPersonas === "nombre" }, "Nombre")
+  );
+
   poner(raiz,
     el("div", { clase: "mando" },
       el("div", { clase: "campo crece" }, el("label", { texto: "Buscar" }), busca),
-      el("div", { clase: "campo" }, el("label", { texto: "Empresa" }), filtro)
+      el("div", { clase: "campo" }, el("label", { texto: "Empresa" }), filtro),
+      el("div", { clase: "campo" },
+        el("label", { for: "orden-personas", texto: "Ordenar por" }), orden)
     )
   );
 

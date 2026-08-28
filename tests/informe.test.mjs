@@ -274,3 +274,56 @@ prueba("lo del día nunca puede pasarse de lo del mes", () => {
     d.consumos, 2026, 8, indicePorCodigo(d.empresas), "MGP", "2026-08-10");
   cierto(filas.every((f) => f.dia <= f.mes));
 });
+
+// ---------------------------------------------------------------------------
+grupo("De las dos quincenas sale la que va corriendo");
+
+prueba("un día de la primera quincena trae la primera", () => {
+  const d = negocio();
+  const filas = informePorPersona(
+    d.consumos, 2026, 8, indicePorCodigo(d.empresas), "MGP", "2026-08-10");
+  const ana = filas.find((f) => f.persona === "ANA GOMEZ");
+  igual(ana.quincenaActual, 1);
+  igual(ana.enCurso, ana.q1, "en curso es la primera");
+  cierto(ana.q2 > 0 || ana.q2 === 0);
+});
+
+prueba("un día de la segunda quincena trae la segunda", () => {
+  const d = negocio();
+  const filas = informePorPersona(
+    d.consumos, 2026, 8, indicePorCodigo(d.empresas), "MGP", "2026-08-20");
+  const luis = filas.find((f) => f.persona === "LUIS PEÑA");
+  igual(luis.quincenaActual, 2);
+  igual(luis.enCurso, luis.q2, "en curso es la segunda");
+  igual(luis.enCurso, ALMUERZO, "que es lo del 20");
+});
+
+prueba("el día del corte, cada empresa va por su lado", () => {
+  // Este es el caso que obliga a calcularlo por persona y no una vez para
+  // todos: si MGP cierra el 15 y AGRO el 10, el día 12 MGP sigue en la
+  // primera quincena y AGRO ya va en la segunda.
+  const d = negocio();
+  d.empresas[1].ultimoDiaQ1 = 10; // AGRO corta antes
+  const filas = informePorPersona(
+    d.consumos, 2026, 8, indicePorCodigo(d.empresas), null, "2026-08-12");
+  const enMGP = filas.find((f) => f.empresa === "MGP");
+  const enAGRO = filas.find((f) => f.empresa === "AGRO");
+  igual(enMGP.quincenaActual, 1, "MGP corta el 15: el 12 sigue en la primera");
+  igual(enAGRO.quincenaActual, 2, "AGRO corta el 10: el 12 ya es la segunda");
+});
+
+prueba("sin día no hay quincena en curso que valga", () => {
+  const d = negocio();
+  const filas = informePorPersona(d.consumos, 2026, 8, indicePorCodigo(d.empresas), "MGP");
+  cierto(filas.every((f) => f.quincenaActual === null));
+  cierto(filas.every((f) => f.enCurso === 0));
+});
+
+prueba("la quincena en curso nunca es mayor que el mes", () => {
+  const d = negocio();
+  for (const dia of ["2026-08-03", "2026-08-10", "2026-08-20"]) {
+    const filas = informePorPersona(
+      d.consumos, 2026, 8, indicePorCodigo(d.empresas), "MGP", dia);
+    cierto(filas.every((f) => f.enCurso <= f.mes), "falló el " + dia);
+  }
+});

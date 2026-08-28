@@ -408,8 +408,26 @@ export function informePorPersona(consumos, anio, mes, empresasPorCodigo, codigo
     fila.contado += subtotalDeContado(c);
     fila.facturas.add(claveFactura(c));
   }
+  // La quincena EN CURSO: la del día que se está mirando.
+  //
+  // Se calcula por persona y no una sola vez para todos, porque el corte
+  // depende de la empresa: MGP cierra la primera quincena el 13 y las demás
+  // el 14. El día 14, entonces, la gente de MGP ya va en la segunda quincena
+  // mientras la de AGRO sigue en la primera. Un solo número para todos daría
+  // mal en ese día -- y es justo el día en que se pasa la primera cuenta.
   return [...porPersona.values()]
-    .map((f) => ({ ...f, facturas: f.facturas.size }))
+    .map((f) => {
+      const empresa = empresasPorCodigo[f.empresa];
+      const quincenaActual = fechaDia ? quincenaDe(fechaDia, empresa) : null;
+      return {
+        ...f,
+        facturas: f.facturas.size,
+        quincenaActual,
+        // Lo que lleva en la quincena que todavía no se ha cobrado. Es lo que
+        // contesta "¿yo cuánto llevo?": la quincena pasada ya se facturó.
+        enCurso: quincenaActual === 1 ? f.q1 : quincenaActual === 2 ? f.q2 : 0,
+      };
+    })
     .sort((a, b) => a.persona.localeCompare(b.persona, "es"));
 }
 
