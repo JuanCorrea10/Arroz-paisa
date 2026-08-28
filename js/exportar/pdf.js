@@ -333,38 +333,88 @@ export function pdfCuentaDeCobro(cuenta, acreedor) {
 //  Resumen del día
 // ---------------------------------------------------------------------------
 
-export function pdfResumenDia(informe, nombreEmpresa, acreedor) {
+/**
+ * EL RESUMEN DEL DÍA.
+ *
+ *  Antes esto era media hoja: la tabla de platos y nada más. Y no alcanzaba,
+ *  porque lo que el cliente pide todos los días es el documento completo --
+ *  hasta ahora ella lo armaba a mano, pegando OCHO pantallazos en un Word:
+ *  por cada empresa, la tabla de platos y la lista de quién pidió qué.
+ *
+ *  Eso es lo que sale de aquí, de un solo botón:
+ *
+ *      por cada empresa      el nombre en grande
+ *                            la tabla de platos, con su total y sus facturas
+ *                            quién pidió qué, persona por persona
+ *      al final              el día completo, sumando todas
+ *
+ *  Cada empresa empieza en hoja nueva. No es adorno: así se le puede mandar a
+ *  una empresa su hoja sin que lleve la de las otras.
+ *
+ *  secciones = [{ codigo, razonSocial, informe, comandas }]
+ *  combinado = el informe de todas juntas, o null si solo se pidió una empresa
+ */
+export function pdfResumenDia(secciones, fecha, acreedor, combinado = null) {
   const doc = nuevoDocumento();
-  const y = encabezado(
-    doc,
-    "RESUMEN DEL DÍA",
-    `${fechaLarga(informe.fecha)} · ${nombreEmpresa}`,
-    acreedor
-  );
-  doc.autoTable({
-    ...estiloTabla,
-    startY: y,
-    head: [["Plato", "Cantidad", "Valor unitario", "Total"]],
-    body: informe.filas.map((f) => [
-      f.producto +
-        (f.forma === "contado" ? "  (pagó de una)" : "") +
-        (f.forma === "cortesia" ? "  (cortesía)" : ""),
-      String(f.cantidad),
-      f.forma === "cortesia" ? "-" : pesos(f.precioUnitario),
-      f.forma === "cortesia" ? "-" : pesos(f.total),
-    ]),
-    columnStyles: {
-      0: { cellWidth: "auto" },
-      1: { halign: "right", cellWidth: 24 },
-      2: { halign: "right", cellWidth: 32 },
-      3: { halign: "right", cellWidth: 34 },
-    },
-    foot: [[`TOTAL · ${informe.facturas} facturas`, "", "", pesos(informe.total)]],
-    footStyles: { fillColor: [255, 255, 255], textColor: MARCA, fontStyle: "bold", fontSize: 11.5, lineWidth: 0.4, lineColor: MARCA, halign: "right" },
-    didParseCell: (d) => { if (d.section === "foot" && d.column.index === 0) d.cell.styles.halign = "left"; },
-  });
+  let primera = true;
+
+  for (const sec of secciones) {
+    if (!primera) doc.addPage();
+    primera = false;
+
+    const rotulo = () =>
+      encabezado(doc, "RESUMEN DEL DÍA", `${fechaLarga(fecha)} · ${sec.codigo}`, acreedor);
+    let y = rotulo();
+
+    y = tituloDeEmpresa(
+      doc, sec.codigo, sec.razonSocial,
+      `${sec.informe.facturas} ${sec.informe.facturas === 1 ? "factura" : "facturas"}  ·  ${pesos(sec.informe.total)}`,
+      y
+    );
+
+    y = tituloDeSeccion(doc, "Lo que se pidió", y + 2);
+    y = tablaDePlatos(doc, sec.informe, y, rotulo);
+
+    // Lo pagado de una se dice aparte: esa plata está en la caja y NO va en la
+    // cuenta de la empresa. Si no se dijera, el supervisor sumaría de más.
+    if (sec.informe.deContado > 0) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9.5);
+      doc.setTextColor(...GRIS);
+      doc.text(
+        `A la empresa se le cobran ${pesos(sec.informe.aCredito)}. ` +
+        `Los otros ${pesos(sec.informe.deContado)} ya se pagaron de una.`,
+        14, y + 7
+      );
+      doc.setTextColor(0, 0, 0);
+      y += 7;
+    }
+
+    if (sec.comandas.length) {
+      y = tituloDeSeccion(doc, `Quién pidió qué  ·  ${sec.comandas.length} personas`, y + 12);
+      tablaDeComandas(doc, sec.comandas, y, rotulo);
+    }
+  }
+
+  // El día completo, para ella. Es lo que traía el PDF viejo cuando estaba
+  // puesto "Todas las empresas", así que no se pierde por meter lo nuevo.
+  if (combinado && secciones.length > 1) {
+    doc.addPage();
+    const rotulo = () =>
+      encabezado(doc, "RESUMEN DEL DÍA", `${fechaLarga(fecha)} · Todas las empresas`, acreedor);
+    let y = rotulo();
+    y = tituloDeEmpresa(
+      doc, "EL DÍA COMPLETO", `Las ${secciones.length} empresas juntas`,
+      `${combinado.facturas} facturas  ·  ${pesos(combinado.total)}`,
+      y
+    );
+    y = tituloDeSeccion(doc, "Todo lo que se pidió", y + 2);
+    tablaDePlatos(doc, combinado, y, rotulo);
+  }
+
   pieDePagina(doc);
-  guardar(doc, `resumen-${informe.fecha}-${nombreEmpresa.replace(/\s+/g, "-")}.pdf`);
+  const cual = secciones.length === 1 ? "-" + String(secciones[0].codigo).replace(/\s+/g, "-") : "";
+  guardar(doc, `resumen-${fecha}${cual}.pdf`);
 }
 
 // ---------------------------------------------------------------------------
@@ -380,15 +430,19 @@ export function pdfResumenDia(informe, nombreEmpresa, acreedor) {
 //  por qué esa persona no comió ese día.
 // ---------------------------------------------------------------------------
 
-export function pdfComandasDelDia(comandas, fecha, nombreEmpresa, acreedor) {
-  const doc = nuevoDocumento();
-  const y = encabezado(doc, "PEDIDOS DEL DÍA", `${fechaLarga(fecha)} · ${nombreEmpresa}`, acreedor);
-
-  // Igual que el "día por día" del informe: UNA sola tabla corrida, donde la
-  // persona es un renglón más de ancho completo. Se intentó una tabla por
-  // persona y hay que adivinar cuánto mide cada una para saber si cabe en lo
-  // que queda de hoja -- y la adivinada nunca da. autoTable sabe medir sus
-  // propios renglones, así que empaqueta perfecto y no deja huecos.
+/**
+ * La tabla de "quién pidió qué", que usan dos documentos.
+ *
+ * Es UNA sola tabla corrida donde la persona es un renglón más, de ancho
+ * completo y con fondo beige. Se intentó una tabla por persona y hay que
+ * adivinar cuánto mide cada una para saber si cabe en lo que queda de hoja --
+ * y la adivinada nunca da: un nombre largo o una nota parten un renglón en
+ * dos y ya midió mal. autoTable sabe medir sus propios renglones, así que
+ * empaqueta perfecto, repite el encabezado y no deja huecos.
+ *
+ * Devuelve dónde terminó, para poder seguir escribiendo debajo.
+ */
+function tablaDeComandas(doc, comandas, y, alCambiarDeHoja) {
   const cuerpo = [];
   const esPersona = [];
   const consumoDe = [];
@@ -414,7 +468,12 @@ export function pdfComandasDelDia(comandas, fecha, nombreEmpresa, acreedor) {
   }
 
   const total = comandas.reduce((a, c) => a + c.total, 0);
-  const deContado = comandas.reduce((a, c) => a + c.deContado, 0);
+
+  // La primera hoja ya trae su encabezado pintado por quien llamó; las de
+  // continuación las pinta esto. No se puede mirar el número de página, porque
+  // esta tabla no siempre empieza en la hoja 1: en el resumen de todas las
+  // empresas cada empresa arranca donde termine la anterior.
+  let primeraHoja = true;
 
   doc.autoTable({
     ...estiloTabla,
@@ -449,21 +508,92 @@ export function pdfComandasDelDia(comandas, fecha, nombreEmpresa, acreedor) {
       if (forma !== "empresa") d.cell.styles.textColor = GRIS;
       if (c.observacion && d.column.index === 0) d.cell.styles.fontStyle = "italic";
     },
-    didDrawPage: (d) => {
-      if (d.pageNumber > 1) encabezado(doc, "PEDIDOS DEL DÍA", `${fechaLarga(fecha)} · ${nombreEmpresa}`, acreedor);
+    didDrawPage: () => {
+      if (primeraHoja) { primeraHoja = false; return; }
+      if (alCambiarDeHoja) alCambiarDeHoja();
     },
   });
 
+  return doc.lastAutoTable.finalY;
+}
+
+/** La tabla de platos del día: cuánto se preparó de cada cosa y a cómo. */
+function tablaDePlatos(doc, informe, y, alCambiarDeHoja) {
+  let primeraHoja = true;
+  doc.autoTable({
+    ...estiloTabla,
+    startY: y,
+    margin: { left: 14, right: 14, top: 34, bottom: 20 },
+    showHead: "everyPage",
+    head: [["Plato", "Cantidad", "Valor unitario", "Total"]],
+    body: informe.filas.map((f) => [
+      f.producto +
+        (f.forma === "contado" ? "  (pagó de una)" : "") +
+        (f.forma === "cortesia" ? "  (cortesía)" : ""),
+      String(f.cantidad),
+      f.forma === "cortesia" ? "—" : pesos(f.precioUnitario),
+      f.forma === "cortesia" ? "—" : pesos(f.total),
+    ]),
+    columnStyles: {
+      0: { cellWidth: "auto" },
+      1: { halign: "right", cellWidth: 24 },
+      2: { halign: "right", cellWidth: 32 },
+      3: { halign: "right", cellWidth: 34 },
+    },
+    foot: [[`TOTAL · ${informe.facturas} facturas`, "", "", pesos(informe.total)]],
+    footStyles: { fillColor: [255, 255, 255], textColor: MARCA, fontStyle: "bold", fontSize: 11.5, lineWidth: 0.4, lineColor: MARCA, halign: "right" },
+    didParseCell: (d) => { if (d.section === "foot" && d.column.index === 0) d.cell.styles.halign = "left"; },
+    didDrawPage: () => {
+      if (primeraHoja) { primeraHoja = false; return; }
+      if (alCambiarDeHoja) alCambiarDeHoja();
+    },
+  });
+  return doc.lastAutoTable.finalY;
+}
+
+/**
+ * El nombre de la empresa en grande, como sale en la pantalla.
+ *
+ * Cuando el documento lleva las cuatro empresas seguidas, esto es lo que
+ * separa una de otra de un vistazo. Va la SEDE en grande (que es lo que
+ * conocen los trabajadores) y debajo la razón social, chiquita.
+ */
+function tituloDeEmpresa(doc, codigo, razonSocial, apunte, y) {
+  const ancho = doc.internal.pageSize.getWidth();
+  doc.setFillColor(...MARCA);
+  doc.rect(14, y - 5, 3.5, 13, "F");
+
+  doc.setTextColor(...MARCA_HONDA);
+  doc.setFont("helvetica", "bold");
+  const nombre = escribirAjustado(doc, codigo, 21, y + 5, ancho - 90, 20, 11);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5);
+  doc.setTextColor(...GRIS);
+  const abajo = [razonSocial, apunte].filter(Boolean).join("  ·  ");
+  if (abajo) doc.text(abajo, 21, y + 11.5, { maxWidth: ancho - 40 });
+
+  doc.setTextColor(0, 0, 0);
+  return y + (abajo ? 18 : 13) + (nombre.renglones.length - 1) * nombre.tam * ALTO_RENGLON;
+}
+
+export function pdfComandasDelDia(comandas, fecha, nombreEmpresa, acreedor) {
+  const doc = nuevoDocumento();
+  const rotulo = () => encabezado(doc, "PEDIDOS DEL DÍA", `${fechaLarga(fecha)} · ${nombreEmpresa}`, acreedor);
+  const y = rotulo();
+
+  const fin = tablaDeComandas(doc, comandas, y, rotulo);
+
   // Si alguien pagó de una, se dice aparte: ese dinero está en la caja, no en
   // la cuenta de la empresa, y quien recibe el papel tiene que saberlo.
+  const deContado = comandas.reduce((a, c) => a + c.deContado, 0);
   if (deContado > 0) {
-    const fin = doc.lastAutoTable.finalY + 8;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9.5);
     doc.setTextColor(...GRIS);
     doc.text(
       `De ese total, ${pesos(deContado)} ya se pagó de una y NO va en la cuenta de la empresa.`,
-      14, fin
+      14, fin + 8
     );
   }
 

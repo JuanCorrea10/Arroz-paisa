@@ -11,7 +11,7 @@ import { estado, cambio, empresas, empresaPorCodigo } from "./estado.js";
 import { pesos, fechaLarga, fechaCorta, nombreMes, diasDelMes, hoyISO } from "../nucleo/formato.js";
 import {
   informeCocina, informeDia, informePorPersona, informeCuadre, notasDelDia,
-  indicePorCodigo, delDia, contarFacturas,
+  indicePorCodigo, delDia, contarFacturas, comandasDelDia,
   A_CREDITO, DE_CONTADO, CORTESIA,
 } from "../nucleo/calculos.js";
 import { pdfCocina, pdfResumenDia, pdfPorPersona, pdfCuadre } from "../exportar/pdf.js";
@@ -157,6 +157,38 @@ export function pintarCocina(raiz) {
 
 let empresaResumen = "";
 
+/**
+ * Arma el PDF del día: una sección por empresa.
+ *
+ * Con una empresa escogida sale esa sola. Con "Todas", salen las cuatro, cada
+ * una en su hoja, y al final el día completo. Es el documento que ella venía
+ * armando a mano pegando pantallazos en un Word.
+ *
+ * Las empresas que ese día no vendieron nada se quedan por fuera: una hoja
+ * que solo dice el nombre y una tabla vacía no le sirve a nadie.
+ */
+function bajarResumenEnPDF(informe) {
+  const codigos = empresaResumen ? [empresaResumen] : empresas().map((e) => e.codigo);
+  const secciones = codigos
+    .map((cod) => {
+      const emp = empresaPorCodigo(cod) || {};
+      return {
+        codigo: cod,
+        razonSocial: emp.razonSocial || "",
+        informe: informeDia(estado.datos.consumos, estado.fecha, cod),
+        comandas: comandasDelDia(estado.datos.consumos, estado.fecha, cod),
+      };
+    })
+    .filter((sec) => sec.informe.filas.length);
+
+  if (!secciones.length) {
+    mensaje("Ese día no hay nada anotado.", "ojo");
+    return;
+  }
+  pdfResumenDia(secciones, estado.fecha, estado.datos.config.acreedor, informe);
+  mensaje("PDF descargado.", "bien");
+}
+
 export function pintarResumenDia(raiz) {
   vaciar(raiz);
   const repintar = () => pintarResumenDia(raiz);
@@ -173,7 +205,7 @@ export function pintarResumenDia(raiz) {
       acciones(
         botonImprimir(),
         botonQueTrabaja("Bajar PDF", () => {
-            try { pdfResumenDia(informe, nombre, estado.datos.config.acreedor); }
+            try { bajarResumenEnPDF(informe); }
             catch (e) { mensaje(e.message, "malo", 8); }
           })
       )

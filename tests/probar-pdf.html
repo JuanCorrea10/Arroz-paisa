@@ -230,6 +230,63 @@ if (revento) {
   }
 }
 
+// --- El resumen del día, con TODAS las empresas ---------------------------
+//
+// Es el documento que el cliente pide cada día y que antes ella armaba a mano
+// pegando pantallazos en un Word. Lo que se mide es que no se le quede
+// ninguna empresa por fuera y que cada hoja diga de quién es: si una hoja
+// sale sin nombre, al imprimirlo y repartirlo nadie sabe cuál es la suya.
+{
+  const { informeDia } = await import("../js/nucleo/calculos.js");
+  const { comandasDelDia } = await import("../js/nucleo/calculos.js");
+  const dia = informe.dias[informe.dias.length - 1].fecha;
+
+  const secciones = datos.empresas.map((e) => ({
+    codigo: e.codigo,
+    razonSocial: e.razonSocial || "",
+    informe: informeDia(datos.consumos, dia, e.codigo),
+    comandas: comandasDelDia(datos.consumos, dia, e.codigo),
+  })).filter((s) => s.informe.filas.length);
+
+  capturado = null;
+  window.jspdf.jsPDF.API.save = function (nombre) { capturado = { doc: this, nombre }; return this; };
+  let malo = null;
+  try {
+    pdf.pdfResumenDia(secciones, dia, datos.config.acreedor || {},
+                      informeDia(datos.consumos, dia, null));
+  } catch (e) { malo = e; }
+  window.jspdf.jsPDF.API.save = guardarDeVerdad;
+
+  anotar("");
+  anotar(`resumen del ${dia}: ${secciones.length} empresas con movimiento`);
+  if (malo) {
+    anotar("MAL  el resumen del día reventó: " + (malo.stack || malo.message));
+  } else if (!capturado) {
+    anotar("MAL  el resumen del día no se generó");
+  } else {
+    const hojas = capturado.doc.internal.getNumberOfPages();
+    anotar(`OK   se generó: ${capturado.nombre} (${hojas} hojas)`);
+
+    const crudo = capturado.doc.output();
+    const faltan = secciones.filter((s) => !crudo.includes(s.codigo));
+    anotar(faltan.length === 0
+      ? `OK   las ${secciones.length} empresas están adentro`
+      : `MAL  faltan: ${faltan.map((s) => s.codigo).join(", ")}`);
+
+    // Cada empresa arranca en hoja nueva, más la del día completo.
+    anotar(hojas >= secciones.length + 1
+      ? `OK   trae al menos una hoja por empresa y la del día completo`
+      : `MAL  solo trae ${hojas} hojas para ${secciones.length} empresas`);
+
+    // Y la gente tiene que estar: es la mitad nueva del documento.
+    const gente = secciones.flatMap((s) => s.comandas.map((c) => c.persona));
+    const perdidas = gente.filter((n) => !crudo.includes(n.replace(/[()\\]/g, "")));
+    anotar(perdidas.length === 0
+      ? `OK   las ${gente.length} personas del día salen en el papel`
+      : `MAL  no salieron ${perdidas.length}: ${perdidas.slice(0, 3).join(", ")}`);
+  }
+}
+
 try { await fetch("/diagnostico", { method: "POST", body: lineas.join("\n") }); } catch {}
 </script>
 </body>
