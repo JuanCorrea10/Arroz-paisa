@@ -6,6 +6,7 @@
 // ============================================================================
 
 import { el, vaciar, tabla, cifra, cifraPlata, acciones, vacio, mensaje, cinta, poner, botonQueTrabaja,
+  pedirDatos,
 } from "./componentes.js";
 import { estado, cambio, empresas, empresaPorCodigo } from "./estado.js";
 import { pesos, fechaLarga, fechaCorta, nombreMes, diasDelMes, hoyISO } from "../nucleo/formato.js";
@@ -15,6 +16,25 @@ import {
   A_CREDITO, DE_CONTADO, CORTESIA,
 } from "../nucleo/calculos.js";
 import { pdfCocina, pdfResumenDia, pdfPorPersona, pdfCuadre } from "../exportar/pdf.js";
+
+/**
+ * Cómo se llama una empresa en un papel que se entrega.
+ *
+ * NO sirve la razón social sola: AGRO, PUNTERAS y BASARILI se llaman las tres
+ * "BOTAS AGROINDUSTRIAL SAS". Un PDF de BASARILI que en el encabezado diga
+ * solo "BOTAS AGROINDUSTRIAL SAS" es indistinguible del de las otras dos, y
+ * quien lo recibe no sabe cuál le tocó.
+ *
+ * Manda la SEDE, que es lo que la gente conoce, y la razón social va detrás
+ * porque es la que importa para la parte legal.
+ */
+function nombreDeEmpresa(codigo) {
+  if (!codigo) return "Todas las empresas";
+  const emp = empresaPorCodigo(codigo) || {};
+  const razon = (emp.razonSocial || "").trim();
+  const sede = emp.codigo || codigo;
+  return razon && razon !== sede ? `${sede} · ${razon}` : sede;
+}
 
 /** El selector de día que usan varias pantallas. */
 function selectorDeDia(alCambiar) {
@@ -194,7 +214,7 @@ export function pintarResumenDia(raiz) {
   const repintar = () => pintarResumenDia(raiz);
   const informe = informeDia(estado.datos.consumos, estado.fecha, empresaResumen || null);
   const emp = empresaResumen ? empresaPorCodigo(empresaResumen) : null;
-  const nombre = emp ? emp.razonSocial || emp.codigo : "Todas las empresas";
+  const nombre = nombreDeEmpresa(emp ? emp.codigo : null);
 
   poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
@@ -283,6 +303,45 @@ let soloDelDia = false;
 /** Cómo se ordena la lista: "nombre" o "empresa". Igual que en Personas. */
 let ordenPorPersona = "nombre";
 
+/**
+ * Pregunta qué hay que bajar antes de bajarlo.
+ *
+ * Se pregunta en vez de poner otro selector arriba: la barra ya lleva seis
+ * controles, y esto no se escoge una vez y se deja quieto -- un día se manda
+ * lo del día y otro lo de la quincena.
+ */
+async function bajarPorPersonaEnPDF(filas, nombre) {
+  const q = filas.length ? filas[0].quincenaActual : null;
+  const r = await pedirDatos({
+    titulo: "¿Qué se baja?",
+    campos: [
+      {
+        nombre: "que",
+        etiqueta: "Lo que va en el PDF",
+        tipo: "seleccion",
+        valor: "todo",
+        opciones: [
+          { valor: "todo", texto: "Las tres: el día, la quincena y el mes" },
+          { valor: "dia", texto: `Solo el día (${fechaCorta(estado.fecha)})` },
+          { valor: "quincena", texto: q ? `Solo la quincena ${q}` : "Solo la quincena" },
+          { valor: "mes", texto: `Solo el mes (${nombreMes(estado.mes)})` },
+        ],
+        ayuda: "Con una sola columna la hoja sale de pie y se lee mejor en el celular.",
+      },
+    ],
+    textoAceptar: "Bajar el PDF",
+  });
+  if (!r) return;
+
+  try {
+    pdfPorPersona(filas, estado.anio, estado.mes, nombre,
+                  estado.datos.config.acreedor, estado.fecha, r.que);
+    mensaje("PDF descargado.", "bien");
+  } catch (e) {
+    mensaje(e.message, "malo", 8);
+  }
+}
+
 export function pintarPorPersona(raiz) {
   vaciar(raiz);
   const repintar = () => pintarPorPersona(raiz);
@@ -304,7 +363,7 @@ export function pintarPorPersona(raiz) {
       a.persona.localeCompare(b.persona, "es"));
   }
   const emp = empresaPersonas ? empresaPorCodigo(empresaPersonas) : null;
-  const nombre = emp ? emp.razonSocial || emp.codigo : "Todas las empresas";
+  const nombre = nombreDeEmpresa(emp ? emp.codigo : null);
 
   poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
@@ -314,10 +373,7 @@ export function pintarPorPersona(raiz) {
       ),
       acciones(
         botonImprimir(),
-        botonQueTrabaja("Bajar PDF", () => {
-            try { pdfPorPersona(filas, estado.anio, estado.mes, nombre, estado.datos.config.acreedor, estado.fecha); }
-            catch (e) { mensaje(e.message, "malo", 8); }
-          })
+        botonQueTrabaja("Bajar PDF", () => bajarPorPersonaEnPDF(filas, nombre))
       )
     ),
     el("div", { clase: "mando" },

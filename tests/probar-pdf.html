@@ -287,6 +287,43 @@ if (revento) {
   }
 }
 
+// --- El consumo por persona, en sus cuatro formas ------------------------
+//
+// Lo que se vigila aquí es EL ENCABEZADO. Tres de las cuatro sedes se llaman
+// igual ("BOTAS AGROINDUSTRIAL SAS"), así que un PDF que en el encabezado
+// diga solo la razón social es indistinguible del de las otras dos: quien lo
+// recibe no sabe cuál le tocó. Tiene que decir la SEDE.
+{
+  const { informePorPersona, indicePorCodigo } = await import("../js/nucleo/calculos.js");
+  const dia = informe.dias[informe.dias.length - 1].fecha;
+  const emp = datos.empresas.find((e) => e.codigo === codigo) || datos.empresas[0];
+  const razon = (emp.razonSocial || "").trim();
+  const rotulo = razon && razon !== emp.codigo ? `${emp.codigo} · ${razon}` : emp.codigo;
+  const filas = informePorPersona(datos.consumos, anio, mes,
+    indicePorCodigo(datos.empresas), emp.codigo, dia);
+
+  anotar("");
+  anotar(`consumo por persona de ${emp.codigo}: ${filas.length} personas`);
+  for (const que of ["todo", "dia", "quincena", "mes"]) {
+    capturado = null;
+    window.jspdf.jsPDF.API.save = function (nombre) { capturado = { doc: this, nombre }; return this; };
+    let malo = null;
+    try {
+      pdf.pdfPorPersona(filas, anio, mes, rotulo, datos.config.acreedor || {}, dia, que);
+    } catch (e) { malo = e; }
+    window.jspdf.jsPDF.API.save = guardarDeVerdad;
+
+    if (malo) { anotar(`MAL  "${que}" reventó: ${malo.message}`); continue; }
+    if (!capturado) { anotar(`MAL  "${que}" no generó nada`); continue; }
+
+    const crudo = capturado.doc.output();
+    const acostada = capturado.doc.internal.pageSize.getWidth() > 250;
+    anotar(crudo.includes(emp.codigo)
+      ? `OK   "${que}": el encabezado dice ${emp.codigo} (${acostada ? "acostada" : "de pie"})`
+      : `MAL  "${que}": el encabezado NO dice ${emp.codigo}, solo la razón social`);
+  }
+}
+
 try { await fetch("/diagnostico", { method: "POST", body: lineas.join("\n") }); } catch {}
 </script>
 </body>

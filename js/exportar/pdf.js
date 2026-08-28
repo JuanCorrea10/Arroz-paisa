@@ -650,44 +650,69 @@ export function pdfCocina(filas, fecha, codigos, acreedor, notas = []) {
 //  Consumo por persona
 // ---------------------------------------------------------------------------
 
-export function pdfPorPersona(filas, anio, mes, nombreEmpresa, acreedor, fechaDia = null) {
-  // Acostado, no de pie. Con la columna del día son siete columnas, y de pie
-  // el nombre de la persona se quedaba con tres centímetros: todos los nombres
-  // partidos en dos renglones. Es una lista, no un documento de entregar.
-  const doc = nuevoDocumento("l");
-  const conDia = Boolean(fechaDia);
-  const y = encabezado(doc, "CONSUMO POR PERSONA", `${nombreMes(mes)} ${anio} · ${nombreEmpresa}`, acreedor);
+/**
+ * CONSUMO POR PERSONA.
+ *
+ * `que` dice qué columnas de plata lleva el papel:
+ *
+ *      "dia"       solo lo de ese día
+ *      "quincena"  solo lo de la quincena que va corriendo
+ *      "mes"       solo el mes
+ *      "todo"      las tres
+ *
+ * No es un capricho: cada una responde una pregunta distinta. La del día es
+ * para la portería ("¿cuánto llevo hoy?"), la de la quincena es lo que se va a
+ * descontar, y la del mes es para cuadrar. Mandar las tres cuando solo hace
+ * falta una es darle a alguien tres números para que lea el que no es.
+ */
+export function pdfPorPersona(filas, anio, mes, nombreEmpresa, acreedor, fechaDia = null, que = "todo") {
+  const conDia = Boolean(fechaDia) && (que === "todo" || que === "dia");
+  const conQuincena = que === "todo" || que === "quincena";
+  const conMes = que === "todo" || que === "mes";
 
-  // De las dos quincenas va UNA: la que corre el día que se está mirando. La
-  // otra ya se cobró. Igual que en la pantalla -- si el papel dijera otra cosa
-  // que la pantalla, no se sabría a cuál creerle.
-  //
-  // El día 14 hay gente en las dos a la vez (MGP cierra el 13), y solo ese día
-  // el rótulo lo dice y cada renglón lleva su Q1 o Q2.
-  const quincenas = conDia ? [...new Set(filas.map((f) => f.quincenaActual))] : [];
+  // Acostado solo cuando van las tres. Con una sola columna de plata caben de
+  // pie sin apretar el nombre, y una hoja de pie se lee mejor en el celular.
+  const doc = nuevoDocumento(que === "todo" ? "l" : "p");
+
+  // De las dos quincenas va la que corre el día que se está mirando; la otra
+  // ya se cobró. El 14 hay gente en las dos a la vez (MGP cierra el 13), y
+  // solo ese día el rótulo lo dice y cada renglón lleva su Q1 o Q2.
+  const quincenas = fechaDia ? [...new Set(filas.map((f) => f.quincenaActual))] : [];
   const mezcladas = quincenas.length > 1;
-  const rotuloQuincena = !conDia ? "Quincena 1"
+  const rotuloQuincena = !fechaDia ? "Quincena 1"
     : mezcladas ? "Quincena en curso"
     : `Quincena ${quincenas[0]}`;
 
+  const deQue = que === "dia" ? `Solo el ${fechaCorta(fechaDia)}`
+    : que === "quincena" ? `Solo la ${rotuloQuincena.toLowerCase()}`
+    : que === "mes" ? "Solo el mes"
+    : null;
+
+  const y = encabezado(
+    doc, "CONSUMO POR PERSONA",
+    `${nombreMes(mes)} ${anio} · ${nombreEmpresa}` + (deQue ? ` · ${deQue}` : ""),
+    acreedor
+  );
+
+  const enCursoDe = (f) => (fechaDia ? f.enCurso : f.q1);
+
   const cabeza = ["Persona", "Empresa", "Facturas"];
   if (conDia) cabeza.push(fechaCorta(fechaDia));
-  cabeza.push(rotuloQuincena, "Mes");
+  if (conQuincena) cabeza.push(rotuloQuincena);
+  if (conMes) cabeza.push("Mes");
 
   const anchos = { 0: { cellWidth: "auto" }, 1: { cellWidth: 24 }, 2: { halign: "right", cellWidth: 20 } };
   let i = 3;
   if (conDia) anchos[i++] = { halign: "right", cellWidth: 30 };
-  anchos[i++] = { halign: "right", cellWidth: 34 };
-  anchos[i] = { halign: "right", cellWidth: 32, fontStyle: "bold" };
-
-  const enCursoDe = (f) => (conDia ? f.enCurso : f.q1);
+  if (conQuincena) anchos[i++] = { halign: "right", cellWidth: 34 };
+  if (conMes) anchos[i++] = { halign: "right", cellWidth: 32 };
+  // La última columna de plata va en negrilla: es la que se busca.
+  anchos[i - 1] = { ...anchos[i - 1], fontStyle: "bold" };
 
   const pie = ["TOTAL", "", String(filas.reduce((a, f) => a + f.facturas, 0))];
   if (conDia) pie.push(pesos(filas.reduce((a, f) => a + (f.dia || 0), 0)));
-  pie.push(
-    pesos(filas.reduce((a, f) => a + enCursoDe(f), 0)),
-    pesos(filas.reduce((a, f) => a + f.mes, 0))
-  );
+  if (conQuincena) pie.push(pesos(filas.reduce((a, f) => a + enCursoDe(f), 0)));
+  if (conMes) pie.push(pesos(filas.reduce((a, f) => a + f.mes, 0)));
 
   doc.autoTable({
     ...estiloTabla,
@@ -696,10 +721,10 @@ export function pdfPorPersona(filas, anio, mes, nombreEmpresa, acreedor, fechaDi
     body: filas.map((f) => {
       const fila = [f.persona, f.empresa, String(f.facturas)];
       if (conDia) fila.push(f.dia ? pesos(f.dia) : "—");
-      fila.push(
-        pesos(enCursoDe(f)) + (mezcladas ? "  Q" + f.quincenaActual : ""),
-        pesos(f.mes)
-      );
+      if (conQuincena) {
+        fila.push(pesos(enCursoDe(f)) + (mezcladas ? "  Q" + f.quincenaActual : ""));
+      }
+      if (conMes) fila.push(pesos(f.mes));
       return fila;
     }),
     columnStyles: anchos,
@@ -707,8 +732,12 @@ export function pdfPorPersona(filas, anio, mes, nombreEmpresa, acreedor, fechaDi
     footStyles: { fillColor: [255, 255, 255], textColor: MARCA, fontStyle: "bold", fontSize: 10, lineWidth: 0.4, lineColor: MARCA, halign: "right" },
     didParseCell: (d) => { if (d.section === "foot" && d.column.index <= 1) d.cell.styles.halign = "left"; },
   });
+
   pieDePagina(doc);
-  guardar(doc, `consumo-por-persona-${anio}-${String(mes).padStart(2, "0")}.pdf`);
+  const sufijo = que === "dia" ? "-dia-" + fechaDia
+    : que === "quincena" ? "-quincena"
+    : que === "mes" ? "-mes" : "";
+  guardar(doc, `consumo-por-persona-${anio}-${String(mes).padStart(2, "0")}${sufijo}.pdf`);
 }
 
 // ---------------------------------------------------------------------------
