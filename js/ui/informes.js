@@ -280,6 +280,8 @@ export function pintarResumenDia(raiz) {
 let empresaPersonas = "";
 /** Ver solo la gente que comió el día elegido, y no las 268 del mes. */
 let soloDelDia = false;
+/** Cómo se ordena la lista: "nombre" o "empresa". Igual que en Personas. */
+let ordenPorPersona = "nombre";
 
 export function pintarPorPersona(raiz) {
   vaciar(raiz);
@@ -292,6 +294,15 @@ export function pintarPorPersona(raiz) {
     estado.datos.consumos, estado.anio, estado.mes, indice,
     empresaPersonas || null, estado.fecha);
   const filas = soloDelDia ? todas.filter((f) => f.dia > 0) : todas;
+
+  // informePorPersona ya las entrega por nombre. Ordenar por empresa no es
+  // solo agrupar: dentro de cada una la gente sigue yendo por nombre, o
+  // buscar a alguien dentro de AGRO sería recorrer 94 renglones sin orden.
+  if (ordenPorPersona === "empresa") {
+    filas.sort((a, b) =>
+      a.empresa.localeCompare(b.empresa, "es") ||
+      a.persona.localeCompare(b.persona, "es"));
+  }
   const emp = empresaPersonas ? empresaPorCodigo(empresaPersonas) : null;
   const nombre = emp ? emp.razonSocial || emp.codigo : "Todas las empresas";
 
@@ -320,6 +331,16 @@ export function pintarPorPersona(raiz) {
         repintar();
       }),
       selectorDeEmpresa(empresaPersonas, (v) => { empresaPersonas = v; repintar(); }),
+      el("div", { clase: "campo" },
+        el("label", { for: "orden-informe", texto: "Ordenar por" }),
+        el("select", {
+          id: "orden-informe",
+          alCambiar: (e) => { ordenPorPersona = e.target.value; repintar(); },
+        },
+          el("option", { value: "nombre", selected: ordenPorPersona === "nombre" }, "Nombre"),
+          el("option", { value: "empresa", selected: ordenPorPersona === "empresa" }, "Empresa, y luego nombre")
+        )
+      ),
       el("div", { clase: "campo" },
         el("label", { for: "solo-del-dia", texto: "Ver" }),
         el("label", { clase: "casilla", for: "solo-del-dia" },
