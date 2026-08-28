@@ -325,10 +325,52 @@ export function notasDelDia(consumos, fechaISO, codigosEmpresa) {
 }
 
 /**
+ * LAS COMANDAS DEL DÍA, agrupadas por persona.
+ *
+ * Un pedido es UNA persona con todos sus platos, no un montón de renglones
+ * sueltos. Así se ve en la pantalla de registrar y así hay que entregarlo en
+ * papel: "ANDREY MORALES — 1 almuerzo, 1 gaseosa — $ 19.000".
+ *
+ * Esto vive aquí y no en la pantalla porque lo usan dos: la pantalla para
+ * pintar las tarjetas y el PDF que se les manda a los trabajadores. Cuando la
+ * misma agrupación se escribe dos veces, tarde o temprano una de las dos
+ * cuenta distinto y nadie entiende por qué el papel no cuadra con lo que se
+ * ve en la pantalla.
+ */
+export function comandasDelDia(consumos, fechaISO, codigoEmpresa) {
+  const cod = codigoEmpresa ? normalizar(codigoEmpresa) : null;
+  const renglones = delDia(consumos, fechaISO)
+    .filter((c) => !cod || normalizar(c.empresa) === cod);
+
+  const porPersona = new Map();
+  for (const c of renglones) {
+    const quien = normalizar(c.persona);
+    if (!porPersona.has(quien)) {
+      porPersona.set(quien, { persona: quien, empresa: normalizar(c.empresa), platos: [] });
+    }
+    porPersona.get(quien).platos.push(c);
+  }
+
+  return [...porPersona.values()]
+    .map((p) => ({
+      ...p,
+      // Tres totales, porque no son lo mismo y confundirlos es cobrar mal:
+      //   total     todo lo que se llevó, valga quien lo pague
+      //   empresa   lo que va a la cuenta de cobro
+      //   contado   lo que ya pagó de su bolsillo
+      total: p.platos.reduce((a, c) => a + subtotal(c), 0),
+      empresa: p.empresa,
+      aLaEmpresa: p.platos.reduce((a, c) => a + subtotalAcreditoDeEmpresa(c), 0),
+      deContado: p.platos.reduce((a, c) => a + subtotalDeContado(c), 0),
+    }))
+    .sort((a, b) => a.persona.localeCompare(b.persona, "es"));
+}
+
+/**
  * CONSUMO POR PERSONA: cuánto lleva cada persona en Q1, en Q2 y en el mes.
  * La quincena se calcula con la empresa A LA QUE SE LE FACTURA.
  */
-export function informePorPersona(consumos, anio, mes, empresasPorCodigo, codigoEmpresa) {
+export function informePorPersona(consumos, anio, mes, empresasPorCodigo, codigoEmpresa, fechaDia = null) {
   let lista = delMes(consumos, anio, mes);
   if (codigoEmpresa) {
     const cod = normalizar(codigoEmpresa);
@@ -344,6 +386,10 @@ export function informePorPersona(consumos, anio, mes, empresasPorCodigo, codigo
         // q1, q2 y mes son lo que va a la cuenta de la empresa: lo que le van
         // a descontar. Lo que la persona ya pago de su bolsillo NO puede
         // estar aqui, o se le descontaria dos veces.
+        // "dia" es lo de un día suelto, el que ella escoja arriba. Sirve para
+        // contestar "¿cuánto lleva Fulano HOY?" sin salirse de esta pantalla,
+        // que es lo que le preguntan en la portería.
+        dia: 0,
         q1: 0,
         q2: 0,
         mes: 0,
@@ -358,6 +404,7 @@ export function informePorPersona(consumos, anio, mes, empresasPorCodigo, codigo
     if (q === 1) fila.q1 += alaEmpresa;
     else if (q === 2) fila.q2 += alaEmpresa;
     fila.mes += alaEmpresa;
+    if (fechaDia && c.fecha === fechaDia) fila.dia += alaEmpresa;
     fila.contado += subtotalDeContado(c);
     fila.facturas.add(claveFactura(c));
   }

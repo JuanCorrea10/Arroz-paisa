@@ -246,12 +246,20 @@ export function pintarResumenDia(raiz) {
 // ===========================================================================
 
 let empresaPersonas = "";
+/** Ver solo la gente que comió el día elegido, y no las 268 del mes. */
+let soloDelDia = false;
 
 export function pintarPorPersona(raiz) {
   vaciar(raiz);
   const repintar = () => pintarPorPersona(raiz);
   const indice = indicePorCodigo(estado.datos.empresas);
-  const filas = informePorPersona(estado.datos.consumos, estado.anio, estado.mes, indice, empresaPersonas || null);
+  // Se le pasa el día para que cada renglón traiga también lo de ESE día.
+  // Así en una sola fila se ve lo de hoy, lo de la quincena y lo del mes, que
+  // es justo lo que le preguntan: "¿cuánto llevo?".
+  const todas = informePorPersona(
+    estado.datos.consumos, estado.anio, estado.mes, indice,
+    empresaPersonas || null, estado.fecha);
+  const filas = soloDelDia ? todas.filter((f) => f.dia > 0) : todas;
   const emp = empresaPersonas ? empresaPorCodigo(empresaPersonas) : null;
   const nombre = emp ? emp.razonSocial || emp.codigo : "Todas las empresas";
 
@@ -259,42 +267,76 @@ export function pintarPorPersona(raiz) {
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Consumo por persona" }),
-        el("p", { texto: "Cuánto lleva cada persona en la quincena 1, en la quincena 2 y en el mes." })
+        el("p", { texto: "Cuánto lleva cada persona: el día que elija, cada quincena y el mes." })
       ),
       acciones(
         botonImprimir(),
         botonQueTrabaja("Bajar PDF", () => {
-            try { pdfPorPersona(filas, estado.anio, estado.mes, nombre, estado.datos.config.acreedor); }
+            try { pdfPorPersona(filas, estado.anio, estado.mes, nombre, estado.datos.config.acreedor, estado.fecha); }
             catch (e) { mensaje(e.message, "malo", 8); }
           })
       )
     ),
     el("div", { clase: "mando" },
       ...selectorDeMes(repintar),
-      selectorDeEmpresa(empresaPersonas, (v) => { empresaPersonas = v; repintar(); })
+      // El día vive aquí junto al mes, y al cambiarlo el mes se va con él.
+      // Si no, se escoge un día de septiembre con el mes en agosto y la
+      // columna sale toda en cero sin que se entienda por qué.
+      selectorDeDia(() => {
+        estado.anio = Number(estado.fecha.slice(0, 4)) || estado.anio;
+        estado.mes = Number(estado.fecha.slice(5, 7)) || estado.mes;
+        repintar();
+      }),
+      selectorDeEmpresa(empresaPersonas, (v) => { empresaPersonas = v; repintar(); }),
+      el("div", { clase: "campo" },
+        el("label", { for: "solo-del-dia", texto: "Ver" }),
+        el("label", { clase: "casilla", for: "solo-del-dia" },
+          el("input", {
+            type: "checkbox", id: "solo-del-dia", checked: soloDelDia,
+            alCambiar: (e) => { soloDelDia = e.target.checked; repintar(); },
+          }),
+          el("span", { texto: "Solo los que comieron ese día" })
+        )
+      )
     )
   );
 
   if (!filas.length) {
-    poner(raiz, vacio(`No hay nada anotado en ${nombreMes(estado.mes)} de ${estado.anio}`, "Elija otro mes u otra empresa."));
+    poner(raiz, soloDelDia
+      ? vacio(`El ${fechaLarga(estado.fecha)} no comió nadie`,
+          el("p", { texto: "Cambie el día arriba, o quite el visto para ver a todos los del mes." }))
+      : vacio(`No hay nada anotado en ${nombreMes(estado.mes)} de ${estado.anio}`,
+          "Elija otro mes u otra empresa."));
     return;
   }
 
   const tQ1 = filas.reduce((a, f) => a + f.q1, 0);
   const tQ2 = filas.reduce((a, f) => a + f.q2, 0);
+  const tDia = filas.reduce((a, f) => a + f.dia, 0);
+  const conDia = filas.filter((f) => f.dia > 0).length;
 
   poner(raiz,
     el("dl", { clase: "cifras", estilo: "margin-bottom:var(--e5)" },
       cifra("Personas", String(filas.length)),
-      cifra("Facturas", String(filas.reduce((a, f) => a + f.facturas, 0))),
+      cifraPlata(`El ${fechaCorta(estado.fecha)}`, tDia),
       cifraPlata("Quincena 1", tQ1),
       cifraPlata("Quincena 2", tQ2),
       cifraPlata("Total del mes", tQ1 + tQ2, true)
     ),
+    el("p", { clase: "nota" },
+      soloDelDia
+        ? `Solo las ${filas.length} personas que comieron el ${fechaLarga(estado.fecha)}. ` +
+          "Las quincenas y el mes son los de cada una, completos."
+        : conDia
+          ? `El ${fechaLarga(estado.fecha)} comieron ${conDia} de estas ${filas.length} personas. ` +
+            'Para ver solo esas, marque "Solo los que comieron ese día" arriba.'
+          : `El ${fechaLarga(estado.fecha)} no comió nadie. Cambie el día arriba para ver otro.`),
     tabla(
       [
         { titulo: "Persona" }, { titulo: "Empresa" },
-        { titulo: "Facturas", clase: "n" }, { titulo: "Quincena 1", clase: "n" },
+        { titulo: "Facturas", clase: "n" },
+        { titulo: fechaCorta(estado.fecha), clase: "n" },
+        { titulo: "Quincena 1", clase: "n" },
         { titulo: "Quincena 2", clase: "n" }, { titulo: "Mes", clase: "n" },
       ],
       filas.map((f) =>
@@ -302,14 +344,19 @@ export function pintarPorPersona(raiz) {
           el("td", { texto: f.persona }),
           el("td", {}, cinta(f.empresa)),
           el("td", { clase: "n", texto: String(f.facturas) }),
+          // El día en $0 va en gris: está, pero no aporta. Así el ojo salta
+          // solo a los que sí comieron ese día.
+          el("td", { clase: "n", estilo: f.dia ? "" : "color:var(--tinta-suave)",
+                     texto: f.dia ? pesos(f.dia) : "—" }),
           el("td", { clase: "n", texto: pesos(f.q1) }),
           el("td", { clase: "n", texto: pesos(f.q2) }),
           el("td", { clase: "n", estilo: "font-weight:700", texto: pesos(f.mes) })
         )
       ),
       el("tr", {},
-        el("td", { colspan: "3", texto: "TOTAL" }),
+        el("td", { colspan: "2", texto: "TOTAL" }),
         el("td", { clase: "n", texto: String(filas.reduce((a, f) => a + f.facturas, 0)) }),
+        el("td", { clase: "n", texto: pesos(tDia) }),
         el("td", { clase: "n", texto: pesos(tQ1) }),
         el("td", { clase: "n", texto: pesos(tQ2) }),
         el("td", { clase: "n", texto: pesos(tQ1 + tQ2) })

@@ -10,7 +10,10 @@
 // ============================================================================
 
 import { grupo, prueba, igual, cierto } from "./probar.mjs";
-import { informeCompletoDeEmpresa, sumar, subtotal } from "../js/nucleo/calculos.js";
+import {
+  informeCompletoDeEmpresa, sumar, subtotal, comandasDelDia, informePorPersona,
+  indicePorCodigo, DE_CONTADO,
+} from "../js/nucleo/calculos.js";
 
 // ---------------------------------------------------------------------------
 //  Un negocio chiquito, inventado, donde se puede contar todo a mano.
@@ -190,4 +193,84 @@ prueba("dentro de cada día las personas salen en orden", () => {
   const i = informeCompletoDeEmpresa(negocio(), "MGP", 2026, 8);
   const dia3 = i.dias.find((d) => d.fecha === "2026-08-03");
   igual(dia3.renglones.map((c) => c.persona), ["ANA GOMEZ", "LUIS PEÑA"]);
+});
+
+// ---------------------------------------------------------------------------
+grupo("Las comandas del día, para el papel que se le manda a la gente");
+
+prueba("agrupa por persona, no por renglón", () => {
+  // El 3 de agosto en MGP comieron dos personas, un plato cada una.
+  const c = comandasDelDia(negocio().consumos, "2026-08-03", "MGP");
+  igual(c.length, 2);
+  igual(c.map((x) => x.persona), ["ANA GOMEZ", "LUIS PEÑA"], "y en orden");
+  igual(c[0].platos.length, 1);
+});
+
+prueba("una persona con dos platos es UNA comanda con los dos", () => {
+  const datos = negocio();
+  datos.consumos.push(consumo("2026-08-03", "MGP", "ANA GOMEZ", "CORRIENTE", CORRIENTE));
+  const c = comandasDelDia(datos.consumos, "2026-08-03", "MGP");
+  igual(c.length, 2, "siguen siendo dos personas");
+  const ana = c.find((x) => x.persona === "ANA GOMEZ");
+  igual(ana.platos.length, 2);
+  igual(ana.total, ALMUERZO + CORRIENTE);
+});
+
+prueba("no se cuela nadie de otra empresa", () => {
+  // Ese mismo día comió la tocaya de AGRO. En el papel de MGP no puede salir.
+  const c = comandasDelDia(negocio().consumos, "2026-08-03", "MGP");
+  cierto(c.every((x) => x.empresa === "MGP"));
+  igual(c.length, 2, "la de AGRO se quedó afuera");
+});
+
+prueba("separa lo que paga la empresa de lo que la persona pagó de una", () => {
+  const datos = negocio();
+  datos.consumos.push(
+    consumo("2026-08-03", "MGP", "LUIS PEÑA", "ALMUERZO", ALMUERZO, 1, { cobro: DE_CONTADO })
+  );
+  const luis = comandasDelDia(datos.consumos, "2026-08-03", "MGP")
+    .find((x) => x.persona === "LUIS PEÑA");
+  igual(luis.total, CORRIENTE + ALMUERZO, "lo llevó todo");
+  igual(luis.aLaEmpresa, CORRIENTE, "pero a la empresa solo se le cobra lo de crédito");
+  igual(luis.deContado, ALMUERZO, "y esto ya está en la caja");
+});
+
+prueba("una cortesía sale en la lista pero no suma", () => {
+  // El 20 de agosto Ana comió un corriente que no se cobra.
+  const ana = comandasDelDia(negocio().consumos, "2026-08-20", "MGP")
+    .find((x) => x.persona === "ANA GOMEZ");
+  igual(ana.platos.length, 1, "el plato SÍ aparece: comió ese día");
+  igual(ana.total, 0, "pero no vale nada");
+});
+
+prueba("sin empresa trae el día entero, de todas", () => {
+  const c = comandasDelDia(negocio().consumos, "2026-08-03", null);
+  igual(c.length, 2, "ANA (que está en las dos) y LUIS");
+});
+
+// ---------------------------------------------------------------------------
+grupo("Consumo por persona: lo del día, además de la quincena y el mes");
+
+prueba("sin pedir día, la columna del día queda en cero", () => {
+  const d = negocio();
+  const filas = informePorPersona(d.consumos, 2026, 8, indicePorCodigo(d.empresas), "MGP");
+  cierto(filas.every((f) => f.dia === 0));
+});
+
+prueba("con un día, cada persona trae lo de ESE día", () => {
+  const d = negocio();
+  const filas = informePorPersona(
+    d.consumos, 2026, 8, indicePorCodigo(d.empresas), "MGP", "2026-08-10");
+  const ana = filas.find((f) => f.persona === "ANA GOMEZ");
+  const luis = filas.find((f) => f.persona === "LUIS PEÑA");
+  igual(ana.dia, ALMUERZO * 2, "el 10 pidió dos almuerzos");
+  igual(luis.dia, 0, "Luis no comió ese día, pero sigue en la lista");
+  igual(luis.mes, CORRIENTE + ALMUERZO, "con su mes completo");
+});
+
+prueba("lo del día nunca puede pasarse de lo del mes", () => {
+  const d = negocio();
+  const filas = informePorPersona(
+    d.consumos, 2026, 8, indicePorCodigo(d.empresas), "MGP", "2026-08-10");
+  cierto(filas.every((f) => f.dia <= f.mes));
 });

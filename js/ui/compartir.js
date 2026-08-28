@@ -35,7 +35,7 @@ import {
   poner,
 } from "./componentes.js";
 import { estado, empresas, empresaPorCodigo } from "./estado.js";
-import { pesos, nombreMes, fechaCorta } from "../nucleo/formato.js";
+import { pesos, nombreMes } from "../nucleo/formato.js";
 import {
   delMes, quincenaDe, sumar, contarFacturas, cuentaDeCobro, rangoQuincena,
   fechaDeCobro, informeCompletoDeEmpresa,
@@ -117,8 +117,10 @@ function tarjetaDeEmpresa(empresa) {
     ),
 
     el("dl", { clase: "cifras" },
-      cifra(`Quincena 1 (${fechaCorta(r1.desde)} al ${fechaCorta(r1.hasta)})`, pesos(sumar(q1))),
-      cifra(`Quincena 2 (${fechaCorta(r2.desde)} al ${fechaCorta(r2.hasta)})`, pesos(sumar(q2))),
+      // Ojo: rangoQuincena da DÍAS del mes (1, 13), no fechas completas. Pasarlos
+      // por fechaCorta devolvía vacío y el rótulo salía "Quincena 1 ( al )".
+      cifra(`Quincena 1 (día ${r1.desde} al ${r1.hasta})`, pesos(sumar(q1))),
+      cifra(`Quincena 2 (día ${r2.desde} al ${r2.hasta})`, pesos(sumar(q2))),
       cifra("Facturas del mes", String(contarFacturas(cobrables))),
       cifra("Total del mes", pesos(sumar(cobrables)), true)
     ),

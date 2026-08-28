@@ -368,6 +368,110 @@ export function pdfResumenDia(informe, nombreEmpresa, acreedor) {
 }
 
 // ---------------------------------------------------------------------------
+//  Los pedidos del día, uno por persona
+//
+//  Este es el papel que se le manda a la gente de la fábrica, no a la cocina.
+//  Por eso NO va por plato ("47 almuerzos"): va por PERSONA, con lo que pidió
+//  y lo que vale. Al otro lado cada quien busca su nombre y ve su pedido; el
+//  supervisor cuadra la lista contra la asistencia.
+//
+//  Lo que la persona ya pagó de su bolsillo SÍ sale, con un aviso al lado y en
+//  gris. Si no saliera, el supervisor vería un hueco en la lista y preguntaría
+//  por qué esa persona no comió ese día.
+// ---------------------------------------------------------------------------
+
+export function pdfComandasDelDia(comandas, fecha, nombreEmpresa, acreedor) {
+  const doc = nuevoDocumento();
+  const y = encabezado(doc, "PEDIDOS DEL DÍA", `${fechaLarga(fecha)} · ${nombreEmpresa}`, acreedor);
+
+  // Igual que el "día por día" del informe: UNA sola tabla corrida, donde la
+  // persona es un renglón más de ancho completo. Se intentó una tabla por
+  // persona y hay que adivinar cuánto mide cada una para saber si cabe en lo
+  // que queda de hoja -- y la adivinada nunca da. autoTable sabe medir sus
+  // propios renglones, así que empaqueta perfecto y no deja huecos.
+  const cuerpo = [];
+  const esPersona = [];
+  const consumoDe = [];
+  for (const com of comandas) {
+    esPersona[cuerpo.length] = true;
+    cuerpo.push([{
+      content: com.persona + "   ·   " + pesos(com.total),
+      colSpan: 4,
+    }]);
+    for (const c of com.platos) {
+      consumoDe[cuerpo.length] = c;
+      const forma = c.cobro || (c.facturable === false ? "cortesia" : "empresa");
+      cuerpo.push([
+        c.producto +
+          (forma === "contado" ? "  (pagó de una)" : "") +
+          (forma === "cortesia" ? "  (cortesía)" : "") +
+          (c.observacion ? "  — " + c.observacion : ""),
+        String(c.cantidad),
+        forma === "cortesia" ? "—" : pesos(c.precioUnitario),
+        forma === "cortesia" ? "—" : pesos((Number(c.cantidad) || 0) * (Number(c.precioUnitario) || 0)),
+      ]);
+    }
+  }
+
+  const total = comandas.reduce((a, c) => a + c.total, 0);
+  const deContado = comandas.reduce((a, c) => a + c.deContado, 0);
+
+  doc.autoTable({
+    ...estiloTabla,
+    startY: y,
+    margin: { left: 14, right: 14, top: 34, bottom: 20 },
+    showHead: "everyPage",
+    rowPageBreak: "avoid",
+    head: [["Plato", "Cant.", "Valor unitario", "Total"]],
+    body: cuerpo,
+    columnStyles: {
+      0: { cellWidth: "auto" },
+      1: { halign: "right", cellWidth: 18 },
+      2: { halign: "right", cellWidth: 32 },
+      3: { halign: "right", cellWidth: 32 },
+    },
+    foot: [[`TOTAL · ${comandas.length} ${comandas.length === 1 ? "persona" : "personas"}`, "", "", pesos(total)]],
+    footStyles: { fillColor: [255, 255, 255], textColor: MARCA, fontStyle: "bold", fontSize: 11.5, lineWidth: 0.4, lineColor: MARCA, halign: "right" },
+    didParseCell: (d) => {
+      if (d.section === "foot" && d.column.index === 0) { d.cell.styles.halign = "left"; return; }
+      if (d.section !== "body") return;
+      if (esPersona[d.row.index]) {
+        d.cell.styles.fillColor = BEIGE;
+        d.cell.styles.textColor = TINTA;
+        d.cell.styles.fontStyle = "bold";
+        d.cell.styles.fontSize = 10.5;
+        d.cell.styles.cellPadding = 3;
+        return;
+      }
+      const c = consumoDe[d.row.index];
+      if (!c) return;
+      const forma = c.cobro || (c.facturable === false ? "cortesia" : "empresa");
+      if (forma !== "empresa") d.cell.styles.textColor = GRIS;
+      if (c.observacion && d.column.index === 0) d.cell.styles.fontStyle = "italic";
+    },
+    didDrawPage: (d) => {
+      if (d.pageNumber > 1) encabezado(doc, "PEDIDOS DEL DÍA", `${fechaLarga(fecha)} · ${nombreEmpresa}`, acreedor);
+    },
+  });
+
+  // Si alguien pagó de una, se dice aparte: ese dinero está en la caja, no en
+  // la cuenta de la empresa, y quien recibe el papel tiene que saberlo.
+  if (deContado > 0) {
+    const fin = doc.lastAutoTable.finalY + 8;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    doc.setTextColor(...GRIS);
+    doc.text(
+      `De ese total, ${pesos(deContado)} ya se pagó de una y NO va en la cuenta de la empresa.`,
+      14, fin
+    );
+  }
+
+  pieDePagina(doc);
+  guardar(doc, `pedidos-${fecha}-${String(nombreEmpresa).replace(/\s+/g, "-")}.pdf`);
+}
+
+// ---------------------------------------------------------------------------
 //  Cocina
 // ---------------------------------------------------------------------------
 
@@ -416,28 +520,45 @@ export function pdfCocina(filas, fecha, codigos, acreedor, notas = []) {
 //  Consumo por persona
 // ---------------------------------------------------------------------------
 
-export function pdfPorPersona(filas, anio, mes, nombreEmpresa, acreedor) {
-  const doc = nuevoDocumento();
+export function pdfPorPersona(filas, anio, mes, nombreEmpresa, acreedor, fechaDia = null) {
+  // Acostado, no de pie. Con la columna del día son siete columnas, y de pie
+  // el nombre de la persona se quedaba con tres centímetros: todos los nombres
+  // partidos en dos renglones. Es una lista, no un documento de entregar.
+  const doc = nuevoDocumento("l");
+  const conDia = Boolean(fechaDia);
   const y = encabezado(doc, "CONSUMO POR PERSONA", `${nombreMes(mes)} ${anio} · ${nombreEmpresa}`, acreedor);
+
+  const cabeza = ["Persona", "Empresa", "Facturas"];
+  if (conDia) cabeza.push(fechaCorta(fechaDia));
+  cabeza.push("Quincena 1", "Quincena 2", "Mes");
+
+  const anchos = { 0: { cellWidth: "auto" }, 1: { cellWidth: 24 }, 2: { halign: "right", cellWidth: 20 } };
+  let i = 3;
+  if (conDia) anchos[i++] = { halign: "right", cellWidth: 30 };
+  anchos[i++] = { halign: "right", cellWidth: 30 };
+  anchos[i++] = { halign: "right", cellWidth: 30 };
+  anchos[i] = { halign: "right", cellWidth: 32, fontStyle: "bold" };
+
+  const pie = ["TOTAL", "", String(filas.reduce((a, f) => a + f.facturas, 0))];
+  if (conDia) pie.push(pesos(filas.reduce((a, f) => a + (f.dia || 0), 0)));
+  pie.push(
+    pesos(filas.reduce((a, f) => a + f.q1, 0)),
+    pesos(filas.reduce((a, f) => a + f.q2, 0)),
+    pesos(filas.reduce((a, f) => a + f.mes, 0))
+  );
+
   doc.autoTable({
     ...estiloTabla,
     startY: y,
-    head: [["Persona", "Empresa", "Facturas", "Quincena 1", "Quincena 2", "Mes"]],
-    body: filas.map((f) => [
-      f.persona, f.empresa, String(f.facturas), pesos(f.q1), pesos(f.q2), pesos(f.mes),
-    ]),
-    columnStyles: {
-      0: { cellWidth: "auto" },
-      1: { cellWidth: 24 },
-      2: { halign: "right", cellWidth: 20 },
-      3: { halign: "right", cellWidth: 28 },
-      4: { halign: "right", cellWidth: 28 },
-      5: { halign: "right", cellWidth: 28, fontStyle: "bold" },
-    },
-    foot: [["TOTAL", "", String(filas.reduce((a, f) => a + f.facturas, 0)),
-      pesos(filas.reduce((a, f) => a + f.q1, 0)),
-      pesos(filas.reduce((a, f) => a + f.q2, 0)),
-      pesos(filas.reduce((a, f) => a + f.mes, 0))]],
+    head: [cabeza],
+    body: filas.map((f) => {
+      const fila = [f.persona, f.empresa, String(f.facturas)];
+      if (conDia) fila.push(f.dia ? pesos(f.dia) : "—");
+      fila.push(pesos(f.q1), pesos(f.q2), pesos(f.mes));
+      return fila;
+    }),
+    columnStyles: anchos,
+    foot: [pie],
     footStyles: { fillColor: [255, 255, 255], textColor: MARCA, fontStyle: "bold", fontSize: 10, lineWidth: 0.4, lineColor: MARCA, halign: "right" },
     didParseCell: (d) => { if (d.section === "foot" && d.column.index <= 1) d.cell.styles.halign = "left"; },
   });

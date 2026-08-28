@@ -187,6 +187,49 @@ if (revento) {
   } catch { /* sin servidor, se ve en el marco de abajo */ }
 }
 
+// --- El PDF de los pedidos del día ----------------------------------------
+//
+// Es el que se le manda a la gente de la fábrica. Lo que se mide no es que
+// "salga", sino que lleve a TODA la gente que comió ese día: si se pierde
+// una persona, esa persona no ve su pedido y llama a reclamar.
+{
+  const { comandasDelDia } = await import("../js/nucleo/calculos.js");
+  const dia = informe.dias[informe.dias.length - 1].fecha;
+  const comandas = comandasDelDia(datos.consumos, dia, codigo);
+
+  capturado = null;
+  window.jspdf.jsPDF.API.save = function (nombre) { capturado = { doc: this, nombre }; return this; };
+  let malo = null;
+  try {
+    pdf.pdfComandasDelDia(comandas, dia, codigo, datos.config.acreedor || {});
+  } catch (e) { malo = e; }
+  window.jspdf.jsPDF.API.save = guardarDeVerdad;
+
+  anotar("");
+  anotar(`pedidos del ${dia} en ${codigo}: ${comandas.length} personas`);
+  if (malo) {
+    anotar("MAL  el PDF de los pedidos reventó: " + (malo.stack || malo.message));
+  } else if (!capturado) {
+    anotar("MAL  el PDF de los pedidos no se generó");
+  } else {
+    anotar(`OK   se generó: ${capturado.nombre}`);
+
+    // Las personas tienen que estar TODAS adentro. jsPDF guarda el texto en
+    // el flujo de la página, así que se puede buscar ahí mismo.
+    const crudo = capturado.doc.output();
+    const enElPapel = (t) => crudo.includes(t.replace(/[()\\]/g, ""));
+    const perdidas = comandas.map((c) => c.persona).filter((n) => !enElPapel(n));
+    anotar(perdidas.length === 0
+      ? `OK   las ${comandas.length} personas salen en el papel`
+      : `MAL  no salieron ${perdidas.length}: ${perdidas.slice(0, 3).join(", ")}`);
+
+    const suma = comandas.reduce((a, c) => a + c.total, 0);
+    anotar(enElPapel(new Intl.NumberFormat("es-CO").format(suma))
+      ? `OK   el total del día (${suma}) sale en el papel`
+      : `OJO  no se encontró el total ${suma} escrito tal cual`);
+  }
+}
+
 try { await fetch("/diagnostico", { method: "POST", body: lineas.join("\n") }); } catch {}
 </script>
 </body>

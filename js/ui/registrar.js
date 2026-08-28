@@ -12,13 +12,15 @@
 //  plato de la misma persona que no sumaba en ninguna parte.
 // ============================================================================
 
-import { el, vaciar, buscador, mensaje, pedirDatos, confirmar, ventana, tabla, cifra, cifraPlata, colorDeEmpresa, vacio, poner } from "./componentes.js";
+import { el, vaciar, buscador, mensaje, pedirDatos, confirmar, ventana, tabla, cifra, cifraPlata, colorDeEmpresa, vacio, poner, acciones, botonQueTrabaja } from "./componentes.js";
 import { estado, cambio, empresas, asegurarEmpresa, empresaPorCodigo } from "./estado.js";
 import { pesos, fechaLarga, normalizar, hoyISO } from "../nucleo/formato.js";
 import {
   delDia, subtotal, contarFacturas, personasDe, precioDe, clavePersona,
+  comandasDelDia,
   A_CREDITO, DE_CONTADO, CORTESIA, formaDeCobro, esCortesia, yaLoPago,
 } from "../nucleo/calculos.js";
+import { pdfComandasDelDia } from "../exportar/pdf.js";
 import { nuevoConsumo, agregarPersona, agregarProducto } from "../nucleo/modelo.js";
 import {
   limpiarNombre, parecidasEnEmpresa, tocayosEnOtrasEmpresas,
@@ -52,7 +54,8 @@ export function pintarRegistrar(raiz) {
       el("div", {},
         el("h1", { texto: "Registrar el día" }),
         el("p", { texto: "Elija el día y la empresa, y vaya agregando persona por persona." })
-      )
+      ),
+      acciones(botonDePedidosEnPDF())
     ),
     barraDeMando(raiz),
     tarjetaDeAyer(raiz),
@@ -60,6 +63,34 @@ export function pintarRegistrar(raiz) {
     resumenEnVivo(),
     listaDeComandas(raiz)
   );
+}
+
+/**
+ * El PDF de los pedidos del día, para mandárselo a la gente de la fábrica.
+ *
+ * Es distinto del PDF de la Cocina: ese va por plato ("47 almuerzos") y sirve
+ * para saber cuánto preparar. Este va por PERSONA, con lo que pidió y lo que
+ * vale, que es lo que necesita quien recibe la lista al otro lado.
+ */
+function botonDePedidosEnPDF() {
+  return botonQueTrabaja("Bajar PDF de los pedidos", () => {
+    const comandas = comandasDelDia(estado.datos.consumos, estado.fecha, estado.empresa);
+    if (!comandas.length) {
+      mensaje("Ese día no hay nada anotado en " + estado.empresa + ".", "ojo");
+      return;
+    }
+    try {
+      const emp = empresaPorCodigo(estado.empresa) || {};
+      pdfComandasDelDia(
+        comandas, estado.fecha,
+        emp.codigo || estado.empresa,
+        estado.datos.config.acreedor
+      );
+      mensaje("PDF descargado.", "bien");
+    } catch (e) {
+      mensaje(e.message, "malo", 8);
+    }
+  }, "chico");
 }
 
 // ---------------------------------------------------------------------------
@@ -352,16 +383,15 @@ function listaDeComandas(raiz) {
     );
   }
 
-  // Agrupamos por persona: cada persona es UNA comanda, con todos sus platos.
-  const porPersona = new Map();
-  for (const c of renglones) {
-    if (!porPersona.has(c.persona)) porPersona.set(c.persona, []);
-    porPersona.get(c.persona).push(c);
-  }
-  const orden = [...porPersona.entries()].sort((a, b) => a[0].localeCompare(b[0], "es"));
+  // La agrupación por persona la hace el núcleo, para que el papel que se
+  // manda y lo que se ve en la pantalla salgan del MISMO sitio. Cuando se
+  // agrupa dos veces, tarde o temprano una de las dos cuenta distinto.
+  const orden = comandasDelDia(estado.datos.consumos, estado.fecha, estado.empresa);
 
-  const tarjetas = orden.map(([nombre, platos], i) => {
-    const total = platos.reduce((a, c) => a + subtotal(c), 0);
+  const tarjetas = orden.map((com, i) => {
+    const nombre = com.persona;
+    const platos = com.platos;
+    const total = com.total;
     const hayProblema = platos.some((c) => c.revisar && c.revisar.length);
 
     return el("article", {

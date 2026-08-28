@@ -417,15 +417,21 @@ export function cinta(codigo) {
   return el("span", { clase: "cinta", estilo: `background:${colorDeEmpresa(codigo)}`, texto: codigo || "?" });
 }
 
-export function cifra(titulo, valor, destacada = false) {
+export function cifra(titulo, valor, destacada = false, esPlata = false) {
+  const texto = String(valor);
+  // Una cifra de plata NO se parte: "$ 1.724.500" cortado deja un "0" solo en
+  // el renglón de abajo, que se lee como otro número. Si no cabe, se achica.
+  const clase = esPlata
+    ? "plata-cifra" + (texto.length > 10 ? " apretada" : "")
+    : "";
   return el("div", { clase: "cifra" + (destacada ? " destacada" : "") },
     el("dt", { texto: titulo }),
-    el("dd", { texto: valor })
+    el("dd", clase ? { clase, texto } : { texto })
   );
 }
 
 export function cifraPlata(titulo, valor, destacada = false) {
-  return cifra(titulo, pesos(valor), destacada);
+  return cifra(titulo, pesos(valor), destacada, true);
 }
 
 export function vacio(titulo, explicacion) {

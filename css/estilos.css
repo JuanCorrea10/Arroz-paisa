@@ -644,6 +644,26 @@ tfoot td.n { font-family: var(--dato); }
   line-height: 1.1;
   overflow-wrap: anywhere;
 }
+/* Una casilla con su letrero al lado, del alto de los demás campos de la
+   barra de arriba, para que la fila no quede coja. El letrero es parte de la
+   etiqueta: se puede tocar el texto y no solo el cuadrito, que en un celular
+   es la diferencia entre marcarlo y no atinarle. */
+.casilla {
+  display: flex;
+  align-items: center;
+  gap: var(--e2);
+  min-height: 44px;
+  cursor: pointer;
+  font-size: var(--t-sm);
+  color: var(--tinta);
+}
+.casilla input { width: 18px; height: 18px; flex: none; }
+
+/* Ver cifra() en componentes.js: una cifra de plata se achica antes que
+   partirse en dos renglones. */
+.cifra dd.plata-cifra { white-space: nowrap; overflow-wrap: normal; }
+.cifra dd.plata-cifra.apretada { font-size: var(--t-md); }
+
 .cifra.destacada { background: var(--marca-hondo); border-color: var(--marca-hondo); }
 .cifra.destacada dt { color: #9dc9b0; }
 .cifra.destacada dd { color: #fff; }
