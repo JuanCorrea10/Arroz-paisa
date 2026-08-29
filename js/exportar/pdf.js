@@ -20,6 +20,28 @@ const GRIS = [133, 117, 110];
 const RAYA = [251, 246, 237];     // el beige clarito de las filas alternas
 const BEIGE = [233, 220, 198];
 const TINTA = [36, 27, 24];
+const BORDE = [229, 220, 204];    // --borde       #e5dccc, el filo de las tarjetas
+const HUESO = [253, 250, 244];    // --papel-hueso #fdfaf4, el pie de la tarjeta
+
+/**
+ * "#a81e17" -> [168, 30, 23].
+ *
+ * El color de cada empresa lo reparte la app (componentes.js) y viene en hex,
+ * que es lo que entiende el navegador; jsPDF pide tres numeros. Si llega algo
+ * que no es un color, se usa el rojo de la marca: una tarjeta con la cinta del
+ * color equivocado se entrega, una que revienta no.
+ */
+function aRGB(hex, siNo) {
+  const m = /^#([0-9a-f]{6})$/i.exec(String(hex || "").trim());
+  if (!m) return siNo;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+/** Como se cobra un renglon. La misma cuenta que hace la app. */
+function formaDe(c) {
+  return c.cobro || (c.facturable === false ? "cortesia" : "empresa");
+}
 
 
 /**
@@ -199,6 +221,11 @@ function pieDePagina(doc) {
   const alto = doc.internal.pageSize.getHeight();
   for (let i = 1; i <= total; i++) {
     doc.setPage(i);
+    // La letra se dice, no se hereda. jsPDF se queda con la ultima que se haya
+    // puesto, asi que el pie salia en la de lo ultimo que se hubiera pintado
+    // -- y con las tarjetas, que terminan en maquina de escribir, el pie de
+    // TODAS las hojas cambiaba de letra sin que nadie lo hubiera pedido.
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(...GRIS);
     doc.text(`Generado el ${fechaCorta(new Date().toISOString().slice(0, 10))}`, 14, alto - 8);
@@ -391,8 +418,17 @@ export function pdfResumenDia(secciones, fecha, acreedor, combinado = null) {
     }
 
     if (sec.comandas.length) {
-      y = tituloDeSeccion(doc, `Quién pidió qué  ·  ${sec.comandas.length} personas`, y + 12);
-      tablaDeComandas(doc, sec.comandas, y, rotulo);
+      const cuantas = sec.comandas.length;
+      const suma = sec.comandas.reduce((a, c) => a + c.total, 0);
+      // 52 mm es el título más una tarjeta de un solo plato: si no cabe eso,
+      // no vale la pena empezar la sección en lo que queda de hoja.
+      y = espacioPara(doc, y + 12, 52, rotulo);
+      y = tituloDeSeccion(
+        doc,
+        `Quién pidió qué  ·  ${cuantas} ${cuantas === 1 ? "persona" : "personas"}`,
+        y, pesos(suma)
+      );
+      tarjetasDeComandas(doc, sec.comandas, y, rotulo, sec.color);
     }
   }
 
@@ -454,7 +490,7 @@ function tablaDeComandas(doc, comandas, y, alCambiarDeHoja) {
     }]);
     for (const c of com.platos) {
       consumoDe[cuerpo.length] = c;
-      const forma = c.cobro || (c.facturable === false ? "cortesia" : "empresa");
+      const forma = formaDe(c);
       cuerpo.push([
         c.producto +
           (forma === "contado" ? "  (pagó de una)" : "") +
@@ -504,7 +540,7 @@ function tablaDeComandas(doc, comandas, y, alCambiarDeHoja) {
       }
       const c = consumoDe[d.row.index];
       if (!c) return;
-      const forma = c.cobro || (c.facturable === false ? "cortesia" : "empresa");
+      const forma = formaDe(c);
       if (forma !== "empresa") d.cell.styles.textColor = GRIS;
       if (c.observacion && d.column.index === 0) d.cell.styles.fontStyle = "italic";
     },
@@ -515,6 +551,218 @@ function tablaDeComandas(doc, comandas, y, alCambiarDeHoja) {
   });
 
   return doc.lastAutoTable.finalY;
+}
+
+// ---------------------------------------------------------------------------
+//  "Quién pidió qué", en tarjetas
+//
+//  Aquí no se escogió el formato: se copió el que ella ya usaba.
+//
+//  El documento del día lo venía armando a mano en un Word ("28 AGOSTO.docx"):
+//  por cada empresa pegaba DOS pantallazos, la tabla de platos y la cuadrícula
+//  de comandas de la pantalla. Cuando este PDF empezó a sacar esa segunda
+//  mitad como una tabla larga, ella siguió armando el Word igual -- porque lo
+//  que el supervisor lee no es una lista de renglones, es un montón de
+//  papelitos: de un vistazo ve cuántas personas son y quién es cada una, sin
+//  ponerse a seguir el renglón con el dedo.
+//
+//  Así que aquí se dibujan las MISMAS tarjetas de la pantalla: la cinta de
+//  color de la empresa arriba, el numerito, el nombre en grande, el troquel
+//  punteado y el total abajo. Lo único que se queda por fuera son los botones
+//  "×" y "Abrir", que en un papel no hacen nada.
+//
+//  Van TRES por fila y no cuatro como en la pantalla. La pantalla es ancha y
+//  la hoja carta no: con cuatro, un plato como "ADICIONAL DE COSTILLA" obliga
+//  a bajar la letra a un tamaño que quien recibe esto no alcanza a leer -- y
+//  esa letra grande es justamente lo que se pidió.
+// ---------------------------------------------------------------------------
+
+/** Lo que dice la casilla de la plata en una tarjeta, igual que en pantalla. */
+function valorDe(c) {
+  const forma = formaDe(c);
+  if (forma === "cortesia") return "cortesía";
+  const plata = pesos(subtotalDe(c));
+  return forma === "contado" ? "pagó " + plata : plata;
+}
+
+/**
+ * Pinta las comandas como tarjetas y devuelve dónde terminó.
+ *
+ * alCambiarDeHoja vuelve a pintar el encabezado rojo cuando toca pasar de
+ * hoja, y devuelve la altura en la que se puede seguir escribiendo.
+ */
+function tarjetasDeComandas(doc, comandas, y, alCambiarDeHoja, colorEmpresa) {
+  const anchoHoja = doc.internal.pageSize.getWidth();
+  const altoHoja = doc.internal.pageSize.getHeight();
+
+  const COLS = 3;
+  const HUECO = 5;    // el aire entre tarjeta y tarjeta
+  const PAD = 2.6;    // el margen de adentro
+  const CINTA = 1.4;  // la franja de color de la empresa, arriba
+  const TOPE = 34;    // donde arranca el contenido en una hoja nueva
+  const PIE = 18;     // lo que hay que dejarle al pie de página
+
+  const T_NOMBRE = 10, T_PLATO = 8.5, T_VALOR = 8, T_CANT = 7.5, T_NUM = 7, T_TOTAL = 10.5;
+  const NUM_ANCHO = 6.6, NUM_ALTO = 4.4, CANT_ANCHO = 5.4, ALTO_PIE = 8.6;
+
+  const ancho = (anchoHoja - 28 - (COLS - 1) * HUECO) / COLS;
+  const cinta = aRGB(colorEmpresa, MARCA);
+  const de = (tam) => tam * ALTO_RENGLON;
+
+  // El ancho de la columna de la plata se MIDE, no se adivina: "pagó $ 12.000"
+  // ocupa casi el doble que "$ 7.000". Con un ancho fijo, o el número se parte
+  // en dos renglones o le come el sitio al nombre del plato -- y cuál de las
+  // dos cosas pasa depende de lo que se haya pedido ese día, así que se ve
+  // bien en la prueba y se daña en la entrega.
+  doc.setFont("courier", "normal");
+  doc.setFontSize(T_VALOR);
+  let masAncho = "";
+  for (const com of comandas) {
+    for (const c of com.platos) {
+      const t = valorDe(c);
+      if (doc.getTextWidth(t) > doc.getTextWidth(masAncho)) masAncho = t;
+    }
+  }
+
+  // A la plata no se le da más de la mitad de la tarjeta: lo que sobra es para
+  // el nombre del plato, que es lo que de verdad hay que leer. Y si en ese
+  // hueco no cabe -- "pagó $ 1.200.000" mide el doble que "$ 7.000" -- la
+  // cifra se escribe más chiquita en vez de meterse encima del plato.
+  let tamValor = T_VALOR;
+  const hueco = ancho * 0.44;
+  while (tamValor > 6) {
+    doc.setFontSize(tamValor);
+    if (doc.getTextWidth(masAncho) <= hueco) break;
+    tamValor -= 0.5;
+  }
+  doc.setFontSize(tamValor);
+  const anchoValor = Math.min(doc.getTextWidth(masAncho) + 0.6, hueco);
+
+  const anchoNombre = ancho - PAD * 2 - NUM_ANCHO - 1.6;
+  const anchoPlato = ancho - PAD * 2 - CANT_ANCHO - anchoValor - 1.4;
+
+  // Primero se mide TODO y después se pinta. No se puede pintar sobre la
+  // marcha: las tarjetas de una misma fila tienen que quedar del mismo alto
+  // (si no, los totales quedan cada uno a su altura y la fila se ve rota), y
+  // ese alto no se sabe hasta haber medido las tres.
+  const medidas = comandas.map((com, i) => {
+    doc.setFont("helvetica", "bold");
+    const nombre = medirAjustado(doc, com.persona, anchoNombre, T_NOMBRE, 7.5);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(T_PLATO);
+    const platos = com.platos.map((c) => {
+      const lineas = doc.splitTextToSize(String(c.producto || "-"), anchoPlato);
+      return { c, lineas, alto: 1.2 + lineas.length * de(T_PLATO) + 1.2 };
+    });
+
+    const cabeza = CINTA + PAD + Math.max(NUM_ALTO, nombre.alto) + PAD;
+    const cuerpo = 1.6 + platos.reduce((a, p) => a + p.alto, 0) + 1.6;
+    return {
+      com, nombre, platos, cabeza,
+      numero: String(i + 1).padStart(2, "0"),
+      alto: cabeza + cuerpo + ALTO_PIE,
+    };
+  });
+
+  /**
+   * El troquel del talonario.
+   *
+   * Si esta versión de jsPDF no sabe de puntos, sale una raya seguida: se ve
+   * casi igual y el documento no se cae por un adorno.
+   */
+  const punteada = (x1, x2, yr) => {
+    doc.setDrawColor(...BORDE);
+    doc.setLineWidth(0.25);
+    try { doc.setLineDashPattern([0.7, 0.7], 0); } catch { /* raya seguida */ }
+    doc.line(x1, yr, x2, yr);
+    try { doc.setLineDashPattern([], 0); } catch { /* nada */ }
+  };
+
+  function pintar(m, x, y0, altoFila) {
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(...BORDE);
+    doc.setLineWidth(0.2);
+    doc.rect(x, y0, ancho, altoFila, "FD");
+
+    // La cinta de color ES el borde de arriba, como en la pantalla: dice de
+    // qué empresa es la tarjeta sin que haya que leer nada.
+    doc.setFillColor(...cinta);
+    doc.rect(x, y0, ancho, CINTA, "F");
+
+    // El numerito se queda chiquito a propósito: es para contar, no para leer.
+    const yc = y0 + CINTA + PAD;
+    doc.setFillColor(...RAYA);
+    doc.setDrawColor(...BORDE);
+    doc.setLineWidth(0.2);
+    doc.rect(x + PAD, yc, NUM_ANCHO, NUM_ALTO, "FD");
+    doc.setFont("courier", "bold");
+    doc.setFontSize(T_NUM);
+    doc.setTextColor(...GRIS);
+    doc.text(m.numero, x + PAD + NUM_ANCHO / 2, yc + 3.1, { align: "center" });
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(m.nombre.tam);
+    doc.setTextColor(...TINTA);
+    doc.text(m.nombre.renglones, x + PAD + NUM_ANCHO + 1.6, yc + 3.3);
+
+    punteada(x, x + ancho, y0 + m.cabeza);
+
+    let yp = y0 + m.cabeza + 1.6;
+    for (let i = 0; i < m.platos.length; i++) {
+      const p = m.platos[i];
+      if (i) punteada(x + PAD, x + ancho - PAD, yp);
+      const forma = formaDe(p.c);
+      const base = yp + 1.2 + de(T_PLATO) - 0.9;
+
+      // Lo que NO se le cobra a la empresa va en gris, como en la pantalla: el
+      // supervisor tiene que poder saltárselo al cuadrar la cuenta.
+      doc.setTextColor(...(forma === "empresa" ? TINTA : GRIS));
+      doc.setFont("courier", "normal");
+      doc.setFontSize(T_CANT);
+      doc.text(String(p.c.cantidad) + "×", x + PAD, base);
+
+      doc.setFont("helvetica", forma === "cortesia" ? "italic" : "normal");
+      doc.setFontSize(T_PLATO);
+      doc.text(p.lineas, x + PAD + CANT_ANCHO, base);
+
+      doc.setFont("courier", "normal");
+      doc.setFontSize(tamValor);
+      doc.text(valorDe(p.c), x + ancho - PAD, base, { align: "right" });
+
+      yp += p.alto;
+    }
+
+    // El pie: el total de la persona, que es lo que se busca en la tarjeta.
+    const yPie = y0 + altoFila - ALTO_PIE;
+    doc.setFillColor(...HUESO);
+    doc.rect(x + 0.25, yPie, ancho - 0.5, ALTO_PIE - 0.25, "F");
+    punteada(x, x + ancho, yPie);
+    doc.setFont("courier", "bold");
+    doc.setTextColor(...TINTA);
+    escribirAjustado(doc, pesos(m.com.total), x + ancho - PAD, yPie + 5.9,
+                     ancho - PAD * 2, T_TOTAL, 7, { align: "right" });
+    doc.setTextColor(0, 0, 0);
+  }
+
+  let yFila = y;
+  for (let i = 0; i < medidas.length; i += COLS) {
+    const fila = medidas.slice(i, i + COLS);
+    const altoFila = Math.max(...fila.map((m) => m.alto));
+    // Se pasa de hoja SOLO si ya se pintó algo en esta. Una tarjeta más alta
+    // que una hoja entera no debería existir (serían cuarenta platos para una
+    // sola persona), pero si existiera, saltar de hoja no la haría caber: solo
+    // dejaría hojas en blanco, una tras otra.
+    if (yFila + altoFila > altoHoja - PIE && yFila > TOPE) {
+      doc.addPage();
+      yFila = alCambiarDeHoja ? alCambiarDeHoja() : TOPE;
+    }
+    for (let j = 0; j < fila.length; j++) pintar(fila[j], 14 + j * (ancho + HUECO), yFila, altoFila);
+    yFila += altoFila + HUECO;
+  }
+
+  doc.setTextColor(0, 0, 0);
+  return yFila - HUECO;
 }
 
 /** La tabla de platos del día: cuánto se preparó de cada cosa y a cómo. */
@@ -896,19 +1144,50 @@ function portada(doc, informe) {
   );
 }
 
-/** El título de cada sección, con la rayita roja como en la app. */
-function tituloDeSeccion(doc, texto, y) {
+/**
+ * El título de cada sección, con la rayita roja como en la app.
+ *
+ * "derecha" es la cifra que va al otro lado, como en la cintica de la pantalla
+ * ("16 comandas ... $ 241.000"): quien recibe el papel busca ese número antes
+ * que nada, y tenerlo que sumar de las tarjetas es justo lo que no debe hacer.
+ */
+function tituloDeSeccion(doc, texto, y, derecha) {
   const ancho = doc.internal.pageSize.getWidth();
   doc.setFillColor(...MARCA);
   doc.rect(14, y - 5, 3, 8, "F");
+
+  // La cifra se pinta PRIMERO, para saber cuánto sitio le queda al título.
+  // jsPDF no avisa cuando dos textos se pisan: los pinta uno encima del otro.
+  let ocupa = 0;
+  if (derecha) {
+    doc.setFont("courier", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(...TINTA);
+    doc.text(String(derecha), ancho - 14, y + 1.5, { align: "right" });
+    ocupa = doc.getTextWidth(String(derecha)) + 6;
+  }
+
   doc.setTextColor(...TINTA);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12.5);
-  doc.text(texto, 20, y + 1.5, { maxWidth: ancho - 40 });
+  doc.text(texto, 20, y + 1.5, { maxWidth: ancho - 40 - ocupa });
   doc.setDrawColor(...BEIGE);
   doc.setLineWidth(0.5);
   doc.line(14, y + 6, ancho - 14, y + 6);
   return y + 13;
+}
+
+/**
+ * Deja el cursor donde de verdad quepa lo que sigue.
+ *
+ * Un título pegado al borde de abajo, con su contenido en la hoja siguiente,
+ * es de lo que más se ve en un PDF armado a pedazos: quien lo recibe pasa la
+ * hoja y no sabe qué está mirando. Aquí se pregunta antes de escribirlo.
+ */
+function espacioPara(doc, y, alto, alCambiarDeHoja) {
+  if (y + alto <= doc.internal.pageSize.getHeight() - 18) return y;
+  doc.addPage();
+  return alCambiarDeHoja ? alCambiarDeHoja() : 34;
 }
 
 const pieTotal = {
@@ -1005,7 +1284,7 @@ export function pdfInformeCompleto(informe) {
       // Lo que la persona pago de su bolsillo SI se muestra: el supervisor
       // necesita ver que ese dia comio. Pero en la columna del valor va un
       // guion, porque a la empresa no se le cobra.
-      const forma = c.cobro || (c.facturable === false ? "cortesia" : "empresa");
+      const forma = formaDe(c);
       cuerpo.push([
         c.persona,
         c.producto +
@@ -1054,7 +1333,7 @@ export function pdfInformeCompleto(informe) {
       const c = consumoDe[d.row.index];
       if (!c) return;
       // Lo que la empresa no paga se ve en gris: está, pero no suma.
-      const forma = c.cobro || (c.facturable === false ? "cortesia" : "empresa");
+      const forma = formaDe(c);
       if (forma !== "empresa") d.cell.styles.textColor = GRIS;
       if (c.observacion && d.column.index === 1) d.cell.styles.fontStyle = "italic";
     },

@@ -54,6 +54,12 @@ class Manejador(http.server.SimpleHTTPRequestHandler):
             # Ahora mismo la app no necesita esa version, pero la herramienta
             # queda por si algun dia hace falta un logo sobre fondo de color.
             "/guardar-logo": "img/logo-blanco.png",
+            # Los PDF que arma tests/probar-pdf.html. Se dejan en un archivo
+            # porque un PDF hay que MIRARLO: que no reviente no quiere decir
+            # que se vea bien, y eso no lo puede contestar ninguna prueba.
+            "/guardar-pdf": "tests/salida/informe.pdf",
+            "/guardar-resumen": "tests/salida/resumen-dia.pdf",
+            "/guardar-raros": "tests/salida/resumen-casos-raros.pdf",
         }
         destino = BUZONES.get(self.path)
         if destino is None:
@@ -63,10 +69,11 @@ class Manejador(http.server.SimpleHTTPRequestHandler):
         largo = int(self.headers.get("Content-Length", 0))
         cuerpo = self.rfile.read(largo).decode("utf-8", "replace")
 
-        # Una imagen llega como texto en base64 ("data:image/png;base64,...").
-        # Hay que devolverla a bytes antes de escribirla, o el archivo queda
-        # siendo un texto que ningun navegador puede abrir.
-        if cuerpo.startswith("data:image/"):
+        # Una imagen o un PDF llegan como texto en base64
+        # ("data:image/png;base64,..."). Hay que devolverlos a bytes antes de
+        # escribirlos, o el archivo queda siendo un texto que ningun navegador
+        # puede abrir.
+        if cuerpo.startswith("data:") and ";base64," in cuerpo[:64]:
             import base64
             crudo = base64.b64decode(cuerpo.split(",", 1)[1])
             os.makedirs(os.path.dirname(destino), exist_ok=True)

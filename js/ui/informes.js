@@ -6,7 +6,7 @@
 // ============================================================================
 
 import { el, vaciar, tabla, cifra, cifraPlata, acciones, vacio, mensaje, cinta, poner, botonQueTrabaja,
-  pedirDatos,
+  pedirDatos, colorDeEmpresa,
 } from "./componentes.js";
 import { estado, cambio, empresas, empresaPorCodigo } from "./estado.js";
 import { pesos, fechaLarga, fechaCorta, nombreMes, diasDelMes, hoyISO } from "../nucleo/formato.js";
@@ -195,6 +195,10 @@ function bajarResumenEnPDF(informe) {
       return {
         codigo: cod,
         razonSocial: emp.razonSocial || "",
+        // El mismo color con el que sale en la pantalla. Las tarjetas del PDF
+        // lo llevan de cinta arriba, así que quien recibe cuatro hojas
+        // reconoce la suya por el color antes de leer el nombre.
+        color: colorDeEmpresa(cod),
         informe: informeDia(estado.datos.consumos, estado.fecha, cod),
         comandas: comandasDelDia(estado.datos.consumos, estado.fecha, cod),
       };

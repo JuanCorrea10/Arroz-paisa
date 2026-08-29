@@ -49,6 +49,9 @@ tests/ultimo-diagnostico.txt
 # para dejar publicado en internet.
 tests/salida/
 
+# Python deja esto al importar servidor.py desde otro script.
+__pycache__/
+
 # --- Basura de Windows y de los editores -----------------------------------
 Thumbs.db
 desktop.ini

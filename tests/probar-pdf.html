@@ -241,9 +241,11 @@ if (revento) {
   const { comandasDelDia } = await import("../js/nucleo/calculos.js");
   const dia = informe.dias[informe.dias.length - 1].fecha;
 
+  const { colorDeEmpresa } = await import("../js/ui/componentes.js");
   const secciones = datos.empresas.map((e) => ({
     codigo: e.codigo,
     razonSocial: e.razonSocial || "",
+    color: colorDeEmpresa(e.codigo),
     informe: informeDia(datos.consumos, dia, e.codigo),
     comandas: comandasDelDia(datos.consumos, dia, e.codigo),
   })).filter((s) => s.informe.filas.length);
@@ -284,6 +286,74 @@ if (revento) {
     anotar(perdidas.length === 0
       ? `OK   las ${gente.length} personas del día salen en el papel`
       : `MAL  no salieron ${perdidas.length}: ${perdidas.slice(0, 3).join(", ")}`);
+
+    // Este es EL documento que ella entrega. Se guarda para poder abrirlo y
+    // mirarlo: las tarjetas o se ven bien o no se ven bien, y eso no hay
+    // prueba que lo conteste.
+    try {
+      await fetch("/guardar-resumen", { method: "POST", body: capturado.doc.output("datauristring") });
+      anotar("guardado en tests/salida/resumen-dia.pdf");
+    } catch { /* sin servidor, no se guarda y ya */ }
+  }
+}
+
+// --- Los casos raros de una tarjeta --------------------------------------
+//
+// En los datos de verdad no hay ni un solo "pagó de una" ni una cortesía, así
+// que esa mitad del dibujo no se pinta nunca al probar -- y es justo la que
+// puede dañar la tarjeta: "pagó $ 1.200.000" mide el triple que "$ 7.000" y,
+// si no cabe en su columna, se monta encima del nombre del plato. Lo mismo un
+// nombre de persona larguísimo. Así que ese día se fabrica aquí.
+{
+  const { informeDia, comandasDelDia } = await import("../js/nucleo/calculos.js");
+  const { colorDeEmpresa } = await import("../js/ui/componentes.js");
+  const dia = "2026-08-25";
+  const cod = datos.empresas[0].codigo;
+  const LARGO = "MARIA FERNANDA VILLALOBOS SANTAMARIA";
+  const inventados = [
+    { fecha: dia, empresa: cod, persona: LARGO, cantidad: 1, precioUnitario: 1200000,
+      producto: "COMBO PAISA + CERDO AGRIDULCE CON PAPAS", cobro: "contado" },
+    { fecha: dia, empresa: cod, persona: LARGO, cantidad: 2, precioUnitario: 13000,
+      producto: "ADICIONAL DE COSTILLA", facturable: false },
+    { fecha: dia, empresa: cod, persona: "JO", producto: "AGUA", cantidad: 1, precioUnitario: 3000 },
+  ];
+  const consumos = datos.consumos.concat(inventados);
+  const emp = datos.empresas[0];
+
+  capturado = null;
+  window.jspdf.jsPDF.API.save = function (nombre) { capturado = { doc: this, nombre }; return this; };
+  let malo = null;
+  try {
+    pdf.pdfResumenDia(
+      [{
+        codigo: cod,
+        razonSocial: emp.razonSocial || "",
+        color: colorDeEmpresa(cod),
+        informe: informeDia(consumos, dia, cod),
+        comandas: comandasDelDia(consumos, dia, cod),
+      }],
+      dia, datos.config.acreedor || {}, null
+    );
+  } catch (e) { malo = e; }
+  window.jspdf.jsPDF.API.save = guardarDeVerdad;
+
+  anotar("");
+  anotar("casos raros: pagó de una, cortesía, nombre larguísimo y cifra de siete cifras");
+  if (malo) {
+    anotar("MAL  reventó: " + (malo.stack || malo.message));
+  } else if (!capturado) {
+    anotar("MAL  no se generó");
+  } else {
+    const crudo = capturado.doc.output();
+    anotar(crudo.includes(LARGO)
+      ? "OK   el nombre largo sale entero y en un solo renglón"
+      : "OJO  el nombre largo no salió de una pieza: se partió para caber");
+    anotar(crudo.includes("cortes") ? "OK   la cortesía se dice" : "MAL  no dice la cortesía");
+    anotar(crudo.includes("pag") ? "OK   el 'pagó de una' se dice" : "MAL  no dice el 'pagó de una'");
+    try {
+      await fetch("/guardar-raros", { method: "POST", body: capturado.doc.output("datauristring") });
+      anotar("guardado en tests/salida/resumen-casos-raros.pdf");
+    } catch { /* sin servidor, no se guarda y ya */ }
   }
 }
 
