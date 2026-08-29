@@ -473,9 +473,23 @@ tfoot td.n { font-family: var(--dato); }
 /*  LA COMANDA  -  el papelito del talonario. La pieza del diseño.         */
 /* --------------------------------------------------------------------- */
 
+/* --------------------------------------------------------------------- */
+/*  Las comandas ya anotadas
+/*
+/*  Aquí la letra es más grande que en el resto de la app, a propósito.
+/*  Quien usa esto no ve bien de cerca, y esta lista es la que más se mira:
+/*  se repasa a cada rato durante el día para saber quién ya pidió. Además de
+/*  aquí salen los pantallazos que se le mandan a la gente, y en un celular
+/*  todo llega encogido.
+/*
+/*  Las tarjetas se ensancharon un poco junto con la letra. Si no, el nombre
+/*  largo se parte en dos renglones y se gana en tamaño lo que se pierde en
+/*  poder leerlo de un golpe.
+/* --------------------------------------------------------------------- */
+
 .comandas {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: var(--e4);
 }
 
@@ -505,6 +519,8 @@ tfoot td.n { font-family: var(--dato); }
   border-bottom: 2px dashed var(--borde);
 }
 
+/* El numerito se queda chiquito: es para contar, no para leer. Si creciera
+   con lo demás le quitaría sitio al nombre, que es lo que hay que ver. */
 .comanda-numero {
   font-family: var(--dato);
   font-weight: 600;
@@ -521,7 +537,7 @@ tfoot td.n { font-family: var(--dato); }
 .comanda-nombre {
   font-family: var(--display);
   font-weight: 700;
-  font-size: var(--t-md);
+  font-size: var(--t-lg);
   line-height: 1.2;
   flex: 1 1 auto;
   min-width: 0;
@@ -533,8 +549,8 @@ tfoot td.n { font-family: var(--dato); }
   grid-template-columns: 2.2rem 1fr auto auto;
   gap: 0.4rem;
   align-items: baseline;
-  padding: 0.28rem 0;
-  font-size: var(--t-sm);
+  padding: 0.32rem 0;
+  font-size: var(--t-base);
 }
 .comanda-platos li + li { border-top: 1px dotted var(--borde); }
 .comanda-cant { font-family: var(--dato); color: var(--tinta-media); }
@@ -551,7 +567,7 @@ tfoot td.n { font-family: var(--dato); }
   border-top: 2px dashed var(--borde);
   background: var(--papel-hueso);
 }
-.comanda-total { font-family: var(--dato); font-weight: 600; font-size: var(--t-md); }
+.comanda-total { font-family: var(--dato); font-weight: 600; font-size: var(--t-lg); }
 
 .comanda[data-revisar="si"] { border-color: var(--rojo); background: #fffaf9; }
 
