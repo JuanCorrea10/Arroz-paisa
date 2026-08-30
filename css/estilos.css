@@ -396,8 +396,45 @@ button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 .plano:hover { background: var(--marca-claro); border-color: transparent; }
 
 .chico { min-height: 36px; font-size: var(--t-sm); padding: 0 var(--e3); }
-.grande { min-height: 60px; font-size: var(--t-md); padding: 0 var(--e5); }
-.ancho { width: 100%; }
+
+/* --------------------------------------------------------------------- */
+/*  El nombre que se toca para ver el historial                            */
+/*                                                                         */
+/*  Va como un ENLACE -- rojo de la marca y subrayado -- y no como los      */
+/*  demas botones.                                                         */
+/*                                                                         */
+/*  No es capricho. Un boton de verdad (.plano) lleva borde y fondo a       */
+/*  proposito, porque uno que no se ve como boton nadie lo toca en un       */
+/*  celular; pero una tabla de 268 nombres con una cajita en cada uno se    */
+/*  lee como un formulario lleno de casillas para escribir, que es          */
+/*  exactamente lo que no es. Un enlace resuelve las dos cosas: se ve que   */
+/*  se puede tocar (tiene color y raya, no es texto pelado) y no le mete    */
+/*  una caja a cada renglon.                                               */
+/*                                                                         */
+/*  El nombre SI se parte en dos renglones si hace falta: los botones no    */
+/*  lo hacen, y "MARIA FERNANDA VILLALOBOS" saca la columna de la hoja.     */
+/* --------------------------------------------------------------------- */
+.nombre-historial {
+  border: 0;
+  background: none;
+  padding: var(--e2) 0;
+  min-height: 0;
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+  white-space: normal;
+  font-size: inherit;
+  color: var(--marca);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.nombre-historial:hover,
+.nombre-historial:focus-visible {
+  color: var(--marca-oscuro);
+  background: none;
+  transform: none;
+  box-shadow: none;
+}
 
 /* --------------------------------------------------------------------- */
 /*  Tablas: rayadas como el papel de contaduría                            */
@@ -817,6 +854,47 @@ dialog {
   background: var(--papel);
 }
 dialog::backdrop { background: rgba(18, 60, 41, 0.42); }
+
+/*
+  Una ventana nunca puede quedar más alta que la pantalla.
+
+  El historial de alguien que lleva medio año comiendo trae sesenta renglones,
+  y sin esto el botón de "Cerrar" queda por debajo del borde de abajo: la
+  ventana no se puede cerrar y la app parece trabada.
+
+  El [open] no es adorno. Sin él, este display:flex le ganaría al display:none
+  que el navegador le pone a las ventanas cerradas, y estarían TODAS a la
+  vista, apiladas al final de la página.
+*/
+dialog[open] {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 2rem);
+}
+.ventana-cuerpo { overflow-y: auto; }
+
+/*
+  Dentro de una ventana, la tabla NO lleva su propia barra.
+
+  .marco-tabla usa overflow-x para que una tabla ancha se pueda correr de
+  lado. Pero en CSS, poner overflow-x en auto obliga al overflow-y a dejar de
+  ser visible, asi que la caja tambien scrollea para arriba y para abajo -- y
+  en el historial quedaban DOS barras, una dentro de la otra, y ninguna movia
+  lo que uno esperaba. Aqui la tabla se deja crecer y la que corre es la
+  ventana, que es la que se ve.
+*/
+dialog .marco-tabla { overflow: visible; }
+
+/*
+  Y el TOTAL tampoco se queda pegado abajo.
+
+  La fila de total es "sticky" para que no se pierda de vista mientras uno
+  recorre una tabla larga. Eso funciona cuando la tabla es la que scrollea;
+  aqui la que scrollea es la ventana, asi que el total se quedaba clavado en
+  la mitad, tapando los renglones que uno estaba leyendo. En una ventana el
+  total va donde termina la lista, que es donde uno lo va a buscar.
+*/
+dialog tfoot td, dialog tfoot th { position: static; }
 .ventana-cuerpo { padding: var(--e5); display: flex; flex-direction: column; gap: var(--e4); }
 .ventana-pie { display: flex; gap: var(--e3); justify-content: flex-end; flex-wrap: wrap; }
 

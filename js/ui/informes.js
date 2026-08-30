@@ -6,13 +6,14 @@
 // ============================================================================
 
 import { el, vaciar, tabla, cifra, cifraPlata, acciones, vacio, mensaje, cinta, poner, botonQueTrabaja,
-  pedirDatos, colorDeEmpresa,
+  pedirDatos, colorDeEmpresa, ventana,
 } from "./componentes.js";
 import { estado, cambio, empresas, empresaPorCodigo } from "./estado.js";
 import { pesos, fechaLarga, fechaCorta, nombreMes, diasDelMes, hoyISO } from "../nucleo/formato.js";
 import {
   informeCocina, informeDia, informePorPersona, informeCuadre, notasDelDia,
   indicePorCodigo, delDia, contarFacturas, comandasDelDia,
+  historialDePersona, esCortesia, yaLoPago,
   A_CREDITO, DE_CONTADO, CORTESIA,
 } from "../nucleo/calculos.js";
 import { pdfCocina, pdfResumenDia, pdfPorPersona, pdfCuadre } from "../exportar/pdf.js";
@@ -353,6 +354,84 @@ async function bajarPorPersonaEnPDF(filas, nombre) {
   }
 }
 
+/**
+ * El historial de una persona, en una ventana.
+ *
+ * Se abre TOCANDO EL NOMBRE, y no con un botón aparte en otra columna: la
+ * tabla ya lleva seis columnas y una séptima de botones deja las de plata por
+ * fuera de la pantalla del celular. Además el nombre es donde ella ya está
+ * mirando -- busca a la persona por el nombre -- así que es donde la mano va
+ * sola.
+ *
+ * Lleva TODO el historial y no solo el mes que se está mirando, porque lo que
+ * le preguntan de frente es "¿yo qué debo?" y "¿cuándo fue que comí?", y para
+ * contestar eso hoy toca ir pasando meses uno por uno.
+ */
+function verHistorial(fila) {
+  const h = historialDePersona(estado.datos.consumos, fila.empresa, fila.persona);
+
+  const comoSePago = (c) =>
+    esCortesia(c) ? "  (cortesía)" : yaLoPago(c) ? "  (pagó de una)" : "";
+
+  const cuerpo = el("div", { clase: "rejilla" },
+    el("p", { clase: "nota", estilo: "margin:0" },
+      cinta(h.empresa),
+      h.veces
+        ? `  Comió ${h.veces} ${h.veces === 1 ? "día" : "días"}, del ${fechaCorta(h.desde)} al ${fechaCorta(h.hasta)}.`
+        : "  Todavía no ha pedido nada."),
+
+    h.veces
+      // Lo que ya pagó de su bolsillo solo se dice cuando hay algo: si no,
+      // "se le descuenta" y "todo lo que ha pedido" son el mismo número
+      // repetido, y tres cifras iguales al lado se leen como un error.
+      ? el("dl", { clase: "cifras" },
+          cifraPlata(`Este mes (${nombreMes(estado.mes).toLowerCase()})`, fila.mes),
+          ...(h.deContado > 0
+            ? [cifraPlata("Se le descuenta", h.aLaEmpresa), cifraPlata("Ya pagó de una", h.deContado)]
+            : []),
+          cifraPlata("Todo lo que ha pedido", h.total, true))
+      : null,
+
+    // Lo que más pide. Es lo que ella usa para adivinar el pedido cuando la
+    // persona llega y dice "lo de siempre".
+    h.platos.length
+      ? el("p", { clase: "nota", estilo: "margin:0" },
+          el("strong", { texto: "Lo que más pide: " }),
+          h.platos.slice(0, 3)
+            .map((p) => `${p.producto} (${p.cantidad})`)
+            .join(",  "))
+      : null,
+
+    h.veces
+      ? tabla(
+          [{ titulo: "Día" }, { titulo: "Qué pidió" }, { titulo: "Total", clase: "n" }],
+          h.dias.map((d) =>
+            el("tr", {},
+              el("td", { clase: "dato", texto: fechaCorta(d.fecha) }),
+              el("td", {}, ...d.platos.map((c) =>
+                el("div", {
+                  estilo: esCortesia(c) || yaLoPago(c) ? "color:var(--tinta-suave)" : "",
+                  texto: `${c.cantidad}× ${c.producto}${comoSePago(c)}`,
+                })
+              )),
+              el("td", { clase: "n", texto: pesos(d.total) })
+            )
+          ),
+          el("tr", {},
+            el("td", { colspan: "2", texto: "TODO" }),
+            el("td", { clase: "n", texto: pesos(h.total) })
+          )
+        )
+      : null
+  );
+
+  ventana({
+    titulo: h.persona,
+    cuerpo,
+    botones: [{ texto: "Cerrar", clase: "principal" }],
+  });
+}
+
 export function pintarPorPersona(raiz) {
   vaciar(raiz);
   const repintar = () => pintarPorPersona(raiz);
@@ -380,7 +459,7 @@ export function pintarPorPersona(raiz) {
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Consumo por persona" }),
-        el("p", { texto: "Cuánto lleva cada persona: el día que elija, la quincena que va corriendo y el mes." })
+        el("p", { texto: "Cuánto lleva cada persona: el día que elija, la quincena que va corriendo y el mes. Toque un nombre para ver todo lo que ha pedido." })
       ),
       acciones(
         botonImprimir(),
@@ -471,7 +550,13 @@ export function pintarPorPersona(raiz) {
       ],
       filas.map((f) =>
         el("tr", {},
-          el("td", { texto: f.persona }),
+          el("td", {},
+            el("button", {
+              clase: "nombre-historial",
+              title: `Ver todo lo que ha pedido ${f.persona}`,
+              alHacerClic: () => verHistorial(f),
+            }, f.persona)
+          ),
           el("td", {}, cinta(f.empresa)),
           el("td", { clase: "n", texto: String(f.facturas) }),
           // El día en $0 va en gris: está, pero no aporta. Así el ojo salta

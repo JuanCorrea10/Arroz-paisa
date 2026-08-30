@@ -141,7 +141,19 @@ export function ventana({ titulo, cuerpo, botones = [], alCerrar }) {
   dialogo.addEventListener("cancel", (e) => { e.preventDefault(); cerrar(); });
   dialogo.showModal();
   const primero = dialogo.querySelector("input, select, textarea, button");
-  if (primero) setTimeout(() => primero.focus(), 30);
+  if (primero) {
+    setTimeout(() => {
+      // El preventScroll y el scrollTop van juntos, y hacen falta los dos.
+      //
+      // Al enfocar, el navegador arrastra el cuerpo para dejar el foco a la
+      // vista. En una ventana larga -- el historial de alguien que lleva medio
+      // ano comiendo -- lo unico enfocable es el boton de "Cerrar", que esta
+      // al final: la ventana abria por la mitad, sin titulo ni totales, y
+      // parecia que faltaba algo.
+      primero.focus({ preventScroll: true });
+      contenido.scrollTop = 0;
+    }, 30);
+  }
   return { dialogo, cerrar };
 }
 

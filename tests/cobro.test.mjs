@@ -18,7 +18,7 @@ import {
   formaDeCobro, loPagaLaEmpresa, yaLoPago, esCortesia,
   subtotal, sumar, sumarLoDeLaEmpresa, sumarLoDeContado,
   cuentaDeCobro, informeDia, informePorPersona, informeCompletoDeEmpresa,
-  indicePorCodigo, deRango, rangoDeCobro, ponerRangoDeCobro,
+  indicePorCodigo, deRango, rangoDeCobro, ponerRangoDeCobro, historialDePersona,
 } from "../js/nucleo/calculos.js";
 
 const PRECIO = 12000;
@@ -231,6 +231,81 @@ prueba("un rango imposible no se guarda: borra el que hubiera", () => {
 
   ponerRangoDeCobro(datos, "MGP", 2026, 8, 1, { desde: 1, hasta: 40 });
   igual(rangoDeCobro(datos, "MGP", 2026, 8, 1), null, "agosto no tiene 40 días");
+});
+
+// ---------------------------------------------------------------------------
+grupo("El historial de una persona");
+
+const HISTORIA = [
+  renglon(A_CREDITO, { fecha: "2026-08-03" }),
+  renglon(A_CREDITO, { fecha: "2026-08-10" }),
+  renglon(A_CREDITO, { fecha: "2026-08-10", producto: "GASEOSA", precioUnitario: 7000 }),
+  renglon(A_CREDITO, { fecha: "2026-08-21", cantidad: 2 }),
+];
+
+prueba("va del día más nuevo al más viejo", () => {
+  const h = historialDePersona(HISTORIA, "MGP", "JUAN GOMEZ");
+  igual(h.dias.map((d) => d.fecha), ["2026-08-21", "2026-08-10", "2026-08-03"]);
+  igual(h.desde, "2026-08-03");
+  igual(h.hasta, "2026-08-21");
+});
+
+prueba('"veces" son días que comió, no renglones', () => {
+  // El 10 pidió almuerzo Y gaseosa. Eso es UNA comida, no dos: si esto contara
+  // renglones, el papel diría que comió cuatro veces y son tres.
+  const h = historialDePersona(HISTORIA, "MGP", "JUAN GOMEZ");
+  igual(h.veces, 3, "tres días");
+  igual(h.renglones, 4, "cuatro renglones");
+  igual(h.dias[1].platos.length, 2, "los dos del mismo día van juntos");
+});
+
+prueba("el total del día suma lo de ese día, y el de arriba suma todo", () => {
+  const h = historialDePersona(HISTORIA, "MGP", "JUAN GOMEZ");
+  igual(h.dias[1].total, PRECIO + 7000, "el 10");
+  igual(h.dias[0].total, PRECIO * 2, "dos almuerzos el 21");
+  igual(h.total, h.dias.reduce((a, d) => a + d.total, 0));
+  igual(h.total, PRECIO * 4 + 7000);
+});
+
+prueba("lo que se descuenta y lo que ya pagó van por separado", () => {
+  // Confundirlos es contestarle mal a la persona cuando pregunta qué debe.
+  const h = historialDePersona([
+    renglon(A_CREDITO, { fecha: "2026-08-03" }),
+    renglon(DE_CONTADO, { fecha: "2026-08-04" }),
+    renglon(CORTESIA, { fecha: "2026-08-05" }),
+  ], "MGP", "JUAN GOMEZ");
+
+  igual(h.aLaEmpresa, PRECIO, "solo lo de crédito se le descuenta");
+  igual(h.deContado, PRECIO, "esto ya lo pagó en la caja");
+  igual(h.total, PRECIO * 2, "la cortesía no vale nada, pero el día sale igual");
+  igual(h.veces, 3, "los tres días comió, así no le cobren");
+});
+
+prueba("lo que más pide sale de primero, contando cantidades", () => {
+  const h = historialDePersona(HISTORIA, "MGP", "JUAN GOMEZ");
+  igual(h.platos[0].producto, "ALMUERZO");
+  igual(h.platos[0].cantidad, 4, "1 + 1 + 2, no tres renglones");
+  igual(h.platos[1].producto, "GASEOSA");
+});
+
+prueba("no se mezcla con el tocayo de otra empresa", () => {
+  // JUAN GOMEZ de MGP y JUAN GOMEZ de AGRO son dos personas distintas. Si el
+  // historial los juntara, a uno le saldrían comidas que no hizo.
+  const h = historialDePersona(
+    HISTORIA.concat([renglon(A_CREDITO, { fecha: "2026-08-30", empresa: "AGRO" })]),
+    "MGP", "JUAN GOMEZ");
+  igual(h.veces, 3, "el de AGRO no entra");
+  igual(h.total, PRECIO * 4 + 7000);
+});
+
+prueba("alguien que no ha pedido nada no revienta", () => {
+  const h = historialDePersona(HISTORIA, "MGP", "NADIE");
+  igual(h.veces, 0);
+  igual(h.total, 0);
+  igual(h.dias, []);
+  igual(h.platos, []);
+  igual(h.desde, null);
+  igual(h.hasta, null);
 });
 
 // ---------------------------------------------------------------------------

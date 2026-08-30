@@ -92,6 +92,29 @@ try {
   const modulo = await import(ruta);
   await modulo[fn](raiz);
 
+  // Abrir el historial de la persona que más ha pedido: es la ventana más
+  // larga que puede salir, y es donde se ve si se sale de la pantalla.
+  if (forzar === "historial") {
+    const nombres = raiz.querySelectorAll(".nombre-historial");
+    let elMasLargo = null;
+    let cuantos = 0;
+    for (const boton of nombres) {
+      const veces = datos.consumos.filter((c) => c.persona === boton.textContent).length;
+      if (veces > cuantos) { cuantos = veces; elMasLargo = boton; }
+    }
+    if (elMasLargo) elMasLargo.click();
+  }
+
+  // Abrir la primera ventana de formulario que haya en la pantalla. Sirve para
+  // mirar que una ventana corta se siga viendo bien: la ventana larga (la del
+  // historial) obligo a ponerle tope de alto y barra a TODAS, y eso se puede
+  // dañar sin que nadie lo note hasta que a ella no le cierra un formulario.
+  if (forzar === "ventana") {
+    const abrir = [...raiz.querySelectorAll("button")]
+      .find((b) => /editar|cambiar|agregar/i.test(b.textContent));
+    if (abrir) abrir.click();
+  }
+
   // Sin esto la foto sale mala: el buscador de personas se lleva el foco solo
   // -- que es lo correcto cuando ella la usa -- y despliega la lista de
   // nombres encima de media pantalla. Aquí la pantalla no se está usando: se

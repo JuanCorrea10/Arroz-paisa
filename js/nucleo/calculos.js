@@ -636,6 +636,67 @@ export function ponerRangoDeCobro(datos, codigoEmpresa, anio, mes, quincena, ran
 }
 
 /**
+ * TODO lo que ha pedido una persona, día por día.
+ *
+ * No es "el mes que se está mirando": es el historial completo, del día más
+ * nuevo al más viejo. Sirve para contestar lo que le preguntan de frente --
+ * "¿yo qué debo?", "¿cuándo fue que comí?", "yo no pedí eso" -- sin tener que
+ * ponerse a pasar meses uno por uno.
+ *
+ * Los tres totales van separados porque no son lo mismo y confundirlos es
+ * contestar mal:
+ *   total       todo lo que se llevó, lo pague quien lo pague
+ *   aLaEmpresa  lo que le van a descontar por nómina
+ *   deContado   lo que ya pagó de su bolsillo y NO se le descuenta
+ */
+export function historialDePersona(consumos, codigoEmpresa, nombrePersona) {
+  const llave = clavePersona(codigoEmpresa, nombrePersona);
+  const mios = consumos.filter((c) => clavePersona(c.empresa, c.persona) === llave);
+
+  const porDia = new Map();
+  const porPlato = new Map();
+  for (const c of mios) {
+    if (!porDia.has(c.fecha)) {
+      porDia.set(c.fecha, { fecha: c.fecha, platos: [], total: 0, aLaEmpresa: 0, deContado: 0 });
+    }
+    const dia = porDia.get(c.fecha);
+    dia.platos.push(c);
+    dia.total += subtotal(c);
+    dia.aLaEmpresa += subtotalAcreditoDeEmpresa(c);
+    dia.deContado += subtotalDeContado(c);
+
+    // Lo que más pide. Se cuenta por CANTIDAD y no por renglones: dos almuerzos
+    // en un renglón son dos almuerzos, no uno.
+    const nombre = normalizar(c.producto);
+    if (!porPlato.has(nombre)) porPlato.set(nombre, { producto: nombre, cantidad: 0, total: 0 });
+    const plato = porPlato.get(nombre);
+    plato.cantidad += Number(c.cantidad) || 0;
+    plato.total += subtotal(c);
+  }
+
+  // De lo más nuevo a lo más viejo: lo que se busca casi siempre es lo último.
+  const dias = [...porDia.values()].sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const platos = [...porPlato.values()].sort(
+    (a, b) => b.cantidad - a.cantidad || a.producto.localeCompare(b.producto, "es"));
+
+  return {
+    persona: normalizar(nombrePersona),
+    empresa: normalizar(codigoEmpresa),
+    dias,
+    platos,
+    renglones: mios.length,
+    // "veces" son DÍAS que comió, que es una factura por día. No renglones:
+    // si un día pidió almuerzo y gaseosa, comió una vez, no dos.
+    veces: dias.length,
+    total: dias.reduce((a, d) => a + d.total, 0),
+    aLaEmpresa: dias.reduce((a, d) => a + d.aLaEmpresa, 0),
+    deContado: dias.reduce((a, d) => a + d.deContado, 0),
+    desde: dias.length ? dias[dias.length - 1].fecha : null,
+    hasta: dias.length ? dias[0].fecha : null,
+  };
+}
+
+/**
  * CUADRE DE FACTURAS: una fila por día del mes.
  * Ella escribe cuántas facturas dice el trabajador que hizo, y la app le
  * dice cuántas hay registradas y de a cuántas está la diferencia.
