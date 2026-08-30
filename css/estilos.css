@@ -770,6 +770,37 @@ tfoot td.n { font-family: var(--dato); }
 .nota .acciones { margin-left: auto; display: flex; gap: var(--e2); flex-wrap: wrap; }
 
 .nota.malo { border-left-color: var(--rojo); background: var(--rojo-claro); border-color: #e8c4bf; }
+
+/* --------------------------------------------------------------------- */
+/*  Lista de cosas por arreglar, cada una con su boton al lado             */
+/*                                                                         */
+/*  El aviso dejo de ser solo un aviso: cada plato sin precio trae al lado */
+/*  el boton para ponerselo. Por eso el nombre y el boton van en la misma  */
+/*  linea, y el detalle (quienes y que dias) debajo y mas chiquito: lo que */
+/*  ella busca es el plato, y el detalle es para confirmar que es ese.     */
+/* --------------------------------------------------------------------- */
+.lista-arreglable {
+  list-style: none;
+  margin: var(--e3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--e2);
+}
+.lista-arreglable li {
+  display: flex;
+  align-items: center;
+  gap: var(--e3);
+  flex-wrap: wrap;
+  padding: var(--e2) 0;
+  border-top: 1px solid #e8c4bf;
+}
+.lista-arreglable .quien { flex: 1 1 14rem; min-width: 0; }
+.lista-arreglable .apunte {
+  font-size: var(--t-sm);
+  color: var(--tinta-media);
+  overflow-wrap: anywhere;
+}
 .nota.ojo { border-left-color: var(--amarillo); background: var(--amarillo-claro); border-color: #ecd9ac; }
 .nota.bien { border-left-color: var(--verde); background: var(--verde-claro); border-color: #b9d9c7; }
 .nota.dato { border-left-color: var(--azul); background: var(--azul-claro); border-color: #b9d5e3; }

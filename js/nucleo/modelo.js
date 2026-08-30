@@ -301,6 +301,64 @@ export function borrarProducto(datos, nombre) {
 }
 
 /**
+ * Vuelve a mirar qué tiene de malo un renglón. La misma cuenta que hace
+ * nuevoConsumo, para que un renglón arreglado quede marcado igual que uno
+ * recién nacido y no se quede con un aviso viejo pegado.
+ */
+export function recalcularRevisar(consumo) {
+  const revisar = [];
+  const precio = Number(consumo.precioUnitario) || 0;
+  const cant = Number(consumo.cantidad) || 0;
+  if (consumo.facturable !== false && precio <= 0) revisar.push("SIN_PRECIO");
+  if (cant <= 0) revisar.push("SIN_CANTIDAD");
+  consumo.revisar = revisar;
+  return consumo;
+}
+
+/**
+ * Le pone precio a renglones que quedaron en $ 0.
+ *
+ * Un renglón guarda su precio CONGELADO, y está bien que así sea: cambiarle el
+ * precio al catálogo no puede cambiarle el valor a una cuenta ya entregada.
+ * Pero eso deja un hueco: si un renglón nació sin precio -- porque el plato no
+ * estaba en el catálogo, porque el Excel lo trajo vacío, porque ese día nadie
+ * sabía cuánto valía -- se queda en $ 0 para siempre y se cobra en $ 0.
+ *
+ * Esto es la salida de ese hueco. Se le pasa la lista exacta de renglones y el
+ * precio, y se devuelve cuánto sube la cuenta, para poder decírselo ANTES:
+ * esto le sube la cuenta a una empresa, y eso no puede pasar en silencio.
+ *
+ * Si "tambienEnCatalogo", el precio queda guardado para las próximas veces.
+ */
+export function ponerlePrecio(datos, renglones, valor, tambienEnCatalogo = true) {
+  const precio = Math.max(0, Math.round(Number(valor) || 0));
+  const lista = (renglones || []).filter(Boolean);
+  if (!lista.length) return { arreglados: 0, sube: 0 };
+
+  let sube = 0;
+  for (const c of lista) {
+    const antes = (Number(c.cantidad) || 0) * (Number(c.precioUnitario) || 0);
+    c.precioUnitario = precio;
+    sube += (Number(c.cantidad) || 0) * precio - antes;
+    recalcularRevisar(c);
+  }
+
+  if (tambienEnCatalogo && precio > 0) {
+    // El catálogo guarda el nombre ya limpio, así que el renglón tiene que
+    // quedar con ese MISMO nombre. Si no, el precio queda guardado bajo
+    // "ARROZ" y el renglón sigue diciendo "ARROZ." -- y no se encuentran
+    // nunca, que es exactamente el error que estamos matando.
+    for (const c of lista) {
+      const limpio = limpiarNombre(c.producto);
+      c.producto = limpio;
+      agregarProducto(datos, limpio, { [normalizar(c.empresa)]: precio });
+    }
+  }
+
+  return { arreglados: lista.length, sube };
+}
+
+/**
  * Crea un renglón de consumo dejando el precio CONGELADO.
  * Este es el único sitio donde nace un consumo, para que no haya dos maneras
  * distintas de hacerlo (que es como se cuelan los bugs).

@@ -19,7 +19,9 @@ import {
   subtotal, sumar, sumarLoDeLaEmpresa, sumarLoDeContado,
   cuentaDeCobro, informeDia, informePorPersona, informeCompletoDeEmpresa,
   indicePorCodigo, deRango, rangoDeCobro, ponerRangoDeCobro, historialDePersona,
+  precioDe,
 } from "../js/nucleo/calculos.js";
+import { ponerlePrecio } from "../js/nucleo/modelo.js";
 
 const PRECIO = 12000;
 
@@ -306,6 +308,80 @@ prueba("alguien que no ha pedido nada no revienta", () => {
   igual(h.platos, []);
   igual(h.desde, null);
   igual(h.hasta, null);
+});
+
+// ---------------------------------------------------------------------------
+grupo("Ponerle precio a lo que quedó en $ 0");
+
+// Este es el hueco que dejaba el precio congelado: un renglón que nace sin
+// precio se queda en $ 0 para siempre y se cobra en $ 0. Aquí se tapa, y lo
+// que se prueba es que tape SOLO lo que se le dijo -- porque esto le sube la
+// cuenta a una empresa.
+function sinPrecio(extra = {}) {
+  return renglon(A_CREDITO, { producto: "SOPA GRANDE", precioUnitario: 0, ...extra });
+}
+
+prueba("les pone el precio y dice cuánto sube la cuenta", () => {
+  const datos = negocio([sinPrecio(), sinPrecio({ persona: "ANA RUIZ", cantidad: 2 })]);
+  const r = ponerlePrecio(datos, datos.consumos, 8000);
+
+  igual(r.arreglados, 2);
+  igual(r.sube, 8000 * 3, "uno de JUAN y dos de ANA");
+  igual(datos.consumos.map((c) => c.precioUnitario), [8000, 8000]);
+});
+
+prueba("un renglón arreglado deja de estar marcado como problema", () => {
+  const datos = negocio([sinPrecio()]);
+  datos.consumos[0].revisar = ["SIN_PRECIO"];
+  ponerlePrecio(datos, datos.consumos, 8000);
+  igual(datos.consumos[0].revisar, [], "si no, el aviso rojo se queda pegado para siempre");
+});
+
+prueba("solo toca los renglones que se le pasaron", () => {
+  // Es lo que evita que arreglar la cuenta de agosto le cambie el valor a la
+  // de julio, que ya se entregó.
+  const viejo = sinPrecio({ fecha: "2026-07-05" });
+  const nuevo = sinPrecio({ fecha: "2026-08-05" });
+  const datos = negocio([viejo, nuevo]);
+  ponerlePrecio(datos, [nuevo], 8000);
+  igual(nuevo.precioUnitario, 8000);
+  igual(viejo.precioUnitario, 0, "el de julio se queda como estaba");
+});
+
+prueba("lo que sube es la DIFERENCIA, no el total", () => {
+  // Si un renglón ya valía algo y se corrige, lo que sube es lo que cambió.
+  const datos = negocio([sinPrecio({ precioUnitario: 3000, cantidad: 2 })]);
+  const r = ponerlePrecio(datos, datos.consumos, 8000);
+  igual(r.sube, (8000 - 3000) * 2);
+});
+
+prueba("de paso lo deja guardado en el catálogo, si se le pide", () => {
+  const datos = negocio([sinPrecio()]);
+  ponerlePrecio(datos, datos.consumos, 8000, true);
+  cierto(datos.productos.some((p) => p.nombre === "SOPA GRANDE"), "queda en el catálogo");
+  igual(precioDe(datos, "SOPA GRANDE", "MGP"), 8000, "y con su precio");
+});
+
+prueba("sin pedirlo, el catálogo no se toca", () => {
+  const datos = negocio([sinPrecio()]);
+  ponerlePrecio(datos, datos.consumos, 8000, false);
+  igual(datos.consumos[0].precioUnitario, 8000, "el renglón sí se arregla");
+  cierto(!datos.productos.some((p) => p.nombre === "SOPA GRANDE"), "el catálogo no");
+});
+
+prueba("el nombre queda limpio en los dos lados, o no se vuelven a encontrar", () => {
+  // Si el catálogo guarda "SOPA GRANDE" y el renglón se queda diciendo
+  // "SOPA GRANDE.", el precio nunca le llega: es el mismo error que se está
+  // matando, pero al revés.
+  const datos = negocio([sinPrecio({ producto: "SOPA GRANDE." })]);
+  ponerlePrecio(datos, datos.consumos, 8000, true);
+  igual(datos.consumos[0].producto, "SOPA GRANDE");
+  cierto(datos.productos.some((p) => p.nombre === "SOPA GRANDE"));
+});
+
+prueba("sin renglones no hace nada y no revienta", () => {
+  const datos = negocio([]);
+  igual(ponerlePrecio(datos, [], 8000), { arreglados: 0, sube: 0 });
 });
 
 // ---------------------------------------------------------------------------

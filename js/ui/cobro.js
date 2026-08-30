@@ -8,14 +8,16 @@
 // ============================================================================
 
 import { el, vaciar, tabla, cifra, cifraPlata, acciones, vacio, mensaje, confirmar, poner, botonQueTrabaja,
+  pedirDatos,
 } from "./componentes.js";
 import { estado, cambio, empresas, empresaPorCodigo, asegurarEmpresa } from "./estado.js";
-import { pesos, nombreMes, fechaCorta, fechaLarga, diaDe, diasDelMes } from "../nucleo/formato.js";
+import { pesos, nombreMes, fechaCorta, fechaLarga, diaDe, diasDelMes, normalizar } from "../nucleo/formato.js";
 import {
   cuentaDeCobro, deQuincena, sumar, fechaDeCobro, ponerFechaDeCobro,
-  esCortesia, sumarLoDeLaEmpresa, fueraDelRango,
+  esCortesia, sumarLoDeLaEmpresa, fueraDelRango, deRango,
   rangoQuincena, rangoDeCobro, ponerRangoDeCobro,
 } from "../nucleo/calculos.js";
+import { ponerlePrecio } from "../nucleo/modelo.js";
 import { diceElRango } from "./mantenimiento.js";
 import { pdfCuentaDeCobro } from "../exportar/pdf.js";
 import { descargarReporteEmpresa } from "../exportar/reporte-empresa.js";
@@ -67,10 +69,13 @@ export function pintarCobro(raiz) {
   const cuenta = cuentaDeCobro(
     estado.datos.consumos, estado.anio, estado.mes, quincena, empresa, laFecha, propio);
 
-  // Aviso importante: si en esa quincena hay algo en $0, la cuenta sale corta.
-  const enCero = deQuincena(estado.datos.consumos, estado.anio, estado.mes, quincena, empresa).filter(
-    (c) => !esCortesia(c) && !(c.precioUnitario > 0)
-  );
+  // Aviso importante: si en el periodo hay algo en $ 0, la cuenta sale corta.
+  // Se miran los renglones que ESTA cuenta cubre, no los de la quincena, que
+  // pueden ser otros si los días se escogieron a mano.
+  const delPeriodo = propio
+    ? deRango(estado.datos.consumos, estado.anio, estado.mes, propio, empresa)
+    : deQuincena(estado.datos.consumos, estado.anio, estado.mes, quincena, empresa);
+  const enCero = delPeriodo.filter((c) => !esCortesia(c) && !(c.precioUnitario > 0));
 
   poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
@@ -167,14 +172,47 @@ export function pintarCobro(raiz) {
   );
 
   if (enCero.length) {
+    // Agrupados por PLATO, y no un renglón por renglón.
+    //
+    // El precio es del plato y de la empresa, así que los cinco renglones de
+    // SOPA GRANDE de esta cuenta valen todos lo mismo: preguntarlo cinco veces
+    // sería hacerla escribir el mismo número cinco veces y arriesgar que en
+    // una se equivoque. Se pregunta una vez y se arreglan los cinco.
+    const porPlato = new Map();
+    for (const c of enCero) {
+      const llave = normalizar(c.producto);
+      if (!porPlato.has(llave)) porPlato.set(llave, []);
+      porPlato.get(llave).push(c);
+    }
+    const grupos = [...porPlato.entries()].sort((a, b) => b[1].length - a[1].length);
+
     poner(raiz,
       el("div", { clase: "nota malo no-imprimir" },
-        el("div", {},
+        el("div", { estilo: "flex:1 1 auto;min-width:0" },
           el("strong", { texto: `${enCero.length} ${enCero.length === 1 ? "renglón está" : "renglones están"} en $ 0` }),
-          el("p", { texto: "Si manda la cuenta así, va a cobrar de menos. Arréglelos antes de entregarla." })
-        ),
-        el("div", { clase: "acciones" },
-          el("a", { clase: "boton chico", href: "#revisar", texto: "Ver qué falta" }))
+          el("p", { texto:
+            "Se pidieron y no se están cobrando: si manda la cuenta así, va a " +
+            "cobrar de menos. Póngales el precio aquí mismo." }),
+          el("ul", { clase: "lista-arreglable" },
+            ...grupos.map(([plato, suyos]) => {
+              const quienes = [...new Set(suyos.map((c) => c.persona))];
+              const dias = [...new Set(suyos.map((c) => diaDe(c.fecha)))].sort((a, b) => a - b);
+              return el("li", {},
+                el("div", { clase: "quien" },
+                  el("strong", { texto: plato }),
+                  el("div", { clase: "apunte" },
+                    `${suyos.length} ${suyos.length === 1 ? "renglón" : "renglones"} · ` +
+                    `${quienes.slice(0, 3).join(", ")}${quienes.length > 3 ? ` y ${quienes.length - 3} más` : ""} · ` +
+                    `${dias.length === 1 ? "día" : "días"} ${dias.join(", ")}`)
+                ),
+                el("button", {
+                  clase: "chico",
+                  alHacerClic: () => arreglarElPrecio(empresa, plato, suyos, repintar),
+                }, "Póngale precio")
+              );
+            })
+          )
+        )
       )
     );
   }
@@ -223,6 +261,57 @@ export function pintarCobro(raiz) {
 }
 
 // ---------------------------------------------------------------------------
+
+/**
+ * Ponerle precio a los renglones de un plato que quedaron en $ 0.
+ *
+ * Esto SUBE la cuenta de una empresa, así que se dice cuánto sube antes de
+ * hacerlo y cuánto subió después. Que una cuenta cambie de valor está bien --
+ * el plato se vendió y no se cobró -- pero enterarse cuando el cliente
+ * reclama, no.
+ */
+async function arreglarElPrecio(empresa, plato, renglones, repintar) {
+  const cuantos = renglones.reduce((a, c) => a + (Number(c.cantidad) || 0), 0);
+  const r = await pedirDatos({
+    titulo: `Precio de ${plato}`,
+    campos: [
+      {
+        nombre: "precio",
+        etiqueta: `¿Cuánto vale para ${empresa.codigo}?`,
+        tipo: "number",
+        valor: "",
+        requerido: true,
+        min: 0,
+        ayuda: `Se pidió ${cuantos} ${cuantos === 1 ? "vez" : "veces"} en ` +
+               `${renglones.length} ${renglones.length === 1 ? "renglón" : "renglones"}. ` +
+               "A todos les queda este precio, y la cuenta sube.",
+      },
+      {
+        nombre: "enCatalogo",
+        etiqueta: "Guardarlo también en el catálogo, para las próximas veces",
+        tipo: "casilla",
+        valor: true,
+      },
+    ],
+    textoAceptar: "Poner el precio",
+  });
+  if (!r) return;
+
+  const valor = Number(r.precio) || 0;
+  if (!(valor > 0)) {
+    mensaje("Un precio en $ 0 deja el problema igual. Escriba cuánto vale.", "malo", 7);
+    return;
+  }
+
+  const { arreglados, sube } = ponerlePrecio(estado.datos, renglones, valor, r.enCatalogo);
+  cambio();
+  repintar();
+  mensaje(
+    `${plato} quedó en ${pesos(valor)}. Se arreglaron ${arreglados} ` +
+    `${arreglados === 1 ? "renglón" : "renglones"} y la cuenta subió ${pesos(sube)}.`,
+    "bien", 8
+  );
+}
 
 function documentoDeCobro(cuenta, acreedor) {
   const { empresa, rango, mes, anio, personas, total, facturas, fechaCuenta } = cuenta;

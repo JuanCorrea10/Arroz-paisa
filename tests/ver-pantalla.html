@@ -88,6 +88,31 @@ try {
                       { desde: 5, hasta: 9 });
   }
 
+  // Un plato que SI esta en el catalogo pero con renglones sin precio. En los
+  // datos de verdad no hay ninguno, y es justo el caso que la tarjeta de
+  // Revisar contaba al reves.
+  if (forzar === "sin-precio") {
+    const enCatalogo = new Set(datos.productos.map((x) => x.nombre));
+    let tocados = 0;
+    for (const c of datos.consumos) {
+      if (tocados >= 3) break;
+      if (!enCatalogo.has(c.producto) || !(c.precioUnitario > 0)) continue;
+      if (c.producto !== "ALMUERZO") continue;
+      c.precioUnitario = 0;
+      c.revisar = ["SIN_PRECIO"];
+      tocados++;
+    }
+  }
+
+  // Algo "dejado asi", para ver la tarjeta que lo devuelve.
+  if (forzar === "dejado") {
+    const { platosSueltos, dejarComoEsta } = await import("../js/nucleo/sueltos.js");
+    const primeros = platosSueltos(datos).slice(0, 2);
+    for (const x of primeros) dejarComoEsta(datos, "PLATO", "", x.nombre);
+  }
+
+  let loQueSeTecleo = null;
+
   const [ruta, fn] = PANTALLAS[cual] || PANTALLAS.catalogo;
   const modulo = await import(ruta);
   await modulo[fn](raiz);
@@ -111,7 +136,6 @@ try {
   // dañar sin que nadie lo note hasta que a ella no le cierra un formulario.
   // Escribir en el buscador como escribiria ella, letra por letra: asi se
   // prueba de verdad que el cursor no se pierda al repintar.
-  let loQueSeTecleo = null;
   if (forzar && forzar.startsWith("buscar:")) {
     const casilla = raiz.querySelector("#busca-persona");
     if (casilla) {
@@ -139,9 +163,29 @@ try {
     }
   }
 
+  // Dejar a la vista la tarjeta que interesa, que en una pantalla de 18 platos
+  // queda muy abajo para la foto.
+  if (forzar === "sin-precio") {
+    const cual = [...raiz.querySelectorAll(".suelto-plato")]
+      .find((t) => /ALMUERZO/.test(t.textContent));
+    // Al rotulo y no con scrollIntoView: en Chrome sin ventana la foto sale
+    // del tope de la pagina pase lo que pase, y esta tarjeta queda muy abajo.
+    loQueSeTecleo = cual
+      ? "TARJETA: " + cual.textContent.replace(/\s+/g, " ").trim().slice(0, 260)
+      : "no se encontro la tarjeta de ALMUERZO";
+  }
+
+  if (forzar === "dejado") {
+    const cual = [...raiz.querySelectorAll(".aviso-arreglable")]
+      .find((t) => /Dejados as/.test(t.textContent));
+    loQueSeTecleo = cual
+      ? "TARJETA: " + cual.textContent.replace(/\s+/g, " ").trim().slice(0, 300)
+      : "MAL: no salio la tarjeta de dejados asi";
+  }
+
   if (forzar === "ventana") {
     const abrir = [...raiz.querySelectorAll("button")]
-      .find((b) => /editar|cambiar|agregar/i.test(b.textContent));
+      .find((b) => /editar|cambiar|agregar|póngale/i.test(b.textContent));
     if (abrir) abrir.click();
   }
 

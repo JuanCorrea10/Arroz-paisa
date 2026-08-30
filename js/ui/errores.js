@@ -25,7 +25,7 @@ import { precioDe } from "../nucleo/calculos.js";
 import {
   personasSueltas, platosSueltos, unirPersonaSuelta, crearPersonaSuelta,
   simularUnionDePlato, unirPlatoSuelto, crearPlatoSuelto, dejarComoEsta,
-  cuantosSueltos,
+  cuantosSueltos, volverARevisar,
 } from "../nucleo/sueltos.js";
 import { gruposParaRevisar } from "../nucleo/nombres.js";
 
@@ -35,6 +35,17 @@ export function pintarErrores(raiz) {
   const personas = personasSueltas(estado.datos);
   const platos = platosSueltos(estado.datos);
   const parecidos = gruposParaRevisar(estado.datos).length;
+
+  // Lo que ella ya dijo "déjelo así". Se saca comparando la lista completa
+  // con la que se muestra, que es la que los esconde.
+  const sinNombre = (lista) => new Set(lista.map((x) => x.nombre + "|" + (x.empresa || "")));
+  const visiblesP = sinNombre(platos);
+  const visiblesQ = sinNombre(personas);
+  const dejadosPlatos = platosSueltos(estado.datos, { incluirRevisados: true })
+    .filter((p) => !visiblesP.has(p.nombre + "|"));
+  const dejadasPersonas = personasSueltas(estado.datos, { incluirRevisadas: true })
+    .filter((p) => !visiblesQ.has(p.nombre + "|" + (p.empresa || "")));
+  const hayDejados = dejadosPlatos.length + dejadasPersonas.length > 0;
 
   poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
@@ -66,7 +77,7 @@ export function pintarErrores(raiz) {
 
   if (!personas.length && !platos.length) {
     poner(raiz,
-      vacio("No hay nada raro",
+      vacio(hayDejados ? "No queda nada por preguntar" : "No hay nada raro",
         el("p", {},
           "Todos los renglones apuntan a una persona y a un plato que existen. ",
           parecidos
@@ -76,6 +87,10 @@ export function pintarErrores(raiz) {
             : "Todo en orden."
         ))
     );
+    // Aunque no quede nada que preguntar, lo dejado así SÍ se muestra: si no,
+    // esta pantalla diría "todo en orden" mientras hay renglones cobrándose en
+    // $ 0 que ella misma escondió y no tiene por dónde volver a sacar.
+    if (hayDejados) poner(raiz, tarjetaDeDejados(raiz, dejadosPlatos, dejadasPersonas));
     return;
   }
 
@@ -95,13 +110,19 @@ export function pintarErrores(raiz) {
 
   // --- Platos --------------------------------------------------------------
   if (platos.length) {
-    poner(raiz, el("h2", { texto: "Platos que no están en el catálogo" }));
+    poner(raiz, el("h2", {
+      texto: platos.every((p) => p.faltaEnCatalogo)
+        ? "Platos que no están en el catálogo"
+        : "Platos por arreglar",
+    }));
 
     const obvios = platos.filter((p) => p.sugerencias.some((s) => s.obvio));
     if (obvios.length > 1) poner(raiz, tarjetaDeObvios(raiz, obvios));
 
     for (const p of platos) poner(raiz, tarjetaDePlato(raiz, p));
   }
+
+  if (hayDejados) poner(raiz, tarjetaDeDejados(raiz, dejadosPlatos, dejadasPersonas));
 
   if (parecidos) {
     poner(raiz,
@@ -310,7 +331,23 @@ async function dejarlaAsi(raiz, p) {
 
 function tarjetaDePlato(raiz, p) {
   const grupo = "sl-" + p.nombre.replace(/\s+/g, "_");
-  const parecidos = p.sugerencias.length ? elegirParecido(p.sugerencias, grupo) : null;
+
+  // Son DOS problemas distintos y hasta ahora la tarjeta decía siempre el
+  // primero:
+  //
+  //   a) el plato no está en el catálogo  -> hay que agregarlo, o es otro mal
+  //      escrito y toca unirlo con el bueno.
+  //   b) el plato SÍ está, pero unos renglones quedaron sin precio -> no hay
+  //      nada que agregar ni que unir: hay que ponerle el precio y ya.
+  //
+  // En el caso (b) la tarjeta decía "ese plato no está en el catálogo", que es
+  // falso, y encima le ofrecía unirlo con otro plato. Preguntarle si "SOPA
+  // GRANDE" es en realidad "SOPA DE LA CASA" cuando SOPA GRANDE existe y se
+  // vende es empujarla a dañar el catálogo por un problema que no era ese.
+  const soloSinPrecio = !p.faltaEnCatalogo;
+  const parecidos = !soloSinPrecio && p.sugerencias.length
+    ? elegirParecido(p.sugerencias, grupo)
+    : null;
   const cual = () => (parecidos ? parecidos.cual() : null);
 
   const pedidos = p.cantidad === 1 ? "1 vez" : `${p.cantidad} veces`;
@@ -325,14 +362,23 @@ function tarjetaDePlato(raiz, p) {
   return el("section", { clase: "tarjeta suelto suelto-plato" },
 
     // 1. Que pasa.
-    el("p", { clase: "que-pasa" },
-      "Se pidió ", el("strong", { texto: p.nombre }), " ",
-      el("strong", { texto: pedidos }),
-      ", pero ese plato ", el("strong", { texto: "no está en el catálogo" }),
-      p.sinPrecio
-        ? el("span", {}, ", así que se está cobrando en ",
-            el("strong", { clase: "sube", texto: "$ 0" }), ".")
-        : "."),
+    soloSinPrecio
+      ? el("p", { clase: "que-pasa" },
+          "Se pidió ", el("strong", { texto: p.nombre }), " ",
+          el("strong", { texto: pedidos }),
+          ". El plato ", el("strong", { texto: "sí está en el catálogo" }),
+          ", pero ",
+          el("strong", { texto: `${p.sinPrecio} ${p.sinPrecio === 1 ? "renglón quedó" : "renglones quedaron"} sin precio` }),
+          ", así que se están cobrando en ",
+          el("strong", { clase: "sube", texto: "$ 0" }), ".")
+      : el("p", { clase: "que-pasa" },
+          "Se pidió ", el("strong", { texto: p.nombre }), " ",
+          el("strong", { texto: pedidos }),
+          ", pero ese plato ", el("strong", { texto: "no está en el catálogo" }),
+          p.sinPrecio
+            ? el("span", {}, ", así que se está cobrando en ",
+                el("strong", { clase: "sube", texto: "$ 0" }), ".")
+            : "."),
 
     el("div", { clase: "fila" },
       el("span", { clase: "apunte-suelto", texto: `${p.renglones} renglones · ` }),
@@ -351,8 +397,11 @@ function tarjetaDePlato(raiz, p) {
                 el("strong", { texto: pesos(dejadoDeCobrar) }), ".")
             : null)
       : el("p", { clase: "nota" },
-          "No hay ningún plato parecido en el catálogo, así que hay que " +
-          "agregarlo con su precio para poder cobrarlo."),
+          soloSinPrecio
+            ? "Solo falta decir cuánto vale. Al ponerle el precio, esos " +
+              "renglones dejan de ir en $ 0 y la cuenta sube."
+            : "No hay ningún plato parecido en el catálogo, así que hay que " +
+              "agregarlo con su precio para poder cobrarlo."),
 
     // Otros platos que tampoco están catalogados y se parecen a este. Si no
     // se avisara, ella crearía el mismo plato dos veces con dos nombres.
@@ -379,7 +428,9 @@ function tarjetaDePlato(raiz, p) {
           el("button", {
             clase: "principal",
             alHacerClic: () => crearPlato(raiz, p),
-          }, "Agregar este plato con su precio"),
+          }, soloSinPrecio
+            ? `Póngale precio a ${p.sinPrecio === 1 ? "ese renglón" : "esos renglones"}`
+            : "Agregar este plato con su precio"),
           el("button", {
             clase: "plano suave",
             alHacerClic: () => dejarPlatoAsi(raiz, p),
@@ -451,8 +502,9 @@ function unirPlato(raiz, p, nombreBueno) {
 
 async function crearPlato(raiz, p) {
   const lista = empresas();
+  const yaEsta = !p.faltaEnCatalogo;
   const datos = await pedirDatos({
-    titulo: `Agregar "${p.nombre}" al catálogo`,
+    titulo: yaEsta ? `Precio de "${p.nombre}"` : `Agregar "${p.nombre}" al catálogo`,
     campos: [
       { nombre: "nombre", etiqueta: "Nombre del plato", valor: p.nombre, requerido: true },
       {
@@ -494,6 +546,65 @@ async function dejarPlatoAsi(raiz, p) {
   dejarComoEsta(estado.datos, "PLATO", "", p.nombre);
   cambio();
   pintarErrores(raiz);
+}
+
+/**
+ * Lo que ella dijo "déjelo así", con la puerta para devolverse.
+ *
+ * "Déjelo así" era una puerta de una sola vía: el plato desaparecía de esta
+ * pantalla y NADA en la app lo traía de vuelta, mientras sus renglones se
+ * seguían cobrando en $ 0. La función para volver a mostrarlos existía desde
+ * siempre; lo que faltaba era el botón. Cuando ella se daba cuenta -- semanas
+ * después, cuadrando una cuenta -- no tenía para dónde coger.
+ *
+ * Va abajo y en amarillo y no en rojo: no es un error, es una decisión suya
+ * que se puede cambiar de opinión.
+ */
+function tarjetaDeDejados(raiz, platos, personas) {
+  const enCero = platos.reduce((a, p) => a + p.sinPrecio, 0);
+
+  const volver = (tipo, empresa, nombre) => {
+    volverARevisar(estado.datos, tipo, empresa, nombre);
+    cambio();
+    pintarErrores(raiz);
+    mensaje(`"${nombre}" vuelve a la lista de arriba.`, "bien");
+  };
+
+  return el("section", { clase: "tarjeta aviso-arreglable" },
+    el("h2", { texto: `Dejados así (${platos.length + personas.length})` }),
+    el("p", { clase: "nota" },
+      "Estos ya los revisó y dijo que se quedaran como están, así que no le " +
+      "vuelvo a preguntar por ellos.",
+      enCero
+        ? el("span", {}, " Ojo: ", el("strong", { texto: `${enCero} de esos renglones se siguen cobrando en $ 0` }),
+            ". Si fue sin querer, tráigalo de vuelta y póngale precio.")
+        : ""),
+    el("ul", { clase: "lista-arreglable" },
+      ...platos.map((p) =>
+        el("li", {},
+          el("div", { clase: "quien" },
+            el("strong", { texto: p.nombre }),
+            el("div", { clase: "apunte" },
+              `plato · ${p.renglones} ${p.renglones === 1 ? "renglón" : "renglones"}` +
+              (p.sinPrecio ? ` · ${p.sinPrecio} en $ 0` : ""))
+          ),
+          el("button", { clase: "chico", alHacerClic: () => volver("PLATO", "", p.nombre) },
+             "Volver a revisarlo")
+        )
+      ),
+      ...personas.map((p) =>
+        el("li", {},
+          el("div", { clase: "quien" },
+            el("strong", { texto: p.nombre }),
+            el("div", { clase: "apunte" },
+              `persona de ${p.empresa} · ${p.renglones} ${p.renglones === 1 ? "renglón" : "renglones"}`)
+          ),
+          el("button", { clase: "chico", alHacerClic: () => volver("PERSONA", p.empresa, p.nombre) },
+             "Volver a revisarla")
+        )
+      )
+    )
+  );
 }
 
 // ---------------------------------------------------------------------------
