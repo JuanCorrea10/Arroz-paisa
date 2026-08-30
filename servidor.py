@@ -60,6 +60,8 @@ class Manejador(http.server.SimpleHTTPRequestHandler):
             "/guardar-pdf": "tests/salida/informe.pdf",
             "/guardar-resumen": "tests/salida/resumen-dia.pdf",
             "/guardar-raros": "tests/salida/resumen-casos-raros.pdf",
+            "/guardar-persona": "tests/salida/consumo-por-persona.pdf",
+            "/guardar-cobro": "tests/salida/cuenta-de-cobro.pdf",
         }
         destino = BUZONES.get(self.path)
         if destino is None:

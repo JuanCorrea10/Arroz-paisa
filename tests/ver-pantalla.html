@@ -79,6 +79,14 @@ try {
     const empresa = datos.empresas[2] || datos.empresas[0];
     datos.precios[`${plato.nombre}|${empresa.codigo}`] = 1000000;
   }
+  // Una cuenta de cobro con los días escogidos a mano, y a propósito más
+  // cortos que la quincena: así se ve el aviso de la plata que se queda por
+  // fuera, que es el que no se puede probar con los datos tal como vienen.
+  if (forzar === "rango-corto" && datos.empresas.length) {
+    const { ponerRangoDeCobro } = await import("../js/nucleo/calculos.js");
+    ponerRangoDeCobro(datos, datos.empresas[0].codigo, estado.anio, estado.mes, 1,
+                      { desde: 5, hasta: 9 });
+  }
 
   const [ruta, fn] = PANTALLAS[cual] || PANTALLAS.catalogo;
   const modulo = await import(ruta);

@@ -57,13 +57,38 @@ export function quincenaDe(fechaISO, empresa) {
   return diaDe(fechaISO) <= corte ? 1 : 2;
 }
 
-/** Los días exactos que abarca una quincena. Ej: { desde: 1, hasta: 13 } */
+/** Un día del mes, o el de repuesto si lo que llegó no sirve. */
+function diaValido(valor, siNo) {
+  const n = Number(valor);
+  return Number.isFinite(n) && n >= 1 && n <= 31 ? Math.trunc(n) : siNo;
+}
+
+/**
+ * Los días exactos que abarca una quincena. Ej: { desde: 3, hasta: 14 }
+ *
+ * Son CUATRO números y no uno solo, porque el mes no siempre se cobra
+ * completo: hay meses en que la fábrica arranca el 3, y la cuenta tiene que
+ * decir "del 3 al 14" y no "del 1 al 14" -- el supervisor la cuadra contra la
+ * planilla de asistencia, y dos días de diferencia le cuadran mal.
+ *
+ * Lo que NO cambia es el corte entre una quincena y otra: ese lo sigue
+ * mandando "último día de la Q1". Ver quincenaDe, que explica por qué.
+ *
+ * Los números que no estén puestos se deducen como venía siendo hasta ahora:
+ * la Q1 arranca el 1, la Q2 arranca al otro día del corte y acaba con el mes.
+ * Así, una empresa guardada antes de que esto existiera sigue dando igual.
+ */
 export function rangoQuincena(anio, mes, quincena, empresa) {
   const corte = Number(empresa && empresa.ultimoDiaQ1) || 15;
   const finDeMes = diasDelMes(anio, mes);
-  return quincena === 1
-    ? { desde: 1, hasta: Math.min(corte, finDeMes) }
-    : { desde: Math.min(corte + 1, finDeMes), hasta: finDeMes };
+
+  if (quincena === 1) {
+    const hasta = Math.min(corte, finDeMes);
+    return { desde: Math.min(diaValido(empresa && empresa.primerDiaQ1, 1), hasta), hasta };
+  }
+  const desde = Math.min(diaValido(empresa && empresa.primerDiaQ2, corte + 1), finDeMes);
+  const hasta = Math.min(diaValido(empresa && empresa.ultimoDiaQ2, finDeMes), finDeMes);
+  return { desde, hasta: Math.max(desde, hasta) };
 }
 
 // ---------------------------------------------------------------------------
@@ -185,6 +210,46 @@ export function deQuincena(consumos, anio, mes, quincena, empresa) {
   return delMes(consumos, anio, mes).filter(
     (c) => normalizar(c.empresa) === codigo && quincenaDe(c.fecha, empresa) === quincena
   );
+}
+
+/**
+ * Los renglones de una empresa que caen entre dos días del mes.
+ *
+ * Es el hermano de deQuincena, pero preguntando por días y no por quincena.
+ * Hace falta porque la cuenta de cobro puede cubrir un pedazo escogido a mano
+ * ("del 3 al 20"), que no tiene por qué coincidir con ninguna de las dos.
+ */
+export function deRango(consumos, anio, mes, rango, empresa) {
+  const codigo = normalizar(empresa.codigo);
+  const desde = Number(rango && rango.desde) || 1;
+  const hasta = Number(rango && rango.hasta) || diasDelMes(anio, mes);
+  return delMes(consumos, anio, mes).filter((c) => {
+    if (normalizar(c.empresa) !== codigo) return false;
+    const dia = diaDe(c.fecha);
+    return dia !== null && dia >= desde && dia <= hasta;
+  });
+}
+
+/**
+ * Lo que se le va a cobrar a la empresa pero cae FUERA del rango escrito.
+ *
+ * El corte parte el mes en dos y ningún renglón se pierde: lo de antes del
+ * corte es Q1 y lo de después es Q2, se haya escrito el rango que se haya
+ * escrito. Pero si ella dice "la quincena va del 3 al 14" y resulta que el
+ * día 1 alguien comió, la cuenta va a cobrar ese día y el papel va a decir
+ * que empieza el 3. Eso no se puede arreglar solo -- ni quitando la plata (se
+ * cobraría de menos) ni corriendo el rango (ella lo escribió a propósito) --
+ * así que se devuelve para poder avisarle y que decida.
+ */
+export function fueraDelRango(consumos, anio, mes, quincena, empresa, rangoEscogido = null) {
+  if (!empresa) return [];
+  const rango = rangoEscogido || rangoQuincena(anio, mes, quincena, empresa);
+  return deQuincena(consumos, anio, mes, quincena, empresa)
+    .filter(loPagaLaEmpresa)
+    .filter((c) => {
+      const dia = diaDe(c.fecha);
+      return dia !== null && (dia < rango.desde || dia > rango.hasta);
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -436,10 +501,38 @@ export function informePorPersona(consumos, anio, mes, empresasPorCodigo, codigo
  * Un renglón por plato, con cantidad, valor unitario y total.
  * Solo entra lo que paga la empresa: ni lo de contado ni las cortesías.
  */
-export function cuentaDeCobro(consumos, anio, mes, quincena, empresa, fechaCuenta = null) {
+export function cuentaDeCobro(consumos, anio, mes, quincena, empresa, fechaCuenta = null, rango = null) {
   // Lo de contado NO puede entrar aquí. Si entrara, se le cobraría a la
   // empresa un almuerzo que la persona ya pagó en la caja: cobrado dos veces.
-  const lista = deQuincena(consumos, anio, mes, quincena, empresa).filter(loPagaLaEmpresa);
+  // El rango escogido MANDA. Si ella dijo "esta cuenta va del 3 al 20", la
+  // cuenta lleva esos días y no los que le tocarían a la quincena: es ella la
+  // que sabe qué periodo le está pasando a la fábrica. Sin rango escogido,
+  // todo sigue como venía: la quincena completa.
+  const cubre = rango || rangoQuincena(anio, mes, quincena, empresa);
+  const lista = (rango
+    ? deRango(consumos, anio, mes, rango, empresa)
+    : deQuincena(consumos, anio, mes, quincena, empresa)
+  ).filter(loPagaLaEmpresa);
+
+  // Por PERSONA, que es como la pide el cliente: un renglón por trabajador
+  // con lo que debe, sin el desglose de platos. El contador de la fábrica
+  // descuenta por nómina, y para eso lo que necesita es un nombre y un valor;
+  // el detalle de qué comió cada uno está en el informe completo y en el
+  // Excel, que es donde se va a buscar cuando alguien reclama.
+  const porPersona = new Map();
+  for (const c of lista) {
+    const llave = clavePersona(c.empresa, c.persona);
+    if (!porPersona.has(llave)) {
+      porPersona.set(llave, { persona: normalizar(c.persona), total: 0, facturas: new Set() });
+    }
+    const fila = porPersona.get(llave);
+    fila.total += subtotal(c);
+    fila.facturas.add(claveFactura(c));
+  }
+  const personas = [...porPersona.values()]
+    .map((p) => ({ persona: p.persona, total: p.total, facturas: p.facturas.size }))
+    .sort((a, b) => a.persona.localeCompare(b.persona, "es"));
+
   const porPlato = new Map();
   for (const c of lista) {
     const llave = normalizar(c.producto) + "|" + (Number(c.precioUnitario) || 0);
@@ -461,7 +554,11 @@ export function cuentaDeCobro(consumos, anio, mes, quincena, empresa, fechaCuent
     anio,
     mes,
     quincena,
-    rango: rangoQuincena(anio, mes, quincena, empresa),
+    rango: cubre,
+    // Si el rango se escogió a mano, esta cuenta ya no es "la quincena": se
+    // dice, porque el papel no puede llamarla igual que una que sí lo es.
+    rangoEscogido: Boolean(rango),
+    personas,
     filas,
     renglones: lista.length,
     facturas: contarFacturas(lista),
@@ -500,6 +597,41 @@ export function ponerFechaDeCobro(datos, codigoEmpresa, anio, mes, quincena, fec
   const llave = llaveDeCobro(codigoEmpresa, anio, mes, quincena);
   if (esFechaISO(fecha)) datos.fechasDeCobro[llave] = fecha;
   else delete datos.fechasDeCobro[llave];
+  return datos;
+}
+
+/**
+ * El rango de días de UNA cuenta de cobro.
+ *
+ * Se guarda aparte de los días de la empresa, y por la misma razón por la que
+ * la fecha de cobro se guarda aparte: los días de la empresa son la regla
+ * general ("cortamos el 14"), pero una cuenta suelta puede cubrir otra cosa
+ * -- el mes que la fábrica arrancó el 3, la quincena que se cerró antes por
+ * un puente -- y arreglar eso cambiándole la regla a la empresa dañaría
+ * TODAS las cuentas de todos los meses, incluidas las ya entregadas.
+ *
+ * Sin nada guardado devuelve null: entonces manda la quincena de la empresa.
+ */
+export function rangoDeCobro(datos, codigoEmpresa, anio, mes, quincena) {
+  const guardados = datos.rangosDeCobro || {};
+  const v = guardados[llaveDeCobro(codigoEmpresa, anio, mes, quincena)];
+  if (!v) return null;
+  const desde = Number(v.desde);
+  const hasta = Number(v.hasta);
+  if (!Number.isFinite(desde) || !Number.isFinite(hasta)) return null;
+  return { desde, hasta };
+}
+
+export function ponerRangoDeCobro(datos, codigoEmpresa, anio, mes, quincena, rango) {
+  if (!datos.rangosDeCobro) datos.rangosDeCobro = {};
+  const llave = llaveDeCobro(codigoEmpresa, anio, mes, quincena);
+  const desde = Number(rango && rango.desde);
+  const hasta = Number(rango && rango.hasta);
+  const finDeMes = diasDelMes(anio, mes);
+  const sirve = Number.isFinite(desde) && Number.isFinite(hasta) &&
+    desde >= 1 && hasta <= finDeMes && desde <= hasta;
+  if (sirve) datos.rangosDeCobro[llave] = { desde, hasta };
+  else delete datos.rangosDeCobro[llave];
   return datos;
 }
 

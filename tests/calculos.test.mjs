@@ -19,8 +19,10 @@ import {
   delMes, deQuincena, contarFacturas, facturasPorEmpresa, informeDia,
   informeCocina, informePorPersona, cuentaDeCobro, informeCuadre,
   revisarConsumo, indicePorCodigo, precioDe, personasDe, clavePrecio,
-  fechaDeCobro, ponerFechaDeCobro,
+  fechaDeCobro, ponerFechaDeCobro, fueraDelRango,
 } from "../js/nucleo/calculos.js";
+
+import { revisarQuincenas } from "../js/nucleo/modelo.js";
 
 // ---------------------------------------------------------------------------
 grupo("Formato: cómo se ve la plata");
@@ -111,6 +113,76 @@ prueba("el rango de días de cada quincena", () => {
   igual(rangoQuincena(2026, 8, 1, AGRO), { desde: 1, hasta: 14 });
   igual(rangoQuincena(2026, 8, 2, AGRO), { desde: 15, hasta: 31 });
   igual(rangoQuincena(2026, 2, 2, AGRO), { desde: 15, hasta: 28 }, "febrero acaba el 28");
+});
+
+// ---------------------------------------------------------------------------
+grupo("El rango de la quincena se puede escribir entero, no solo el corte");
+
+// El mes no siempre se cobra completo: hay meses en que la fábrica arranca el
+// 3. La cuenta tiene que decir "del 3 al 14", porque el supervisor la cuadra
+// contra la planilla de asistencia y dos días de diferencia le cuadran mal.
+const PUNTERAS = {
+  codigo: "PUNTERAS", primerDiaQ1: 3, ultimoDiaQ1: 14, primerDiaQ2: 15, ultimoDiaQ2: 30,
+};
+
+prueba("una empresa vieja, sin los días nuevos puestos, sigue dando igual", () => {
+  igual(rangoQuincena(2026, 8, 1, { ultimoDiaQ1: 14 }), { desde: 1, hasta: 14 });
+  igual(rangoQuincena(2026, 8, 2, { ultimoDiaQ1: 14 }), { desde: 15, hasta: 31 });
+});
+
+prueba("con los cuatro días puestos, sale lo que se escribió", () => {
+  igual(rangoQuincena(2026, 8, 1, PUNTERAS), { desde: 3, hasta: 14 });
+  igual(rangoQuincena(2026, 8, 2, PUNTERAS), { desde: 15, hasta: 30 }, "aunque agosto tenga 31");
+});
+
+prueba("el rango se recorta al mes, nunca se sale", () => {
+  igual(rangoQuincena(2026, 2, 2, PUNTERAS), { desde: 15, hasta: 28 }, "febrero manda");
+  igual(rangoQuincena(2026, 8, 2, { ultimoDiaQ1: 14, ultimoDiaQ2: 45 }).hasta, 31);
+  igual(rangoQuincena(2026, 8, 1, { primerDiaQ1: 99, ultimoDiaQ1: 14 }).desde, 1,
+        "un día imposible se ignora, no rompe la cuenta");
+});
+
+prueba("el CORTE no se mueve por escribir el rango: ningún renglón se pierde", () => {
+  // Esto es lo que no puede pasar nunca. Si el día 1 dejara de ser Q1 solo
+  // porque el rango dice que empieza el 3, ese almuerzo no saldría en NINGUNA
+  // de las dos cuentas y se cobraría de menos, calladamente.
+  igual(quincenaDe("2026-08-01", PUNTERAS), 1, "el 1 sigue siendo Q1 aunque el rango arranque el 3");
+  igual(quincenaDe("2026-08-31", PUNTERAS), 2, "y el 31 sigue siendo Q2 aunque el rango acabe el 30");
+});
+
+prueba("lo que se cobra por fuera del rango escrito se puede señalar", () => {
+  const consumos = [
+    { fecha: "2026-08-01", empresa: "PUNTERAS", persona: "ANA", producto: "ALMUERZO", cantidad: 1, precioUnitario: 12000 },
+    { fecha: "2026-08-05", empresa: "PUNTERAS", persona: "ANA", producto: "ALMUERZO", cantidad: 1, precioUnitario: 12000 },
+  ];
+  const afuera = fueraDelRango(consumos, 2026, 8, 1, PUNTERAS);
+  igual(afuera.length, 1, "solo el del día 1, que es antes del 3");
+  igual(afuera[0].fecha, "2026-08-01");
+  igual(fueraDelRango(consumos, 2026, 8, 1, AGRO).length, 0, "AGRO cobra el mes completo");
+});
+
+// ---------------------------------------------------------------------------
+grupo("Los cuatro días de la quincena no se guardan si no tienen sentido");
+
+prueba("los cuatro días normales pasan", () => {
+  igual(revisarQuincenas({ primerDiaQ1: 1, ultimoDiaQ1: 14, primerDiaQ2: 15, ultimoDiaQ2: 31 }),
+        { primerDiaQ1: 1, ultimoDiaQ1: 14, primerDiaQ2: 15, ultimoDiaQ2: 31 });
+});
+
+prueba("un rango al revés no se guarda", () => {
+  cierto(revisarQuincenas({ primerDiaQ1: 14, ultimoDiaQ1: 3, primerDiaQ2: 15, ultimoDiaQ2: 31 }).malo);
+  cierto(revisarQuincenas({ primerDiaQ1: 1, ultimoDiaQ1: 14, primerDiaQ2: 31, ultimoDiaQ2: 20 }).malo);
+});
+
+prueba("una quincena 2 que pisa a la 1 no se guarda: ese día se cobraría dos veces", () => {
+  const r = revisarQuincenas({ primerDiaQ1: 1, ultimoDiaQ1: 14, primerDiaQ2: 14, ultimoDiaQ2: 31 });
+  cierto(r.malo, "el 14 estaría en las dos");
+  cierto(r.malo.includes("14"), "y el aviso dice cuál es el día");
+});
+
+prueba("un día que no existe no se guarda", () => {
+  cierto(revisarQuincenas({ primerDiaQ1: 0, ultimoDiaQ1: 14, primerDiaQ2: 15, ultimoDiaQ2: 31 }).malo);
+  cierto(revisarQuincenas({ primerDiaQ1: 1, ultimoDiaQ1: 14, primerDiaQ2: 15, ultimoDiaQ2: 40 }).malo);
 });
 
 // ---------------------------------------------------------------------------

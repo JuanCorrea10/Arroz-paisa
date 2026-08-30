@@ -18,7 +18,7 @@ import {
   formaDeCobro, loPagaLaEmpresa, yaLoPago, esCortesia,
   subtotal, sumar, sumarLoDeLaEmpresa, sumarLoDeContado,
   cuentaDeCobro, informeDia, informePorPersona, informeCompletoDeEmpresa,
-  indicePorCodigo,
+  indicePorCodigo, deRango, rangoDeCobro, ponerRangoDeCobro,
 } from "../js/nucleo/calculos.js";
 
 const PRECIO = 12000;
@@ -129,6 +129,108 @@ prueba("una cuenta de solo pedidos de contado da cero", () => {
   const cuenta = cuentaDeCobro(datos.consumos, 2026, 8, 1, datos.empresas[0]);
   igual(cuenta.total, 0);
   igual(cuenta.filas.length, 0);
+});
+
+// ---------------------------------------------------------------------------
+grupo("La cuenta de cobro va por PERSONA, que es como la pide el cliente");
+
+prueba("cada persona sale una vez, con todo lo suyo junto", () => {
+  const datos = negocio([
+    renglon(A_CREDITO),
+    renglon(A_CREDITO, { producto: "GASEOSA", precioUnitario: 7000 }),
+    renglon(A_CREDITO, { persona: "ANA RUIZ" }),
+  ]);
+  const cuenta = cuentaDeCobro(datos.consumos, 2026, 8, 1, datos.empresas[0]);
+
+  igual(cuenta.personas.length, 2, "dos personas, aunque JUAN haya pedido dos cosas");
+  igual(cuenta.personas.map((p) => p.persona), ["ANA RUIZ", "JUAN GOMEZ"], "por nombre");
+  igual(cuenta.personas[1].total, PRECIO + 7000, "a JUAN se le suma todo lo suyo");
+  igual(cuenta.personas[1].facturas, 1, "las dos cosas del mismo día son UNA factura");
+});
+
+prueba("lo de la gente suma exactamente el total de la cuenta", () => {
+  // Si esto no cuadra, el papel dice un total y los renglones dicen otro:
+  // el contador de la fábrica lo suma a mano y devuelve la cuenta.
+  const datos = negocio([
+    renglon(A_CREDITO),
+    renglon(DE_CONTADO, { persona: "ANA RUIZ" }),
+    renglon(A_CREDITO, { persona: "ANA RUIZ", producto: "GASEOSA", precioUnitario: 7000 }),
+  ]);
+  const cuenta = cuentaDeCobro(datos.consumos, 2026, 8, 1, datos.empresas[0]);
+  igual(cuenta.personas.reduce((a, p) => a + p.total, 0), cuenta.total);
+});
+
+prueba("quien solo pagó de contado NO sale en la cuenta", () => {
+  const datos = negocio([renglon(A_CREDITO), renglon(DE_CONTADO, { persona: "ANA RUIZ" })]);
+  const cuenta = cuentaDeCobro(datos.consumos, 2026, 8, 1, datos.empresas[0]);
+  igual(cuenta.personas.map((p) => p.persona), ["JUAN GOMEZ"],
+        "ANA ya pagó en la caja: cobrarle a la empresa sería cobrar dos veces");
+});
+
+// ---------------------------------------------------------------------------
+grupo("Una cuenta de cobro puede cubrir los días que ella escoja");
+
+const TRES_DIAS = [
+  renglon(A_CREDITO, { fecha: "2026-08-02" }),
+  renglon(A_CREDITO, { fecha: "2026-08-05", persona: "ANA RUIZ" }),
+  renglon(A_CREDITO, { fecha: "2026-08-09" }),
+];
+
+prueba("sin rango escogido, la cuenta es la quincena entera", () => {
+  const datos = negocio(TRES_DIAS);
+  const cuenta = cuentaDeCobro(datos.consumos, 2026, 8, 1, datos.empresas[0]);
+  igual(cuenta.total, PRECIO * 3);
+  igual(cuenta.rangoEscogido, false);
+  igual(cuenta.rango, { desde: 1, hasta: 15 });
+});
+
+prueba("con rango escogido, la cuenta lleva SOLO esos días", () => {
+  const datos = negocio(TRES_DIAS);
+  const cuenta = cuentaDeCobro(datos.consumos, 2026, 8, 1, datos.empresas[0], null,
+                               { desde: 3, hasta: 6 });
+  igual(cuenta.total, PRECIO, "solo el del 5");
+  igual(cuenta.personas.map((p) => p.persona), ["ANA RUIZ"]);
+  igual(cuenta.rango, { desde: 3, hasta: 6 });
+  cierto(cuenta.rangoEscogido, "y se sabe que los días los escogió ella");
+});
+
+prueba("el rango escogido puede pasarse del corte de la quincena", () => {
+  // El día 20 es quincena 2 para esta empresa (corta el 15). Si ella escoge
+  // "del 1 al 31", la cuenta tiene que llevarlo igual: mandan los días, no la
+  // quincena.
+  const datos = negocio(TRES_DIAS.concat([renglon(A_CREDITO, { fecha: "2026-08-20" })]));
+  const cuenta = cuentaDeCobro(datos.consumos, 2026, 8, 1, datos.empresas[0], null,
+                               { desde: 1, hasta: 31 });
+  igual(cuenta.total, PRECIO * 4, "el mes completo en una sola cuenta");
+});
+
+prueba("deRango no se lleva lo de otra empresa", () => {
+  const datos = negocio(TRES_DIAS.concat([renglon(A_CREDITO, { fecha: "2026-08-05", empresa: "OTRA" })]));
+  igual(deRango(datos.consumos, 2026, 8, { desde: 1, hasta: 31 }, datos.empresas[0]).length, 3);
+});
+
+// ---------------------------------------------------------------------------
+grupo("Los días de una cuenta se guardan sin tocarle la regla a la empresa");
+
+prueba("se guarda y se lee por empresa, mes y quincena", () => {
+  const datos = negocio([]);
+  igual(rangoDeCobro(datos, "MGP", 2026, 8, 1), null, "sin nada guardado, manda la quincena");
+
+  ponerRangoDeCobro(datos, "MGP", 2026, 8, 1, { desde: 3, hasta: 14 });
+  igual(rangoDeCobro(datos, "MGP", 2026, 8, 1), { desde: 3, hasta: 14 });
+  igual(rangoDeCobro(datos, "MGP", 2026, 8, 2), null, "la otra quincena no se contagia");
+  igual(rangoDeCobro(datos, "MGP", 2026, 9, 1), null, "ni el otro mes");
+  igual(datos.empresas[0].ultimoDiaQ1, 15, "y a la empresa no se le tocó nada");
+});
+
+prueba("un rango imposible no se guarda: borra el que hubiera", () => {
+  const datos = negocio([]);
+  ponerRangoDeCobro(datos, "MGP", 2026, 8, 1, { desde: 3, hasta: 14 });
+  ponerRangoDeCobro(datos, "MGP", 2026, 8, 1, { desde: 20, hasta: 4 });
+  igual(rangoDeCobro(datos, "MGP", 2026, 8, 1), null, "al revés no vale");
+
+  ponerRangoDeCobro(datos, "MGP", 2026, 8, 1, { desde: 1, hasta: 40 });
+  igual(rangoDeCobro(datos, "MGP", 2026, 8, 1), null, "agosto no tiene 40 días");
 });
 
 // ---------------------------------------------------------------------------

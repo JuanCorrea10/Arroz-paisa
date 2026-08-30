@@ -37,7 +37,7 @@ import {
 import { estado, empresas, empresaPorCodigo } from "./estado.js";
 import { pesos, nombreMes } from "../nucleo/formato.js";
 import {
-  delMes, quincenaDe, sumar, contarFacturas, cuentaDeCobro, rangoQuincena,
+  delMes, quincenaDe, sumar, contarFacturas, cuentaDeCobro, rangoQuincena, rangoDeCobro,
   fechaDeCobro, informeCompletoDeEmpresa,
   loPagaLaEmpresa,
 } from "../nucleo/calculos.js";
@@ -206,10 +206,13 @@ function botonCuenta(empresa, anio, mes, quincena, cuantos) {
     clase: "plano",
     disabled: cuantos === 0,
     alHacerClic: () => {
+      // Con los mismos días que se hayan escogido en la pantalla de cobro: si
+      // no, de aquí saldría una cuenta distinta a la que ella ya revisó.
       const cuenta = cuentaDeCobro(
         estado.datos.consumos, anio, mes, quincena, empresa,
-        fechaDeCobro(estado.datos, empresa.codigo, anio, mes, quincena));
-      if (!cuenta.filas.length) {
+        fechaDeCobro(estado.datos, empresa.codigo, anio, mes, quincena),
+        rangoDeCobro(estado.datos, empresa.codigo, anio, mes, quincena));
+      if (!cuenta.personas.length) {
         mensaje(`No hay nada que cobrar en la quincena ${quincena}.`, "ojo");
         return;
       }

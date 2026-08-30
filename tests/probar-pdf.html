@@ -392,6 +392,144 @@ if (revento) {
       ? `OK   "${que}": el encabezado dice ${emp.codigo} (${acostada ? "acostada" : "de pie"})`
       : `MAL  "${que}": el encabezado NO dice ${emp.codigo}, solo la razón social`);
   }
+
+  // --- Solo el nombre y el valor ------------------------------------------
+  //
+  // Es la lista que ella le pasa a la fábrica: quién y cuánto, nada más. Lo
+  // que hay que revisar es que de verdad se hayan ido las otras dos columnas
+  // (la empresa y el número de facturas) y que NO se haya ido nadie con
+  // ellas: una lista de pago a la que le falta una persona se nota tarde.
+  {
+    capturado = null;
+    window.jspdf.jsPDF.API.save = function (nombre) { capturado = { doc: this, nombre }; return this; };
+    let malo = null;
+    try {
+      pdf.pdfPorPersona(filas, anio, mes, rotulo, datos.config.acreedor || {}, dia, "quincena", true);
+    } catch (e) { malo = e; }
+    window.jspdf.jsPDF.API.save = guardarDeVerdad;
+
+    anotar("");
+    if (malo) {
+      anotar("MAL  solo nombre y valor reventó: " + (malo.stack || malo.message));
+    } else if (!capturado) {
+      anotar("MAL  solo nombre y valor no generó nada");
+    } else {
+      const crudo = capturado.doc.output();
+      anotar(`OK   solo nombre y valor: ${capturado.nombre}`);
+      anotar(!crudo.includes("Facturas")
+        ? "OK   ya no lleva la columna de facturas"
+        : "MAL  todavía lleva la columna de facturas");
+
+      // La que DEBE no se puede perder. La que no consumió nada sí se va, a
+      // propósito: un renglón en $ 0 solo hace que los que sí deben se
+      // pierdan entre los ceros. Así que se revisan las dos cosas.
+      const enElPapel = (n) => crudo.includes(n.replace(/[()\\]/g, ""));
+      const deben = filas.filter((f) => f.enCurso > 0);
+      const enCero = filas.filter((f) => f.enCurso === 0);
+
+      const perdidas = deben.map((f) => f.persona).filter((n) => !enElPapel(n));
+      anotar(perdidas.length === 0
+        ? `OK   las ${deben.length} personas que consumieron están todas`
+        : `MAL  se perdieron ${perdidas.length}: ${perdidas.slice(0, 3).join(", ")}`);
+
+      const coladas = enCero.map((f) => f.persona).filter(enElPapel);
+      anotar(coladas.length === 0
+        ? `OK   las ${enCero.length} que no consumieron no ensucian la lista`
+        : `OJO  ${coladas.length} en $ 0 salieron igual: ${coladas.slice(0, 3).join(", ")}`);
+
+      anotar(crudo.includes("no consumieron nada")
+        ? "OK   el papel dice cuántas se quedaron por fuera"
+        : "MAL  no dice que hay gente por fuera: parecería una lista incompleta");
+
+      anotar(capturado.doc.internal.pageSize.getWidth() < 250
+        ? "OK   sale de pie, que es como se lee en el celular"
+        : "OJO  salió acostada");
+
+      try {
+        await fetch("/guardar-persona", { method: "POST", body: capturado.doc.output("datauristring") });
+        anotar("guardado en tests/salida/consumo-por-persona.pdf");
+      } catch { /* sin servidor, no se guarda y ya */ }
+    }
+  }
+}
+
+// --- La cuenta de cobro ---------------------------------------------------
+//
+// Es EL papel: el que se entrega en la mano y con el que la fábrica paga. Se
+// vigilan las tres cosas que la dañarían sin que se note:
+//
+//   1. Que diga quién le debe a quién, y en ese orden. Al revés se lee al
+//      contrario, y quien lo archiva no se da cuenta.
+//   2. Que la gente salga por persona y que la suma de los renglones dé
+//      EXACTAMENTE el total: si no, el contador la suma a mano y la devuelve.
+//   3. Que si los días se escogieron a mano, el rótulo NO siga diciendo
+//      "Quincena 2" -- diría una cosa y cubriría otra.
+{
+  const { cuentaDeCobro } = await import("../js/nucleo/calculos.js");
+  const emp = datos.empresas.find((e) => e.codigo === codigo) || datos.empresas[0];
+  const acreedor = datos.config.acreedor || {};
+
+  const armar = (rango) => {
+    capturado = null;
+    window.jspdf.jsPDF.API.save = function (nombre) { capturado = { doc: this, nombre }; return this; };
+    let malo = null;
+    let cuenta = null;
+    try {
+      cuenta = cuentaDeCobro(datos.consumos, anio, mes, 1, emp, null, rango);
+      pdf.pdfCuentaDeCobro(cuenta, acreedor);
+    } catch (e) { malo = e; }
+    window.jspdf.jsPDF.API.save = guardarDeVerdad;
+    return { malo, cuenta };
+  };
+
+  anotar("");
+  const { malo, cuenta } = armar(null);
+  if (malo) {
+    anotar("MAL  la cuenta de cobro reventó: " + (malo.stack || malo.message));
+  } else if (!capturado) {
+    anotar("MAL  la cuenta de cobro no se generó");
+  } else {
+    const crudo = capturado.doc.output();
+    anotar(`cuenta de cobro de ${emp.codigo}: ${cuenta.personas.length} personas, ${cuenta.total}`);
+
+    anotar(crudo.includes("QUIEN DEBE") && crudo.includes("DEBE A")
+      ? "OK   dice quién debe y a quién"
+      : "MAL  no dice quién debe a quién");
+
+    anotar(!crudo.includes("Valor unitario")
+      ? "OK   ya no lleva el desglose de platos"
+      : "MAL  todavía lleva la tabla de platos");
+
+    const suma = cuenta.personas.reduce((a, p) => a + p.total, 0);
+    anotar(suma === cuenta.total
+      ? `OK   los renglones suman el total (${cuenta.total})`
+      : `MAL  los renglones suman ${suma} y el total dice ${cuenta.total}`);
+
+    const perdidas = cuenta.personas.map((p) => p.persona)
+      .filter((n) => !crudo.includes(n.replace(/[()\\]/g, "")));
+    anotar(perdidas.length === 0
+      ? `OK   las ${cuenta.personas.length} personas están en el papel`
+      : `MAL  no salieron ${perdidas.length}: ${perdidas.slice(0, 3).join(", ")}`);
+
+    try {
+      await fetch("/guardar-cobro", { method: "POST", body: capturado.doc.output("datauristring") });
+      anotar("guardado en tests/salida/cuenta-de-cobro.pdf");
+    } catch { /* sin servidor, no se guarda y ya */ }
+  }
+
+  // Y con los días escogidos a mano.
+  const escogida = armar({ desde: 3, hasta: 9 });
+  if (escogida.malo) {
+    anotar("MAL  con días escogidos reventó: " + escogida.malo.message);
+  } else if (capturado) {
+    const crudo = capturado.doc.output();
+    anotar(capturado.nombre.includes("3-al-9")
+      ? `OK   con días escogidos el archivo se llama distinto: ${capturado.nombre}`
+      : `OJO  el archivo se llama ${capturado.nombre}`);
+    anotar(!crudo.includes("Quincena 1")
+      ? "OK   el rótulo ya no dice \"Quincena 1\": dice los días que cubre"
+      : "MAL  el rótulo sigue diciendo \"Quincena 1\" con otros días adentro");
+  }
 }
 
 try { await fetch("/diagnostico", { method: "POST", body: lineas.join("\n") }); } catch {}

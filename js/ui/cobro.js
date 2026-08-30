@@ -10,11 +10,13 @@
 import { el, vaciar, tabla, cifra, cifraPlata, acciones, vacio, mensaje, confirmar, poner, botonQueTrabaja,
 } from "./componentes.js";
 import { estado, cambio, empresas, empresaPorCodigo, asegurarEmpresa } from "./estado.js";
-import { pesos, nombreMes, fechaCorta, fechaLarga } from "../nucleo/formato.js";
+import { pesos, nombreMes, fechaCorta, fechaLarga, diaDe, diasDelMes } from "../nucleo/formato.js";
 import {
   cuentaDeCobro, deQuincena, sumar, fechaDeCobro, ponerFechaDeCobro,
-  esCortesia, sumarLoDeLaEmpresa,
+  esCortesia, sumarLoDeLaEmpresa, fueraDelRango,
+  rangoQuincena, rangoDeCobro, ponerRangoDeCobro,
 } from "../nucleo/calculos.js";
+import { diceElRango } from "./mantenimiento.js";
 import { pdfCuentaDeCobro } from "../exportar/pdf.js";
 import { descargarReporteEmpresa } from "../exportar/reporte-empresa.js";
 import { exportarEmpresaAExcel } from "../exportar/excel-export.js";
@@ -40,8 +42,30 @@ export function pintarCobro(raiz) {
   const empresa = empresaPorCodigo(empresaCobro);
   const acreedor = estado.datos.config.acreedor || {};
   const laFecha = fechaDeCobro(estado.datos, empresaCobro, estado.anio, estado.mes, quincena);
+
+  // El rango de ESTA cuenta. Si no hay ninguno escogido, manda la quincena de
+  // la empresa; si lo hay, manda él y no se toca la empresa -- cambiarle los
+  // días a la empresa cambiaría todas las cuentas del año, las ya entregadas
+  // incluidas.
+  const finDeMes = diasDelMes(estado.anio, estado.mes);
+  const propio = rangoDeCobro(estado.datos, empresaCobro, estado.anio, estado.mes, quincena);
+  const cubre = propio || rangoQuincena(estado.anio, estado.mes, quincena, empresa);
+
+  const ponerElRango = (desde, hasta) => {
+    const d = Math.max(1, Math.min(finDeMes, Number(desde) || 1));
+    const h = Math.max(1, Math.min(finDeMes, Number(hasta) || finDeMes));
+    if (d > h) {
+      mensaje("El primer día no puede ser mayor que el último.", "malo", 6);
+      repintar();
+      return;
+    }
+    ponerRangoDeCobro(estado.datos, empresaCobro, estado.anio, estado.mes, quincena, { desde: d, hasta: h });
+    cambio();
+    repintar();
+  };
+
   const cuenta = cuentaDeCobro(
-    estado.datos.consumos, estado.anio, estado.mes, quincena, empresa, laFecha);
+    estado.datos.consumos, estado.anio, estado.mes, quincena, empresa, laFecha, propio);
 
   // Aviso importante: si en esa quincena hay algo en $0, la cuenta sale corta.
   const enCero = deQuincena(estado.datos.consumos, estado.anio, estado.mes, quincena, empresa).filter(
@@ -52,7 +76,7 @@ export function pintarCobro(raiz) {
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Cuenta de cobro" }),
-        el("p", { texto: "Elija la empresa y la quincena. El documento sale listo para entregar." })
+        el("p", { texto: "Elija la empresa, la quincena y los días que cubre. El documento sale listo para entregar." })
       ),
       acciones(
         el("button", { clase: "chico", alHacerClic: () => window.print() }, "Imprimir"),
@@ -87,8 +111,47 @@ export function pintarCobro(raiz) {
       el("div", { clase: "campo" },
         el("label", { for: "cobro-quincena", texto: "Quincena" }),
         el("select", { id: "cobro-quincena", alCambiar: (e) => { quincena = Number(e.target.value); repintar(); } },
-          el("option", { value: 1, selected: quincena === 1 }, `Quincena 1 (día 1 al ${empresa.ultimoDiaQ1})`),
-          el("option", { value: 2, selected: quincena === 2 }, `Quincena 2 (día ${empresa.ultimoDiaQ1 + 1} en adelante)`))
+          el("option", { value: 1, selected: quincena === 1 }, `Quincena 1 (${diceElRango(empresa, 1)})`),
+          el("option", { value: 2, selected: quincena === 2 }, `Quincena 2 (${diceElRango(empresa, 2)})`))
+      ),
+
+      // De qué día a qué día va ESTA cuenta.
+      //
+      // Está aquí y no en Empresas a propósito: los días de la empresa son la
+      // regla ("cortamos el 14"), pero una cuenta suelta puede cubrir otra
+      // cosa, y el momento en que ella se da cuenta es este -- con la cuenta
+      // en pantalla y a punto de entregarla.
+      el("div", { clase: "campo no-imprimir" },
+        el("label", { for: "cobro-desde", texto: `Días que cubre (${nombreMes(estado.mes).toLowerCase()})` }),
+        el("div", { clase: "fila", estilo: "align-items:center;gap:var(--e2)" },
+          el("span", { texto: "del" }),
+          el("input", {
+            type: "number", id: "cobro-desde", min: 1, max: finDeMes, value: String(cubre.desde),
+            estilo: "width:5rem",
+            alCambiar: (e) => ponerElRango(e.target.value, cubre.hasta),
+          }),
+          el("span", { texto: "al" }),
+          el("input", {
+            type: "number", id: "cobro-hasta", min: 1, max: finDeMes, value: String(cubre.hasta),
+            estilo: "width:5rem",
+            alCambiar: (e) => ponerElRango(cubre.desde, e.target.value),
+          })
+        ),
+        propio
+          ? el("small", { estilo: "color:var(--tinta-suave)" },
+              `Escogidos solo para esta cuenta. La quincena ${quincena} va ${diceElRango(empresa, quincena)}. `,
+              el("button", {
+                clase: "plano chico",
+                alHacerClic: () => {
+                  ponerRangoDeCobro(estado.datos, empresaCobro, estado.anio, estado.mes, quincena, null);
+                  cambio();
+                  repintar();
+                },
+              }, "Volver a la quincena"))
+          : el("small", {
+              estilo: "color:var(--tinta-suave)",
+              texto: `Es la quincena ${quincena} completa. Si los cambia, aplica solo a esta cuenta.`,
+            })
       ),
       el("div", { clase: "campo" },
         el("label", { for: "cobro-mes", texto: "Mes" }),
@@ -116,6 +179,37 @@ export function pintarCobro(raiz) {
     );
   }
 
+  // Plata de esta quincena que los días escogidos dejaron por fuera.
+  //
+  // No se mete a la fuerza (ella escogió esos días) ni se calla (sería cobrar
+  // de menos sin que nadie se entere): se le dice cuánto y de qué días es, y
+  // se le deja el botón para taparlo de un solo toque.
+  const afuera = fueraDelRango(estado.datos.consumos, estado.anio, estado.mes, quincena, empresa, cubre);
+  if (afuera.length) {
+    const dias = [...new Set(afuera.map((c) => diaDe(c.fecha)))].sort((a, b) => a - b);
+    poner(raiz,
+      el("div", { clase: "nota malo no-imprimir" },
+        el("div", {},
+          el("strong", { texto: `${pesos(sumarLoDeLaEmpresa(afuera))} de esta quincena no entran en la cuenta` }),
+          el("p", { texto:
+            `La cuenta cubre del ${cubre.desde} al ${cubre.hasta}, así que ` +
+            `${dias.length === 1 ? "el día" : "los días"} ${dias.join(", ")} ` +
+            `${dias.length === 1 ? "se queda" : "se quedan"} por fuera. Si no es a propósito, ` +
+            `amplíe los días; y si esos pedidos están anotados en la fecha equivocada, ` +
+            `arréglelos antes de entregar.` })
+        ),
+        el("div", { clase: "acciones" },
+          el("button", {
+            clase: "boton chico",
+            alHacerClic: () => ponerElRango(
+              Math.min(cubre.desde, dias[0]),
+              Math.max(cubre.hasta, dias[dias.length - 1])
+            ),
+          }, "Cubrir esos días"))
+      )
+    );
+  }
+
   if (!cuenta.filas.length) {
     poner(raiz, vacio(
       `No hay nada que cobrarle a ${empresaCobro} en la quincena ${quincena} de ${nombreMes(estado.mes)}`,
@@ -131,7 +225,7 @@ export function pintarCobro(raiz) {
 // ---------------------------------------------------------------------------
 
 function documentoDeCobro(cuenta, acreedor) {
-  const { empresa, rango, mes, anio, filas, total, facturas, fechaCuenta } = cuenta;
+  const { empresa, rango, mes, anio, personas, total, facturas, fechaCuenta } = cuenta;
 
   return el("div", { clase: "documento" },
 
@@ -154,18 +248,22 @@ function documentoDeCobro(cuenta, acreedor) {
           (acreedor.ciudad ? acreedor.ciudad + ", " : "") + fechaLarga(fechaCuenta))
       : null,
 
+    // Primero el que debe y después a quién, para que se lea como la frase
+    // que es: "BOTAS AGROINDUSTRIAL SAS debe a VALENTINA SÁNCHEZ GUZMÁN".
+    // Al revés -- que es como estaba -- hay que armar la frase de memoria, y
+    // en un papel que se entrega eso se presta para leerlo al contrario.
     el("div", { clase: "partes" },
       el("div", { clase: "parte" },
-        el("h4", { texto: "Quien cobra" }),
-        el("div", { clase: "nombre", texto: acreedor.nombre || "—" }),
-        el("div", { clase: "nit", texto: acreedor.nit ? "NIT " + acreedor.nit : "" }),
-        el("div", { clase: "nit", texto: acreedor.ciudad || "" })
-      ),
-      el("div", { clase: "parte" },
-        el("h4", { texto: "A quien se le cobra" }),
+        el("h4", { texto: "Quien debe" }),
         el("div", { clase: "nombre", texto: empresa.razonSocial || empresa.codigo }),
         el("div", { clase: "nit", texto: empresa.nit ? "NIT " + empresa.nit : "" }),
         el("div", { clase: "nit", texto: "Sede " + empresa.codigo })
+      ),
+      el("div", { clase: "parte" },
+        el("h4", { texto: "Debe a" }),
+        el("div", { clase: "nombre", texto: acreedor.nombre || "—" }),
+        el("div", { clase: "nit", texto: acreedor.nit ? "NIT " + acreedor.nit : "" }),
+        el("div", { clase: "nit", texto: acreedor.ciudad || "" })
       )
     ),
 
@@ -175,24 +273,27 @@ function documentoDeCobro(cuenta, acreedor) {
     ),
 
     el("dl", { clase: "cifras", estilo: "margin:var(--e4) 0" },
-      cifra("Quincena", String(cuenta.quincena)),
+      cifra("Personas", String(personas.length)),
       cifra("Facturas", String(facturas)),
-      cifra("Unidades", String(filas.reduce((a, f) => a + f.cantidad, 0))),
       cifraPlata("Total a pagar", total, true)
     ),
 
+    // Una persona por renglón y su valor, sin platos.
+    //
+    // Es lo que el cliente pide: el contador de la fábrica descuenta esto por
+    // nómina, y para eso lo que necesita es un nombre y un número. El desglose
+    // de qué comió cada quien sigue estando en el Excel y en el reporte del
+    // mes, que es donde se va a buscar el día que alguien reclame.
     tabla(
-      [{ titulo: "Plato" }, { titulo: "Cantidad", clase: "n" }, { titulo: "Valor unitario", clase: "n" }, { titulo: "Total", clase: "n" }],
-      filas.map((f) =>
+      [{ titulo: "Persona" }, { titulo: "Total", clase: "n" }],
+      personas.map((p) =>
         el("tr", {},
-          el("td", { texto: f.producto }),
-          el("td", { clase: "n", texto: String(f.cantidad) }),
-          el("td", { clase: "n", texto: pesos(f.precioUnitario) }),
-          el("td", { clase: "n", texto: pesos(f.total) })
+          el("td", { texto: p.persona }),
+          el("td", { clase: "n", texto: pesos(p.total) })
         )
       ),
       el("tr", {},
-        el("td", { colspan: "3", texto: "TOTAL A PAGAR" }),
+        el("td", { texto: "TOTAL A PAGAR" }),
         el("td", { clase: "n", texto: pesos(total) })
       )
     ),
@@ -241,7 +342,8 @@ function paraElCliente(empresa) {
             for (const q of [1, 2]) {
               pdfCuentaDeCobro(
                 cuentaDeCobro(estado.datos.consumos, estado.anio, estado.mes, q, empresa,
-                  fechaDeCobro(estado.datos, empresaCobro, estado.anio, estado.mes, q)),
+                  fechaDeCobro(estado.datos, empresaCobro, estado.anio, estado.mes, q),
+                  rangoDeCobro(estado.datos, empresaCobro, estado.anio, estado.mes, q)),
                 acreedor);
             }
             mensaje("Bajé las dos cuentas de cobro del mes.", "bien");

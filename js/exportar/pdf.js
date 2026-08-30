@@ -240,6 +240,13 @@ const estiloTabla = {
   alternateRowStyles: { fillColor: RAYA },
   styles: { cellPadding: 2.2, lineColor: [207, 219, 203], lineWidth: 0.15 },
   margin: { left: 14, right: 14 },
+
+  // El encabezado SÍ se repite en cada hoja (si no, la hoja 2 son números sin
+  // título); el pie NO. autoTable repite los dos por su cuenta, y un renglón
+  // que dice "TOTAL A PAGAR $ 2.779.000" al pie de la hoja 1 de 3 se lee como
+  // si esa hoja sumara eso -- o peor, alguien suma los tres totales y le da el
+  // triple. El total va una vez, donde de verdad se acaba la cuenta.
+  showFoot: "lastPage",
 };
 
 function guardar(doc, nombre) {
@@ -252,12 +259,18 @@ function guardar(doc, nombre) {
 
 export function pdfCuentaDeCobro(cuenta, acreedor) {
   const doc = nuevoDocumento();
-  const { empresa, anio, mes, quincena, rango, filas, total, facturas, fechaCuenta } = cuenta;
+  const { empresa, anio, mes, quincena, rango, personas, total, facturas, fechaCuenta } = cuenta;
   const periodo = `Del ${rango.desde} al ${rango.hasta} de ${nombreMes(mes).toLowerCase()} de ${anio}`;
 
   // Con el logo del restaurante en la franja. Si no alcanzo a cargar, la
   // cuenta se entrega igual: sin logo se cobra, sin cuenta no.
-  let y = encabezado(doc, "CUENTA DE COBRO", `${nombreMes(mes)} ${anio} · Quincena ${quincena}`, acreedor, true);
+  // Si los días se escogieron a mano, el rótulo NO puede decir "Quincena 2":
+  // el papel diría una cosa y cubriría otra, y quien lo recibe archiva por ese
+  // rótulo. Cuando es la quincena de verdad, se sigue llamando por su nombre.
+  const rotulo = cuenta.rangoEscogido
+    ? `${nombreMes(mes)} ${anio} · Del ${rango.desde} al ${rango.hasta}`
+    : `${nombreMes(mes)} ${anio} · Quincena ${quincena}`;
+  let y = encabezado(doc, "CUENTA DE COBRO", rotulo, acreedor, true);
 
   // La fecha en que se pasa la cuenta, si ella la puso. No se inventa: un
   // documento con fecha inventada es peor que uno sin fecha.
@@ -270,17 +283,22 @@ export function pdfCuentaDeCobro(cuenta, acreedor) {
     y += 4;
   }
 
-  // Quién le cobra a quién. Es lo primero que mira el contador del cliente.
+  // Quién le debe a quién. Es lo primero que mira el contador del cliente.
+  //
+  // Va primero el que DEBE y después a quién, para que se lea como la frase
+  // que es: "BOTAS AGROINDUSTRIAL SAS debe a VALENTINA SANCHEZ GUZMAN". Al
+  // reves -- que es como estaba -- hay que armar la frase de memoria, y en un
+  // papel que se entrega eso se presta para leerlo al contrario.
   //
   // Los dos nombres salen del mismo tamano y lo mas grandes que quepan. Del
   // mismo tamano porque son la misma cosa vista de los dos lados: si uno sale
   // grande y el otro chiquito, el documento se ve mal armado.
-  const quienCobra = acreedor.nombre || "-";
-  const aQuienCobra = empresa.razonSocial || empresa.codigo;
+  const quienDebe = empresa.razonSocial || empresa.codigo;
+  const debeA = acreedor.nombre || "-";
   const utilCaja = 80;
   doc.setFont("helvetica", "bold");
-  const mideIzq = medirAjustado(doc, quienCobra, utilCaja, 15, 9.5);
-  const mideDer = medirAjustado(doc, aQuienCobra, utilCaja, 15, 9.5);
+  const mideIzq = medirAjustado(doc, quienDebe, utilCaja, 15, 9.5);
+  const mideDer = medirAjustado(doc, debeA, utilCaja, 15, 9.5);
   const tamNombre = Math.min(mideIzq.tam, mideDer.tam);
   const renglonesNombre = Math.max(mideIzq.renglones.length, mideDer.renglones.length);
 
@@ -298,19 +316,19 @@ export function pdfCuentaDeCobro(cuenta, acreedor) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
   doc.setTextColor(...GRIS);
-  doc.text("QUIEN COBRA", 18, y + 6);
-  doc.text("A QUIEN SE LE COBRA", 112, y + 6);
+  doc.text("QUIEN DEBE", 18, y + 6);
+  doc.text("DEBE A", 112, y + 6);
 
   doc.setTextColor(22, 33, 27);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(tamNombre);
-  doc.text(doc.splitTextToSize(quienCobra, utilCaja), 18, baseNombre);
-  doc.text(doc.splitTextToSize(aQuienCobra, utilCaja), 112, baseNombre);
+  doc.text(doc.splitTextToSize(quienDebe, utilCaja), 18, baseNombre);
+  doc.text(doc.splitTextToSize(debeA, utilCaja), 112, baseNombre);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text("NIT " + (acreedor.nit || "-"), 18, baseNit);
-  doc.text("NIT " + (empresa.nit || "-"), 112, baseNit);
+  doc.text("NIT " + (empresa.nit || "-"), 18, baseNit);
+  doc.text("NIT " + (acreedor.nit || "-"), 112, baseNit);
 
   y += altoCaja + 7;
   doc.setFontSize(10);
@@ -320,26 +338,44 @@ export function pdfCuentaDeCobro(cuenta, acreedor) {
   doc.text(`Almuerzos y bebidas suministrados. ${periodo}.`, 36, y);
   y += 8;
 
+  // Una persona por renglón y lo que debe, sin platos.
+  //
+  // Es lo que el cliente pide: con esto el contador de la fábrica descuenta
+  // por nómina, y para eso lo que necesita es un nombre y un número. El
+  // desglose de qué comió cada quien sigue estando en el Excel del mes y en
+  // el reporte, que es donde se va a mirar el día que alguien reclame.
+  // Con 66 personas la cuenta se va a tres hojas, y una hoja suelta llena de
+  // nombres y de plata que no dice de quién es ni de qué mes se archiva mal o
+  // se le entrega a la empresa equivocada. Desde la segunda, cada una vuelve a
+  // decirlo.
+  let primeraHoja = true;
   doc.autoTable({
     ...estiloTabla,
     startY: y,
-    head: [["Plato", "Cantidad", "Valor unitario", "Total"]],
-    body: filas.map((f) => [f.producto, String(f.cantidad), pesos(f.precioUnitario), pesos(f.total)]),
+    margin: { left: 14, right: 14, top: 34, bottom: 20 },
+    head: [["Persona", "Total"]],
+    body: personas.map((p) => [p.persona, pesos(p.total)]),
     columnStyles: {
       0: { cellWidth: "auto" },
-      1: { halign: "right", cellWidth: 24 },
-      2: { halign: "right", cellWidth: 32 },
-      3: { halign: "right", cellWidth: 34 },
+      1: { halign: "right", cellWidth: 40, fontStyle: "bold" },
     },
-    foot: [["TOTAL A PAGAR", "", "", pesos(total)]],
+    foot: [["TOTAL A PAGAR", pesos(total)]],
     footStyles: { fillColor: [255, 255, 255], textColor: MARCA, fontStyle: "bold", fontSize: 12, lineWidth: 0.4, lineColor: MARCA, halign: "right" },
     didParseCell: (d) => { if (d.section === "foot" && d.column.index === 0) d.cell.styles.halign = "left"; },
+    didDrawPage: () => {
+      if (primeraHoja) { primeraHoja = false; return; }
+      encabezado(doc, "CUENTA DE COBRO", `${rotulo} · ${quienDebe}`, acreedor);
+    },
   });
 
   let fin = doc.lastAutoTable.finalY + 8;
   doc.setFontSize(9);
   doc.setTextColor(...GRIS);
-  doc.text(`${facturas} facturas · ${filas.reduce((a, f) => a + f.cantidad, 0)} unidades en total`, 14, fin);
+  doc.text(
+    `${personas.length} ${personas.length === 1 ? "persona" : "personas"} · ` +
+    `${facturas} ${facturas === 1 ? "factura" : "facturas"}`,
+    14, fin
+  );
 
   fin += 26;
   const ancho = doc.internal.pageSize.getWidth();
@@ -353,7 +389,8 @@ export function pdfCuentaDeCobro(cuenta, acreedor) {
   doc.text("Recibido / Aprobado", ancho - 90, fin + 5);
 
   pieDePagina(doc);
-  guardar(doc, `cuenta-de-cobro-${empresa.codigo}-${anio}-${String(mes).padStart(2, "0")}-Q${quincena}.pdf`);
+  const cual = cuenta.rangoEscogido ? `${rango.desde}-al-${rango.hasta}` : `Q${quincena}`;
+  guardar(doc, `cuenta-de-cobro-${empresa.codigo}-${anio}-${String(mes).padStart(2, "0")}-${cual}.pdf`);
 }
 
 // ---------------------------------------------------------------------------
@@ -913,14 +950,15 @@ export function pdfCocina(filas, fecha, codigos, acreedor, notas = []) {
  * descontar, y la del mes es para cuadrar. Mandar las tres cuando solo hace
  * falta una es darle a alguien tres números para que lea el que no es.
  */
-export function pdfPorPersona(filas, anio, mes, nombreEmpresa, acreedor, fechaDia = null, que = "todo") {
+export function pdfPorPersona(filas, anio, mes, nombreEmpresa, acreedor, fechaDia = null, que = "todo", soloValor = false) {
   const conDia = Boolean(fechaDia) && (que === "todo" || que === "dia");
   const conQuincena = que === "todo" || que === "quincena";
   const conMes = que === "todo" || que === "mes";
 
-  // Acostado solo cuando van las tres. Con una sola columna de plata caben de
-  // pie sin apretar el nombre, y una hoja de pie se lee mejor en el celular.
-  const doc = nuevoDocumento(que === "todo" ? "l" : "p");
+  // Acostado solo cuando van las tres CON todo lo demás. Con una sola columna
+  // de plata caben de pie sin apretar el nombre, y una hoja de pie se lee
+  // mejor en el celular -- que es donde la abre quien la recibe.
+  const doc = nuevoDocumento(que === "todo" && !soloValor ? "l" : "p");
 
   // De las dos quincenas va la que corre el día que se está mirando; la otra
   // ya se cobró. El 14 hay gente en las dos a la vez (MGP cierra el 13), y
@@ -944,47 +982,103 @@ export function pdfPorPersona(filas, anio, mes, nombreEmpresa, acreedor, fechaDi
 
   const enCursoDe = (f) => (fechaDia ? f.enCurso : f.q1);
 
-  const cabeza = ["Persona", "Empresa", "Facturas"];
-  if (conDia) cabeza.push(fechaCorta(fechaDia));
-  if (conQuincena) cabeza.push(rotuloQuincena);
-  if (conMes) cabeza.push("Mes");
+  // La plata que va a mostrar esta hoja, para poder preguntar por ella antes
+  // de armar las columnas.
+  const montos = [];
+  if (conDia) montos.push((f) => f.dia || 0);
+  if (conQuincena) montos.push(enCursoDe);
+  if (conMes) montos.push((f) => f.mes);
 
-  const anchos = { 0: { cellWidth: "auto" }, 1: { cellWidth: 24 }, 2: { halign: "right", cellWidth: 20 } };
-  let i = 3;
-  if (conDia) anchos[i++] = { halign: "right", cellWidth: 30 };
-  if (conQuincena) anchos[i++] = { halign: "right", cellWidth: 34 };
-  if (conMes) anchos[i++] = { halign: "right", cellWidth: 32 };
+  // En la lista corta no sale quien no consumió nada.
+  //
+  // Es una lista de "quién y cuánto" para pasarle a la fábrica, y un renglón
+  // que dice $ 0 no dice nada: solo hace que la gente que SÍ debe se pierda
+  // entre los ceros -- de 83 nombres, la mitad no comieron esa quincena.
+  // La plata no cambia, porque lo que se quita vale cero, y abajo se dice
+  // cuántos se quedaron por fuera para que nadie crea que se perdieron.
+  const visibles = soloValor ? filas.filter((f) => montos.some((m) => m(f) > 0)) : filas;
+  const escondidas = filas.length - visibles.length;
+
+  // Las columnas se arman en UNA lista y no a punta de "if" sueltos.
+  //
+  // De cada columna hay que cuadrar cuatro cosas -- el encabezado, el ancho,
+  // lo que va en cada renglón y lo que va en el total -- y estando en cuatro
+  // sitios distintos, agregar o quitar una desalinea las demás sin que nadie
+  // lo note: la hoja sale, pero con la plata debajo del título equivocado.
+  // Juntas, o entran las cuatro o no entra ninguna.
+  const columnas = [
+    { titulo: "Persona", ancho: { cellWidth: "auto" }, de: (f) => f.persona, pie: "TOTAL" },
+  ];
+  const suma = (dePlata) => pesos(visibles.reduce((a, f) => a + dePlata(f), 0));
+
+  // "Solo nombre y valor" es una lista para pasarle a la fábrica: quién y
+  // cuánto, nada más. La empresa y el número de facturas son para cuadrar, y
+  // ahí estorban.
+  if (!soloValor) {
+    columnas.push({ titulo: "Empresa", ancho: { cellWidth: 24 }, de: (f) => f.empresa, pie: "" });
+    columnas.push({
+      titulo: "Facturas", ancho: { halign: "right", cellWidth: 20 },
+      de: (f) => String(f.facturas),
+      pie: String(visibles.reduce((a, f) => a + f.facturas, 0)),
+    });
+  }
+  if (conDia) {
+    columnas.push({
+      titulo: fechaCorta(fechaDia), ancho: { halign: "right", cellWidth: 30 },
+      de: (f) => (f.dia ? pesos(f.dia) : "—"),
+      pie: suma((f) => f.dia || 0),
+    });
+  }
+  if (conQuincena) {
+    columnas.push({
+      titulo: rotuloQuincena, ancho: { halign: "right", cellWidth: 34 },
+      de: (f) => pesos(enCursoDe(f)) + (mezcladas ? "  Q" + f.quincenaActual : ""),
+      pie: suma(enCursoDe),
+    });
+  }
+  if (conMes) {
+    columnas.push({
+      titulo: "Mes", ancho: { halign: "right", cellWidth: 32 },
+      de: (f) => pesos(f.mes),
+      pie: suma((f) => f.mes),
+    });
+  }
+
   // La última columna de plata va en negrilla: es la que se busca.
-  anchos[i - 1] = { ...anchos[i - 1], fontStyle: "bold" };
-
-  const pie = ["TOTAL", "", String(filas.reduce((a, f) => a + f.facturas, 0))];
-  if (conDia) pie.push(pesos(filas.reduce((a, f) => a + (f.dia || 0), 0)));
-  if (conQuincena) pie.push(pesos(filas.reduce((a, f) => a + enCursoDe(f), 0)));
-  if (conMes) pie.push(pesos(filas.reduce((a, f) => a + f.mes, 0)));
+  const ultima = columnas.length - 1;
+  columnas[ultima].ancho = { ...columnas[ultima].ancho, fontStyle: "bold" };
 
   doc.autoTable({
     ...estiloTabla,
     startY: y,
-    head: [cabeza],
-    body: filas.map((f) => {
-      const fila = [f.persona, f.empresa, String(f.facturas)];
-      if (conDia) fila.push(f.dia ? pesos(f.dia) : "—");
-      if (conQuincena) {
-        fila.push(pesos(enCursoDe(f)) + (mezcladas ? "  Q" + f.quincenaActual : ""));
-      }
-      if (conMes) fila.push(pesos(f.mes));
-      return fila;
-    }),
-    columnStyles: anchos,
-    foot: [pie],
+    head: [columnas.map((c) => c.titulo)],
+    body: visibles.map((f) => columnas.map((c) => c.de(f))),
+    columnStyles: Object.fromEntries(columnas.map((c, i) => [i, c.ancho])),
+    foot: [columnas.map((c) => c.pie)],
     footStyles: { fillColor: [255, 255, 255], textColor: MARCA, fontStyle: "bold", fontSize: 10, lineWidth: 0.4, lineColor: MARCA, halign: "right" },
-    didParseCell: (d) => { if (d.section === "foot" && d.column.index <= 1) d.cell.styles.halign = "left"; },
+    didParseCell: (d) => { if (d.section === "foot" && d.column.index === 0) d.cell.styles.halign = "left"; },
   });
 
+  // Quien no salió, se dice. Si no, quien reciba la lista y no encuentre a
+  // alguien no sabe si es que no comió o si la lista está incompleta.
+  if (escondidas > 0) {
+    const yNota = espacioPara(doc, doc.lastAutoTable.finalY + 8, 6, null);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    doc.setTextColor(...GRIS);
+    doc.text(
+      escondidas === 1
+        ? "1 persona más no consumió nada en este periodo, así que no sale en la lista."
+        : `${escondidas} personas más no consumieron nada en este periodo, así que no salen en la lista.`,
+      14, yNota, { maxWidth: doc.internal.pageSize.getWidth() - 28 }
+    );
+    doc.setTextColor(0, 0, 0);
+  }
+
   pieDePagina(doc);
-  const sufijo = que === "dia" ? "-dia-" + fechaDia
+  const sufijo = (que === "dia" ? "-dia-" + fechaDia
     : que === "quincena" ? "-quincena"
-    : que === "mes" ? "-mes" : "";
+    : que === "mes" ? "-mes" : "") + (soloValor ? "-solo-valor" : "");
   guardar(doc, `consumo-por-persona-${anio}-${String(mes).padStart(2, "0")}${sufijo}.pdf`);
 }
 

@@ -2,7 +2,7 @@
 //  modelo.js  -  La forma que tienen los datos y cómo se crean vacíos.
 // ============================================================================
 
-import { normalizar } from "./formato.js";
+import { normalizar, aEntero } from "./formato.js";
 import { clavePrecio, clavePersona } from "./calculos.js";
 import { limpiarNombre } from "./nombres.js";
 
@@ -127,6 +127,42 @@ export function unificarEmpresa(datos) {
 //  cuenta. Guardar es tarea del almacén.
 // ---------------------------------------------------------------------------
 
+/**
+ * Que los cuatro días de las quincenas tengan sentido antes de guardarlos.
+ *
+ * Un rango al revés ("del 14 al 3"), o una quincena 2 que arranca antes de que
+ * acabe la 1, no se ve raro en el formulario: se ve raro un mes después, en
+ * una cuenta de cobro ya entregada que dice un periodo que no es. Por eso esto
+ * no avisa y sigue: no deja guardar.
+ *
+ * Devuelve los cuatro números listos, o { malo: "..." } con qué explicarle.
+ */
+export function revisarQuincenas(r) {
+  const iQ1 = aEntero(r.primerDiaQ1, 1);
+  const fQ1 = aEntero(r.ultimoDiaQ1, 15);
+  const iQ2 = aEntero(r.primerDiaQ2, fQ1 + 1);
+  const fQ2 = aEntero(r.ultimoDiaQ2, 31);
+
+  const dias = [
+    ["El día en que empieza la quincena 1", iQ1],
+    ["El día en que acaba la quincena 1", fQ1],
+    ["El día en que empieza la quincena 2", iQ2],
+    ["El día en que acaba la quincena 2", fQ2],
+  ];
+  for (const [que, n] of dias) {
+    if (!(n >= 1 && n <= 31)) return { malo: `${que} tiene que ser un día del 1 al 31.` };
+  }
+  if (iQ1 > fQ1) return { malo: "La quincena 1 no puede empezar después de acabarse." };
+  if (iQ2 > fQ2) return { malo: "La quincena 2 no puede empezar después de acabarse." };
+  if (iQ2 <= fQ1) {
+    return {
+      malo: `La quincena 2 empieza el ${iQ2}, que es antes de que acabe la 1 ` +
+            `(el ${fQ1}). Ese día quedaría cobrado en las dos.`,
+    };
+  }
+  return { primerDiaQ1: iQ1, ultimoDiaQ1: fQ1, primerDiaQ2: iQ2, ultimoDiaQ2: fQ2 };
+}
+
 export function agregarEmpresa(datos, empresa) {
   const codigo = normalizar(empresa.codigo);
   if (!codigo) throw new Error("La empresa necesita un código (por ejemplo MGP).");
@@ -137,7 +173,12 @@ export function agregarEmpresa(datos, empresa) {
     codigo,
     razonSocial: (empresa.razonSocial || "").trim(),
     nit: (empresa.nit || "").trim(),
+    // Los cuatro días del periodo. El corte entre una quincena y otra lo sigue
+    // mandando ultimoDiaQ1; los otros tres dicen qué periodo se ESCRIBE en la
+    // cuenta de cobro. Ver rangoQuincena en calculos.js.
+    primerDiaQ1: Number(empresa.primerDiaQ1) || 1,
     ultimoDiaQ1: Number(empresa.ultimoDiaQ1) || 15,
+    primerDiaQ2: Number(empresa.primerDiaQ2) || (Number(empresa.ultimoDiaQ1) || 15) + 1,
     ultimoDiaQ2: Number(empresa.ultimoDiaQ2) || 31,
     activa: empresa.activa !== false,
   });

@@ -332,6 +332,13 @@ async function bajarPorPersonaEnPDF(filas, nombre) {
         ],
         ayuda: "Con una sola columna la hoja sale de pie y se lee mejor en el celular.",
       },
+      {
+        nombre: "soloValor",
+        etiqueta: "Solo el nombre y el valor",
+        tipo: "casilla",
+        valor: false,
+        ayuda: "Queda la lista corta para pasarle a la fábrica: quién y cuánto. Se van la empresa, las facturas y la gente que no consumió nada.",
+      },
     ],
     textoAceptar: "Bajar el PDF",
   });
@@ -339,7 +346,7 @@ async function bajarPorPersonaEnPDF(filas, nombre) {
 
   try {
     pdfPorPersona(filas, estado.anio, estado.mes, nombre,
-                  estado.datos.config.acreedor, estado.fecha, r.que);
+                  estado.datos.config.acreedor, estado.fecha, r.que, r.soloValor);
     mensaje("PDF descargado.", "bien");
   } catch (e) {
     mensaje(e.message, "malo", 8);

@@ -12,11 +12,12 @@ import {
   poner,
 } from "./componentes.js";
 import { estado, cambio, empresas } from "./estado.js";
-import { pesos, normalizar, coincide, aEntero } from "../nucleo/formato.js";
-import { clavePrecio, precioDe, indicePorCodigo, clavePersona, precioDelPlato, precioSeVeRaro} from "../nucleo/calculos.js";
+import { pesos, normalizar, coincide, aEntero, nombreMes } from "../nucleo/formato.js";
+import { clavePrecio, precioDe, indicePorCodigo, clavePersona, precioDelPlato, precioSeVeRaro,
+  rangoQuincena } from "../nucleo/calculos.js";
 import { simularUnionDePlatos, unirPlatosDelCatalogo } from "../nucleo/sueltos.js";
 import {
-  agregarEmpresa, agregarProducto, agregarPersona,
+  agregarEmpresa, agregarProducto, agregarPersona, revisarQuincenas,
   puedeBorrarPersona, borrarPersona, puedeBorrarProducto, borrarProducto,
   ponerPrecioEnTodas,
 } from "../nucleo/modelo.js";
@@ -37,7 +38,7 @@ export function pintarEmpresas(raiz) {
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Empresas" }),
-        el("p", { texto: "A quiénes se les vende y hasta qué día va cada quincena." })
+        el("p", { texto: "A quiénes se les vende y qué días cubre cada quincena." })
       ),
       el("button", { clase: "principal", alHacerClic: () => nuevaEmpresa(raiz) }, "Agregar empresa")
     ),
@@ -52,13 +53,14 @@ export function pintarEmpresas(raiz) {
 
   poner(raiz,
     el("p", { clase: "nota" },
-      "La quincena 1 va del día 1 hasta el día de corte, y la quincena 2 del " +
-      "siguiente hasta fin de mes. Cada empresa puede cortar en un día distinto."),
+      `Cada empresa cubre los días que se le pongan, y el corte entre una ` +
+      `quincena y otra es el último día de la 1. Aquí se ven puestos sobre ` +
+      `${nombreMes(estado.mes)} de ${estado.anio}, que es el mes que está mirando.`),
     tabla(
       [
         { titulo: "Código" }, { titulo: "Razón social" }, { titulo: "NIT" },
-        { titulo: "Corta la Q1 el día", clase: "dato" },
-        { titulo: "Corta la Q2 el día", clase: "dato" },
+        { titulo: "Quincena 1", clase: "dato" },
+        { titulo: "Quincena 2", clase: "dato" },
         { titulo: "" },
       ],
       lista.map((e) =>
@@ -66,8 +68,8 @@ export function pintarEmpresas(raiz) {
           el("td", {}, cinta(e.codigo)),
           el("td", { texto: e.razonSocial || "—" }),
           el("td", { clase: "dato", texto: e.nit || "—" }),
-          el("td", { clase: "dato", texto: String(e.ultimoDiaQ1) }),
-          el("td", { clase: "dato", texto: String(e.ultimoDiaQ2) }),
+          el("td", { clase: "dato", texto: diceElRango(e, 1) }),
+          el("td", { clase: "dato", texto: diceElRango(e, 2) }),
           el("td", { clase: "dato" },
             el("div", { clase: "fila" },
               el("button", { clase: "plano chico", alHacerClic: () => editarEmpresa(raiz, e) }, "Editar"),
@@ -117,6 +119,36 @@ function tarjetaAcreedor(raiz) {
   );
 }
 
+/** "del 1 al 14", con los días de esta empresa puestos sobre el mes que se ve. */
+export function diceElRango(empresa, quincena) {
+  const r = rangoQuincena(estado.anio, estado.mes, quincena, empresa);
+  return `del ${r.desde} al ${r.hasta}`;
+}
+
+/** Los cuatro días del periodo, que se editan aquí y desde la cuenta de cobro. */
+export const CAMPOS_QUINCENA = (e = {}) => [
+  {
+    nombre: "primerDiaQ1", etiqueta: "La quincena 1 empieza el día", tipo: "number",
+    valor: e.primerDiaQ1 ?? 1, min: 1,
+    ayuda: "Casi siempre 1. Póngale otro si el mes no se cobra completo.",
+  },
+  {
+    nombre: "ultimoDiaQ1", etiqueta: "y acaba el día", tipo: "number",
+    valor: e.ultimoDiaQ1 ?? 15, min: 1,
+    ayuda: "Este es el CORTE: lo de aquí para atrás es la quincena 1. MGP corta el 13; las demás, el 14.",
+  },
+  {
+    nombre: "primerDiaQ2", etiqueta: "La quincena 2 empieza el día", tipo: "number",
+    valor: e.primerDiaQ2 ?? (Number(e.ultimoDiaQ1) || 15) + 1, min: 1,
+    ayuda: "Normalmente, al otro día del corte.",
+  },
+  {
+    nombre: "ultimoDiaQ2", etiqueta: "y acaba el día", tipo: "number",
+    valor: e.ultimoDiaQ2 ?? 31, min: 1,
+    ayuda: "Casi siempre 31. Si el mes es más corto, se recorta solo.",
+  },
+];
+
 const CAMPOS_EMPRESA = (e = {}) => [
   {
     nombre: "codigo", etiqueta: "Código corto", valor: e.codigo || "", requerido: true,
@@ -124,21 +156,16 @@ const CAMPOS_EMPRESA = (e = {}) => [
   },
   { nombre: "razonSocial", etiqueta: "Razón social", valor: e.razonSocial || "", requerido: true },
   { nombre: "nit", etiqueta: "NIT", valor: e.nit || "" },
-  {
-    nombre: "ultimoDiaQ1", etiqueta: "Último día de la quincena 1", tipo: "number",
-    valor: e.ultimoDiaQ1 ?? 15, min: 1, ayuda: "MGP corta el 13; las demás, el 14.",
-  },
-  {
-    nombre: "ultimoDiaQ2", etiqueta: "Último día de la quincena 2", tipo: "number",
-    valor: e.ultimoDiaQ2 ?? 31, min: 1, ayuda: "Casi siempre 31 (fin de mes).",
-  },
+  ...CAMPOS_QUINCENA(e),
 ];
 
 async function nuevaEmpresa(raiz) {
   const r = await pedirDatos({ titulo: "Agregar empresa", campos: CAMPOS_EMPRESA(), textoAceptar: "Crear" });
   if (!r) return;
+  const dias = revisarQuincenas(r);
+  if (dias.malo) { mensaje(dias.malo, "malo", 9); return; }
   try {
-    agregarEmpresa(estado.datos, r);
+    agregarEmpresa(estado.datos, { ...r, ...dias });
     cambio();
     pintarEmpresas(raiz);
     mensaje(`${normalizar(r.codigo)} quedó creada.`, "bien");
@@ -160,10 +187,12 @@ async function editarEmpresa(raiz, empresa) {
     );
     return;
   }
+  const dias = revisarQuincenas(r);
+  if (dias.malo) { mensaje(dias.malo, "malo", 9); return; }
+
   empresa.razonSocial = r.razonSocial;
   empresa.nit = r.nit;
-  empresa.ultimoDiaQ1 = aEntero(r.ultimoDiaQ1, 15);
-  empresa.ultimoDiaQ2 = aEntero(r.ultimoDiaQ2, 31);
+  Object.assign(empresa, dias);
   cambio();
   pintarEmpresas(raiz);
   mensaje("Guardado.", "bien");
