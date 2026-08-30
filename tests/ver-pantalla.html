@@ -109,6 +109,36 @@ try {
   // mirar que una ventana corta se siga viendo bien: la ventana larga (la del
   // historial) obligo a ponerle tope de alto y barra a TODAS, y eso se puede
   // dañar sin que nadie lo note hasta que a ella no le cierra un formulario.
+  // Escribir en el buscador como escribiria ella, letra por letra: asi se
+  // prueba de verdad que el cursor no se pierda al repintar.
+  let loQueSeTecleo = null;
+  if (forzar && forzar.startsWith("buscar:")) {
+    const casilla = raiz.querySelector("#busca-persona");
+    if (casilla) {
+      // "buscar:oscar|pdf" teclea solo "oscar": el "|pdf" es una orden para
+      // esta pagina, no algo que ella escribiria.
+      const loQueEscribe = forzar.slice(7).replace(/\|pdf$/, "");
+      casilla.focus();
+      for (const letra of loQueEscribe) {
+        casilla.value += letra;
+        casilla.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      // Con "|pdf" al final, ademas se abre la ventana de bajar el PDF: ahi es
+      // donde tiene que salir el aviso de que la lista va corta por la
+      // busqueda, que es lo unico de esto que puede terminar mal.
+      if (forzar.endsWith("|pdf")) {
+        const bajar = [...document.querySelectorAll("button")]
+          .find((b) => /bajar pdf/i.test(b.textContent));
+        if (bajar) bajar.click();
+      }
+      const ahora = document.querySelector("#busca-persona");
+      loQueSeTecleo =
+        `#buscar "${loQueEscribe}"  ·  foco en ` +
+        (document.activeElement === ahora ? "el buscador (BIEN)" : "otra cosa (MAL)") +
+        `  ·  cursor en ${ahora ? ahora.selectionStart : "?"}`;
+    }
+  }
+
   if (forzar === "ventana") {
     const abrir = [...raiz.querySelectorAll("button")]
       .find((b) => /editar|cambiar|agregar/i.test(b.textContent));
@@ -129,7 +159,7 @@ try {
     }, i * 150);
   }
 
-  rotulo.textContent =
+  rotulo.textContent = loQueSeTecleo ||
     `#${cual}  ·  ${datos.consumos.length} renglones  ·  ${datos.personas.length} personas  ` +
     `·  ${datos.productos.length} platos  ·  ${estado.fecha}`;
 } catch (error) {

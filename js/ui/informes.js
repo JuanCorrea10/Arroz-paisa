@@ -9,7 +9,7 @@ import { el, vaciar, tabla, cifra, cifraPlata, acciones, vacio, mensaje, cinta, 
   pedirDatos, colorDeEmpresa, ventana,
 } from "./componentes.js";
 import { estado, cambio, empresas, empresaPorCodigo } from "./estado.js";
-import { pesos, fechaLarga, fechaCorta, nombreMes, diasDelMes, hoyISO } from "../nucleo/formato.js";
+import { pesos, fechaLarga, fechaCorta, nombreMes, diasDelMes, hoyISO, coincide } from "../nucleo/formato.js";
 import {
   informeCocina, informeDia, informePorPersona, informeCuadre, notasDelDia,
   indicePorCodigo, delDia, contarFacturas, comandasDelDia,
@@ -307,6 +307,8 @@ let empresaPersonas = "";
 let soloDelDia = false;
 /** Cómo se ordena la lista: "nombre" o "empresa". Igual que en Personas. */
 let ordenPorPersona = "nombre";
+/** Lo que escribió en el buscador. Son 268 personas: sin esto toca ir bajando. */
+let buscaEnPersona = "";
 
 /**
  * Pregunta qué hay que bajar antes de bajarlo.
@@ -331,7 +333,16 @@ async function bajarPorPersonaEnPDF(filas, nombre) {
           { valor: "quincena", texto: q ? `Solo la quincena ${q}` : "Solo la quincena" },
           { valor: "mes", texto: `Solo el mes (${nombreMes(estado.mes)})` },
         ],
-        ayuda: "Con una sola columna la hoja sale de pie y se lee mejor en el celular.",
+        ayuda:
+          // El PDF lleva lo que se esté viendo. Si hay una búsqueda puesta y
+          // ella no se acuerda, se manda a la fábrica una lista a la que le
+          // faltan 265 personas -- y eso se nota tarde, cuando reclaman.
+          (buscaEnPersona
+            ? `OJO: está buscando "${buscaEnPersona}", así que el PDF va a llevar solo ` +
+              `${filas.length} ${filas.length === 1 ? "persona" : "personas"}. ` +
+              "Cancele y borre la búsqueda si lo quiere completo.  "
+            : "") +
+          "Con una sola columna la hoja sale de pie y se lee mejor en el celular.",
       },
       {
         nombre: "soloValor",
@@ -442,7 +453,11 @@ export function pintarPorPersona(raiz) {
   const todas = informePorPersona(
     estado.datos.consumos, estado.anio, estado.mes, indice,
     empresaPersonas || null, estado.fecha);
-  const filas = soloDelDia ? todas.filter((f) => f.dia > 0) : todas;
+  // Se filtra en un array NUEVO, siempre. Antes, sin el visto puesto, "filas"
+  // era el mismo array que "todas" y el sort de abajo se lo reordenaba a las
+  // dos a la vez; ahora hace falta "todas" entero para poder decir "3 de 268".
+  const filas = todas.filter((f) =>
+    (!soloDelDia || f.dia > 0) && coincide(f.persona, buscaEnPersona));
 
   // informePorPersona ya las entrega por nombre. Ordenar por empresa no es
   // solo agrupar: dentro de cada una la gente sigue yendo por nombre, o
@@ -478,6 +493,36 @@ export function pintarPorPersona(raiz) {
       }),
       selectorDeEmpresa(empresaPersonas, (v) => { empresaPersonas = v; repintar(); }),
       el("div", { clase: "campo" },
+        el("label", { for: "busca-persona", texto: "Buscar" }),
+        el("input", {
+          type: "search",
+          id: "busca-persona",
+          placeholder: "Nombre de la persona...",
+          value: buscaEnPersona,
+          alEscribir: (ev) => {
+            buscaEnPersona = ev.target.value;
+            // Aquí se repinta la pantalla ENTERA y no solo el cuerpo de la
+            // tabla, como en Catálogo y en Personas. Es a propósito: allá
+            // arriba no hay nada que dependa de la lista, y aquí sí -- las
+            // cuatro cifras y la fila de TOTAL. Repintando solo la tabla, la
+            // lista mostraría a una persona y el total seguiría diciendo los
+            // doce millones del mes: dos números que se contradicen en la
+            // misma pantalla.
+            //
+            // Lo que cuesta repintar todo es perder el cursor, así que se
+            // devuelve donde estaba. Sin esto, al segundo carácter el foco se
+            // pierde y ella termina escribiendo en el vacío.
+            const donde = ev.target.selectionStart;
+            repintar();
+            const otraVez = raiz.querySelector("#busca-persona");
+            if (otraVez) {
+              otraVez.focus();
+              try { otraVez.setSelectionRange(donde, donde); } catch { /* da igual */ }
+            }
+          },
+        })
+      ),
+      el("div", { clase: "campo" },
         el("label", { for: "orden-informe", texto: "Ordenar por" }),
         el("select", {
           id: "orden-informe",
@@ -501,11 +546,14 @@ export function pintarPorPersona(raiz) {
   );
 
   if (!filas.length) {
-    poner(raiz, soloDelDia
-      ? vacio(`El ${fechaLarga(estado.fecha)} no comió nadie`,
-          el("p", { texto: "Cambie el día arriba, o quite el visto para ver a todos los del mes." }))
-      : vacio(`No hay nada anotado en ${nombreMes(estado.mes)} de ${estado.anio}`,
-          "Elija otro mes u otra empresa."));
+    poner(raiz, buscaEnPersona
+      ? vacio(`Ninguna persona se llama así`,
+          el("p", { texto: `Buscando "${buscaEnPersona}" entre ${todas.length} personas no salió ninguna. Borre lo que escribió para verlas todas.` }))
+      : soloDelDia
+        ? vacio(`El ${fechaLarga(estado.fecha)} no comió nadie`,
+            el("p", { texto: "Cambie el día arriba, o quite el visto para ver a todos los del mes." }))
+        : vacio(`No hay nada anotado en ${nombreMes(estado.mes)} de ${estado.anio}`,
+            "Elija otro mes u otra empresa."));
     return;
   }
 
@@ -533,7 +581,13 @@ export function pintarPorPersona(raiz) {
       cifraPlata("Total del mes", tMes, true)
     ),
     el("p", { clase: "nota" },
-      soloDelDia
+      // Buscando, las cifras de arriba y el TOTAL de abajo son de lo que se
+      // está viendo, no del mes entero. Se dice, porque un total que cambió
+      // sin que se note es de lo que peor se lee después.
+      buscaEnPersona
+        ? `Mostrando ${filas.length} de ${todas.length} personas: las que dicen ` +
+          `"${buscaEnPersona}". Las cifras de arriba y el TOTAL son de esas ${filas.length}.`
+        : soloDelDia
         ? `Solo las ${filas.length} personas que comieron el ${fechaLarga(estado.fecha)}. ` +
           "La quincena y el mes son los de cada una, completos."
         : conDia
