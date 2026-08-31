@@ -72,6 +72,17 @@ try {
   estado.mes = Number(estado.fecha.slice(5, 7));
   estado.empresa = datos.empresas.length ? datos.empresas[0].codigo : null;
 
+  // "&dia=" y "&empresa=" para pararse en un dia concreto. Hace falta porque
+  // por defecto se abre el ultimo dia, y no todos los dias tienen de todo: el
+  // 25 de agosto, por ejemplo, no tiene ni una nota.
+  const params = new URLSearchParams(location.search);
+  if (params.get("dia")) {
+    estado.fecha = params.get("dia");
+    estado.anio = Number(estado.fecha.slice(0, 4));
+    estado.mes = Number(estado.fecha.slice(5, 7));
+  }
+  if (params.get("empresa")) estado.empresa = params.get("empresa").toUpperCase();
+
   // Un cambio pedido por la prueba, para poder ver cómo se ve el aviso.
   const forzar = new URLSearchParams(location.search).get("forzar");
   if (forzar === "precio-disparejo" && datos.productos.length) {

@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20260831-0941";
+  --version: "20260831-1112";
 }
 
 /* ===========================================================================
@@ -1599,6 +1599,30 @@ html { scroll-behavior: smooth; }
   text-align: left;
 }
 .nota-renglon:hover { background: #f7e4b8; transform: none; }
+
+/* La misma nota, pero dentro de la tarjeta ya anotada.
+   Se ve igual que la pastilla de la vista abierta -- es la misma cosa, tiene
+   que reconocerse igual -- pero aquí no se toca: la tarjeta se mira, y para
+   cambiar algo se abre con "Abrir".
+   La letra NO baja a --t-xs como en la vista abierta: esta tarjeta es la que
+   se fotografía y se manda por WhatsApp, y ahí todo llega encogido. */
+.nota-en-comanda {
+  /* block + fit-content, no inline-block: inline-block se le mete AL LADO del
+     plato cuando cabe, y entonces "COCA COLA 1.5" y su nota se pelean el
+     ancho de la casilla. La nota siempre debajo, y del ancho de lo que diga. */
+  display: block;
+  width: fit-content;
+  margin-top: 3px;
+  padding: 2px 8px;
+  border: 1px solid var(--amarillo);
+  border-radius: 999px;
+  background: var(--amarillo-claro);
+  color: #6b4708;
+  font-size: var(--t-sm);
+  line-height: 1.35;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
 
 .agregar-nota {
   margin-top: 2px;

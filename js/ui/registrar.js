@@ -408,7 +408,18 @@ function listaDeComandas(raiz) {
         ...platos.map((c) =>
           el("li", { clase: esCortesia(c) ? "gratis" : yaLoPago(c) ? "pagado" : "" },
             el("span", { clase: "comanda-cant", texto: c.cantidad + "×" }),
-            el("span", { clase: "comanda-plato", texto: c.producto }),
+            // La nota va DEBAJO del plato, dentro de su misma casilla.
+            //
+            // Estaba solo en la vista abierta, así que para saber si algo
+            // llevaba nota tocaba abrir persona por persona. Y esta tarjeta es
+            // justo la que se fotografía para mandarle a la gente: una nota que
+            // no sale aquí, no llega.
+            el("span", { clase: "comanda-plato" },
+              c.producto,
+              c.observacion
+                ? el("span", { clase: "nota-en-comanda", texto: c.observacion })
+                : null
+            ),
             el("span", { clase: "comanda-valor",
               texto: esCortesia(c) ? "cortesía"
                    : yaLoPago(c) ? "pagó · " + pesos(subtotal(c))

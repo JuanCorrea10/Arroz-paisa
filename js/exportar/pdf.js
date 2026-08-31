@@ -640,6 +640,7 @@ function tarjetasDeComandas(doc, comandas, y, alCambiarDeHoja, colorEmpresa) {
   const PIE = 18;     // lo que hay que dejarle al pie de página
 
   const T_NOMBRE = 10, T_PLATO = 8.5, T_VALOR = 8, T_CANT = 7.5, T_NUM = 7, T_TOTAL = 10.5;
+  const T_NOTA = 7.5;
   const NUM_ANCHO = 6.6, NUM_ALTO = 4.4, CANT_ANCHO = 5.4, ALTO_PIE = 8.6;
 
   const ancho = (anchoHoja - 28 - (COLS - 1) * HUECO) / COLS;
@@ -690,7 +691,23 @@ function tarjetasDeComandas(doc, comandas, y, alCambiarDeHoja, colorEmpresa) {
     doc.setFontSize(T_PLATO);
     const platos = com.platos.map((c) => {
       const lineas = doc.splitTextToSize(String(c.producto || "-"), anchoPlato);
-      return { c, lineas, alto: 1.2 + lineas.length * de(T_PLATO) + 1.2 };
+
+      // La nota del renglón ("sin verduras", "para llevar").
+      //
+      // La tabla que había antes SÍ la sacaba, y al pasar a tarjetas se me
+      // quedó por fuera: el papel dejó de decir algo que el registro sí sabe.
+      // Se mide aquí, con la tarjeta, porque cambia el alto -- medirla después
+      // dejaría la nota pisando el renglón de abajo.
+      doc.setFontSize(T_NOTA);
+      const nota = c.observacion
+        ? doc.splitTextToSize(String(c.observacion), anchoPlato)
+        : [];
+      doc.setFontSize(T_PLATO);
+
+      return {
+        c, lineas, nota,
+        alto: 1.2 + lineas.length * de(T_PLATO) + nota.length * de(T_NOTA) + 1.2,
+      };
     });
 
     const cabeza = CINTA + PAD + Math.max(NUM_ALTO, nombre.alto) + PAD;
@@ -766,6 +783,14 @@ function tarjetasDeComandas(doc, comandas, y, alCambiarDeHoja, colorEmpresa) {
       doc.setFont("courier", "normal");
       doc.setFontSize(tamValor);
       doc.text(valorDe(p.c), x + ancho - PAD, base, { align: "right" });
+
+      // La nota, debajo del plato y en cursiva: es del plato, no otro plato.
+      if (p.nota.length) {
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(T_NOTA);
+        doc.setTextColor(...GRIS);
+        doc.text(p.nota, x + PAD + CANT_ANCHO, base + de(T_PLATO) * p.lineas.length - de(T_PLATO) + de(T_NOTA));
+      }
 
       yp += p.alto;
     }
