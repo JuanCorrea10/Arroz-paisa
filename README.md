@@ -24,7 +24,7 @@ y queda en <http://localhost:8000>.
 | Dirección | Qué es |
 |-----------|--------|
 | `/` | La app |
-| `/tests/pruebas.html` | Las 170 pruebas |
+| `/tests/pruebas.html` | Las pruebas, en el navegador |
 | `/tests/generar-inicial.html` | Genera los datos con los que arranca la app |
 | `/tests/probar-scroll.html` | Compara el header arriba y despues de bajar: que se encoja sin aplastar las letras |
 | `/tests/revisar-diseno.html` | Mide el layout en computador y celular: cajas corridas y botones muy chicos |
@@ -50,9 +50,18 @@ correcto: son los nombres de 562 personas.
 
 ## Cómo se prueba
 
-En el computador donde se hizo esto **no hay Node instalado**, así que las
-pruebas corren en el navegador, abriendo `/tests/pruebas.html`. Son las mismas
-pruebas: el día que haya Node también sirven con `npm run probar`.
+Lo normal y lo más rápido:
+
+```
+npm run probar        # o: node tests/correr.mjs
+```
+
+Son las mismas pruebas que salen abriendo `/tests/pruebas.html` en el navegador,
+que sirve cuando no hay Node a la mano.
+
+Eso cubre el núcleo, que es donde están las cuentas. Lo que el núcleo NO puede
+probar -- cómo se ve una pantalla, cómo sale un PDF -- se mira con
+`/tests/ver-pantalla.html` y `/tests/probar-pdf.html`.
 
 ### Ojo: la prueba de aceptación necesita un archivo que NO está aquí
 
