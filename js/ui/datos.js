@@ -56,6 +56,30 @@ function tarjetaCarpeta(raiz) {
   const puede = almacen.soportaCarpeta();
   const conectada = almacen.hayCarpeta();
 
+  // Tres estados y no dos.
+  //
+  // Antes solo se preguntaba "¿hay carpeta?", y una carpeta a la que el
+  // navegador le volvió a pedir permiso contesta que NO -- así que esta
+  // pantalla decía "todavía no hay carpeta conectada" teniéndola, y el único
+  // botón abría el selector desde cero. Mientras tanto el aviso de arriba la
+  // mandaba aquí a "volverla a conectar", a un botón que no existía.
+  const { estado: comoEsta, nombre: comoSeLlama } = almacen.estadoDeLaCarpeta();
+  const pidePermiso = !conectada && comoEsta === "necesita-permiso";
+
+  const elegirDeCero = (texto, clase) => el("button", {
+    clase,
+    alHacerClic: async () => {
+      try {
+        await almacen.elegirCarpeta();
+        await almacen.guardarYa();
+        mensaje("Carpeta conectada. Ahí queda todo al día.", "bien", 6);
+        pintarDatos(raiz);
+      } catch (e) {
+        mensaje("No se pudo conectar la carpeta: " + e.message, "malo", 7);
+      }
+    },
+  }, texto);
+
   return el("section", { clase: "tarjeta" },
     el("h2", { texto: "La carpeta donde queda la copia buena" }),
 
@@ -81,25 +105,47 @@ function tarjetaCarpeta(raiz) {
             el("p", { clase: "nota" },
               "Si esa carpeta está dentro de OneDrive o de Drive, los datos " +
               "quedan además guardados en internet sin que usted haga nada."))
-        : el("div", {},
-            el("p", { clase: "nota ojo" }, "Todavía no hay carpeta conectada."),
-            el("p", {},
-              "Ahora mismo los datos solo viven dentro del navegador. Conecte una " +
-              "carpeta y quedan también en un archivo de verdad, que se puede " +
-              "copiar a una USB."),
-            el("button", {
-              clase: "principal grande",
-              alHacerClic: async () => {
-                try {
-                  await almacen.elegirCarpeta();
-                  await almacen.guardarYa();
-                  mensaje("Carpeta conectada. Ahí queda todo al día.", "bien", 6);
-                  pintarDatos(raiz);
-                } catch (e) {
-                  mensaje("No se pudo conectar la carpeta: " + e.message, "malo", 7);
-                }
-              },
-            }, "Elegir la carpeta"))
+        : pidePermiso
+          ? el("div", {},
+              el("p", { clase: "nota malo" },
+                `La carpeta “${comoSeLlama}” está ahí, pero el navegador volvió ` +
+                "a pedir permiso para escribirle."),
+              el("p", {},
+                el("strong", { texto: "Mientras tanto no se está guardando en ella." }),
+                " Los datos siguen dentro del navegador, completos, pero la copia " +
+                "de la carpeta se quedó en la última vez. Un clic y vuelve a quedar al día."),
+              el("p", { clase: "nota" },
+                "Esto pasa cuando se cierra y se vuelve a abrir el navegador. " +
+                "No se perdió nada."),
+              el("div", { clase: "fila" },
+                el("button", {
+                  clase: "principal grande",
+                  alHacerClic: async () => {
+                    try {
+                      const r = await almacen.reconectarCarpeta();
+                      if (r.estado === "conectada") {
+                        await almacen.guardarYa();
+                        mensaje(`Listo, “${r.nombre}” quedó otra vez al día.`, "bien", 6);
+                      } else {
+                        mensaje(
+                          "El navegador no dio el permiso. Puede elegir la carpeta de nuevo.",
+                          "malo", 8
+                        );
+                      }
+                    } catch (e) {
+                      mensaje("No se pudo volver a conectar: " + e.message, "malo", 7);
+                    }
+                    pintarDatos(raiz);
+                  },
+                }, "Volver a conectarla"),
+                elegirDeCero("Elegir otra carpeta", "plano")))
+          : el("div", {},
+              el("p", { clase: "nota ojo" }, "Todavía no hay carpeta conectada."),
+              el("p", {},
+                "Ahora mismo los datos solo viven dentro del navegador. Conecte una " +
+                "carpeta y quedan también en un archivo de verdad, que se puede " +
+                "copiar a una USB."),
+              elegirDeCero("Elegir la carpeta", "principal grande"))
   );
 }
 

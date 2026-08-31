@@ -124,6 +124,28 @@ export function soportaCarpeta() {
 let carpeta = null; // el "handle" de la carpeta elegida
 
 /**
+ * En qué quedó la carpeta la última vez que se miró.
+ *
+ * Hace falta porque "no hay carpeta" y "hay una, pero el navegador volvió a
+ * pedir permiso" son cosas MUY distintas y hasta ahora se veían iguales: las
+ * dos dejaban `carpeta` en null, así que la pantalla decía "todavía no hay
+ * carpeta conectada" cuando sí la había -- y mandaba a elegirla de cero en vez
+ * de ofrecer el clic que la devuelve.
+ *
+ * Se guarda aparte y no se deduce de `carpeta` justo por eso: `carpeta` dice
+ * si se puede escribir AHORA; esto dice por qué no.
+ *
+ * Valores: "sin-carpeta" | "necesita-permiso" | "conectada" | "no-soportado"
+ */
+let comoQuedo = "sin-carpeta";
+let nombreGuardado = null;
+
+/** En qué quedó la carpeta. La pantalla lo lee sin tener que esperar nada. */
+export function estadoDeLaCarpeta() {
+  return { estado: comoQuedo, nombre: nombreGuardado };
+}
+
+/**
  * Le pide a la señora que elija una carpeta. Se hace UNA sola vez.
  * Tiene que llamarse desde un clic: los navegadores no dejan abrir este
  * cuadro solos, y con razón.
@@ -138,13 +160,18 @@ export async function elegirCarpeta() {
   const permiso = await elegida.requestPermission({ mode: "readwrite" });
   if (permiso !== "granted") throw new Error("No se dio permiso para escribir en la carpeta.");
   carpeta = elegida;
+  comoQuedo = "conectada";
+  nombreGuardado = elegida.name;
   await escribirLlave(LLAVE_CARPETA, elegida);
   return nombreCarpeta();
 }
 
 /** Intenta recuperar la carpeta que ya se había elegido en otra ocasión. */
 export async function recuperarCarpeta() {
-  if (!soportaCarpeta()) return { estado: "no-soportado" };
+  if (!soportaCarpeta()) {
+    comoQuedo = "no-soportado";
+    return { estado: "no-soportado" };
+  }
 
   // Si el navegador no deja ni leer, no es motivo para no abrir la app: se
   // sigue sin carpeta y ya. Lo grave sería quedarse tildado aquí.
@@ -152,29 +179,50 @@ export async function recuperarCarpeta() {
   try {
     guardada = await leerLlave(LLAVE_CARPETA);
   } catch (error) {
+    comoQuedo = "sin-carpeta";
     return { estado: "sin-carpeta", problema: error.message };
   }
-  if (!guardada) return { estado: "sin-carpeta" };
+  if (!guardada) {
+    comoQuedo = "sin-carpeta";
+    return { estado: "sin-carpeta" };
+  }
   try {
+    nombreGuardado = guardada.name;
     const permiso = await guardada.queryPermission({ mode: "readwrite" });
     if (permiso === "granted") {
       carpeta = guardada;
+      comoQuedo = "conectada";
       return { estado: "conectada", nombre: guardada.name };
     }
     // El navegador quiere que ella confirme otra vez, con un clic.
+    comoQuedo = "necesita-permiso";
     return { estado: "necesita-permiso", nombre: guardada.name };
   } catch {
+    comoQuedo = "sin-carpeta";
     return { estado: "sin-carpeta" };
   }
 }
 
-/** Vuelve a pedir el permiso. Tiene que llamarse desde un clic. */
+/**
+ * Vuelve a pedir el permiso de la carpeta que ya estaba elegida.
+ *
+ * Tiene que llamarse desde un clic: el navegador no deja pedir permisos solo.
+ * Quien la llama es el botón "Volver a conectarla" de Datos y respaldos.
+ */
 export async function reconectarCarpeta() {
   const guardada = await leerLlave(LLAVE_CARPETA);
-  if (!guardada) return { estado: "sin-carpeta" };
+  if (!guardada) {
+    comoQuedo = "sin-carpeta";
+    return { estado: "sin-carpeta" };
+  }
+  nombreGuardado = guardada.name;
   const permiso = await guardada.requestPermission({ mode: "readwrite" });
-  if (permiso !== "granted") return { estado: "necesita-permiso", nombre: guardada.name };
+  if (permiso !== "granted") {
+    comoQuedo = "necesita-permiso";
+    return { estado: "necesita-permiso", nombre: guardada.name };
+  }
   carpeta = guardada;
+  comoQuedo = "conectada";
   return { estado: "conectada", nombre: guardada.name };
 }
 

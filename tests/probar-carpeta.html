@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La carpeta de respaldos, en sus tres estados</title>
+
+<!--
+  El importmap tiene que ir ANTES de cualquier módulo, y por eso está aquí
+  arriba y no dentro del script: cambia por cuál archivo se resuelve
+  "../datos/almacen.js" cuando js/ui/datos.js lo pide.
+
+  La pantalla que se ve es la de verdad, con su CSS de verdad. Lo único
+  fingido es en qué quedó la carpeta.
+-->
+<script type="importmap">
+{
+  "imports": {
+    "/js/datos/almacen.js": "/tests/falso-almacen.js"
+  }
+}
+</script>
+
+<link rel="stylesheet" href="../css/estilos.css">
+<link rel="stylesheet" href="../css/pantallas.css">
+<script src="../vendor/xlsx.full.min.js"></script>
+<style>
+  body { margin: 0; background: var(--papel-contable, #f5eee2); }
+  .aviso-prueba {
+    background: #241b18; color: #fff; font: 12px ui-monospace, Consolas, monospace;
+    padding: 6px 12px;
+  }
+  .aviso-prueba a { color: #ffd9a8; margin-right: 1rem; }
+</style>
+</head>
+<body>
+<div class="aviso-prueba" id="rotulo">cargando…</div>
+<main id="pantalla" class="contenido"></main>
+
+<script type="module">
+/*
+  Para qué es esta página.
+
+  El estado "la carpeta está ahí pero el navegador volvió a pedir permiso" no
+  se puede provocar a voluntad: lo hace el navegador al reiniciarse. Sin esto,
+  esa rama de "Datos y respaldos" no se puede MIRAR nunca -- y es la rama que,
+  si sale mal, deja los respaldos sin actualizar en silencio.
+
+  Uso:  probar-carpeta.html?estado=necesita-permiso
+        ...&da=no    para que el navegador diga que no al reconectar
+*/
+const rotulo = document.getElementById("rotulo");
+const raiz = document.getElementById("pantalla");
+const cual = new URLSearchParams(location.search).get("estado") || "sin-carpeta";
+
+const ESTADOS = ["sin-carpeta", "necesita-permiso", "conectada", "no-soportado"];
+
+try {
+  const { estado } = await import("../js/ui/estado.js");
+  const { completarDatos } = await import("../js/nucleo/modelo.js");
+  estado.datos = completarDatos(await (await fetch("../datos/inicial.json")).json());
+
+  const almacen = await import("../js/datos/almacen.js");
+  if (almacen.estadoDeLaCarpeta().nombre === undefined) {
+    throw new Error("el importmap no cambió el almacén: se cargó el de verdad");
+  }
+
+  const { pintarDatos } = await import("../js/ui/datos.js");
+  await pintarDatos(raiz);
+
+  // Con "&toca=si" se aprieta el boton solo, para ver en que queda la pantalla
+  // despues de reconectar sin tener que hacerlo a mano.
+  if (new URLSearchParams(location.search).get("toca") === "si") {
+    const boton = [...raiz.querySelectorAll("button")]
+      .find((b) => /volver a conectarla/i.test(b.textContent));
+    if (boton) { boton.click(); await new Promise((r) => setTimeout(r, 250)); }
+  }
+
+  rotulo.textContent = "";
+  rotulo.append(document.createTextNode(`#carpeta = ${cual}   ·   ver: `));
+  for (const e of ESTADOS) {
+    const a = document.createElement("a");
+    a.href = `?estado=${e}`;
+    a.textContent = e;
+    rotulo.append(a);
+  }
+} catch (error) {
+  rotulo.textContent = "REVENTÓ: " + (error && (error.stack || error.message));
+  rotulo.style.background = "#8b1a12";
+}
+</script>
+</body>
+</html>

@@ -476,8 +476,9 @@ async function arrancar() {
   // Ojo con el nombre exacto: almacen.js devuelve "necesita-permiso".
   if (cargado.carpeta && cargado.carpeta.estado === "necesita-permiso") {
     mensaje(
-      "La carpeta de respaldo está conectada pero el navegador pide permiso " +
-      "otra vez. Entre a Datos y respaldos para volverla a conectar.",
+      "La carpeta de respaldo está ahí, pero el navegador pide permiso otra vez, " +
+      "así que por ahora no se está guardando en ella. Entre a Datos y respaldos " +
+      "y toque “Volver a conectarla”.",
       "ojo", 12
     );
   }
