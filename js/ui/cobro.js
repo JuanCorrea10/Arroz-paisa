@@ -8,13 +8,15 @@
 // ============================================================================
 
 import { el, vaciar, tabla, cifra, cifraPlata, acciones, vacio, mensaje, confirmar, poner, botonQueTrabaja,
-  pedirDatos,
+  pedirDatos, cinta,
 } from "./componentes.js";
 import { estado, cambio, empresas, empresaPorCodigo, asegurarEmpresa } from "./estado.js";
-import { pesos, nombreMes, fechaCorta, fechaLarga, diaDe, diasDelMes, normalizar } from "../nucleo/formato.js";
+import { pesos, nombreMes, fechaCorta, fechaLarga, diaDe, diasDelMes, normalizar,
+  sedeDeEmpresa, razonSocialDe } from "../nucleo/formato.js";
 import {
   cuentaDeCobro, deQuincena, sumar, fechaDeCobro, ponerFechaDeCobro,
-  esCortesia, sumarLoDeLaEmpresa, fueraDelRango, deRango,
+  esCortesia, sumarLoDeLaEmpresa, sumarLoDeContado, loPagaLaEmpresa,
+  contarFacturas, fueraDelRango, deRango,
   rangoQuincena, rangoDeCobro, ponerRangoDeCobro,
 } from "../nucleo/calculos.js";
 import { ponerlePrecio } from "../nucleo/modelo.js";
@@ -76,6 +78,8 @@ export function pintarCobro(raiz) {
     ? deRango(estado.datos.consumos, estado.anio, estado.mes, propio, empresa)
     : deQuincena(estado.datos.consumos, estado.anio, estado.mes, quincena, empresa);
   const enCero = delPeriodo.filter((c) => !esCortesia(c) && !(c.precioUnitario > 0));
+
+  poner(raiz, tarjetaDeTodasLasEmpresas());
 
   poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
@@ -263,6 +267,75 @@ export function pintarCobro(raiz) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Las cuatro empresas y sus dos quincenas, de una sola mirada.
+ *
+ * Va ARRIBA de todo y antes del selector a propósito. La pregunta "¿cuánto va
+ * de cada empresa?" se contestaba eligiendo una por una y acordándose de los
+ * tres números anteriores; ahora está contestada al entrar, sin tocar nada, y
+ * el selector de abajo pasa a ser solo "cuál imprimo".
+ */
+function tarjetaDeTodasLasEmpresas() {
+  const filas = totalesDelMes();
+  if (!filas.length) return null;
+
+  const granTotal = filas.reduce((a, f) => a + f.total, 0);
+  const contado = filas.reduce((a, f) => a + f.deContado, 0);
+
+  return el("section", { clase: "tarjeta" },
+    el("div", { clase: "fila entre" },
+      el("h2", { texto: `Lo que va de ${nombreMes(estado.mes)} de ${estado.anio}` }),
+      el("span", { clase: "comanda-total", texto: pesos(granTotal) })
+    ),
+    el("p", { clase: "nota", estilo: "margin:var(--e2) 0 0" },
+      "Lo que se le cobra a cada empresa, quincena por quincena. Es la misma " +
+      "plata que sale en la cuenta de abajo."),
+
+    tabla(
+      [
+        { titulo: "Empresa" },
+        { titulo: "Quincena 1", clase: "n" },
+        { titulo: "Quincena 2", clase: "n" },
+        { titulo: "Facturas", clase: "n" },
+        { titulo: "Todo el mes", clase: "n" },
+      ],
+      filas.map((f) =>
+        el("tr", {},
+          // La cinta arriba y la razón social DEBAJO, no al lado: "apunte-suelto"
+          // es inline-flex, así que pegada quedaba "AGROBOTAS AGROINDUSTRIAL".
+          el("td", {},
+            cinta(f.empresa.codigo),
+            razonSocialDe(f.empresa)
+              ? el("div", {
+                  estilo: "margin-top:3px;font-size:var(--t-sm);color:var(--tinta-suave)",
+                  texto: razonSocialDe(f.empresa),
+                })
+              : null
+          ),
+          el("td", { clase: "n", texto: pesos(f.q1) }),
+          el("td", { clase: "n", texto: pesos(f.q2) }),
+          el("td", { clase: "n", texto: String(f.facturas) }),
+          el("td", { clase: "n", estilo: "font-weight:700", texto: pesos(f.total) })
+        )
+      ),
+      el("tr", {},
+        el("td", { colspan: "4", texto: "TODAS LAS EMPRESAS" }),
+        el("td", { clase: "n", texto: pesos(granTotal) })
+      )
+    ),
+
+    // Lo de contado se dice aparte y solo cuando lo hay: está vendido, pero no
+    // se le cobra a nadie más. Sumarlo aquí haría que este resumen no cuadrara
+    // con la cuenta de cobro, que es de lo peor que puede pasar.
+    contado > 0
+      ? el("p", { clase: "nota ojo", estilo: "margin:var(--e3) 0 0" },
+          el("div", {},
+            el("strong", { texto: `Además hay ${pesos(contado)} que se pagaron de una` }),
+            el("p", { texto: "Eso ya está en la caja y NO va en ninguna cuenta de cobro." })))
+      : null
+  );
+}
+
+/**
  * Ponerle precio a los renglones de un plato que quedaron en $ 0.
  *
  * Esto SUBE la cuenta de una empresa, así que se dice cuánto sube antes de
@@ -344,9 +417,11 @@ function documentoDeCobro(cuenta, acreedor) {
     el("div", { clase: "partes" },
       el("div", { clase: "parte" },
         el("h4", { texto: "Quien debe" }),
-        el("div", { clase: "nombre", texto: empresa.razonSocial || empresa.codigo }),
-        el("div", { clase: "nit", texto: empresa.nit ? "NIT " + empresa.nit : "" }),
-        el("div", { clase: "nit", texto: "Sede " + empresa.codigo })
+        // La SEDE en grande: tres empresas comparten la razón social, así que
+        // esta parte del papel salía idéntica en las tres.
+        el("div", { clase: "nombre", texto: sedeDeEmpresa(empresa) }),
+        el("div", { clase: "nit", texto: razonSocialDe(empresa) }),
+        el("div", { clase: "nit", texto: empresa.nit ? "NIT " + empresa.nit : "" })
       ),
       el("div", { clase: "parte" },
         el("h4", { texto: "Debe a" }),
@@ -404,7 +479,7 @@ function paraElCliente(empresa) {
     el("p", { estilo: "color:var(--tinta-media)" },
       "Estos archivos traen ",
       el("strong", { texto: "únicamente" }),
-      ` los datos de ${empresa.razonSocial || empresa.codigo}. No hay forma de que vean los de las otras empresas, porque no van adentro del archivo.`
+      ` los datos de ${sedeDeEmpresa(empresa)}. No hay forma de que vean los de las otras empresas, porque no van adentro del archivo.`
     ),
     el("div", { clase: "fila" },
       el("button", {
@@ -446,15 +521,36 @@ function paraElCliente(empresa) {
   );
 }
 
-/** Los totales de todas las empresas, para la pantalla de inicio. */
+/**
+ * Lo que va de cada empresa este mes, quincena por quincena.
+ *
+ * Esta función estaba escrita hace rato y no la llamaba NADIE: su comentario
+ * decía "para la pantalla de inicio" y esa pantalla nunca se hizo. Mientras
+ * tanto, la misma tabla se armaba otra vez en el Excel, así que para ver estos
+ * cuatro números había que bajar un archivo y abrirlo.
+ *
+ * Ahora sale arriba en la cuenta de cobro, ANTES de elegir empresa: si toca
+ * elegir para verlo, para quien usa esto no existe.
+ *
+ * Cuidado con lo que suma: es "lo que se le cobra a la empresa", no "lo que se
+ * vendió". Lo que alguien pagó de contado se vendió, pero NO va en la cuenta de
+ * cobro. Por eso va aparte, con su rótulo: si este resumen dijera un número y
+ * la cuenta de cobro otro, ella dejaría de creerle a los dos.
+ */
 export function totalesDelMes() {
   return empresas().map((e) => {
-    // Solo lo que le toca pagar a la empresa. Si aqui entrara lo de contado,
-    // este avance diria que la empresa debe mas de lo que debe, y ella lo
-    // notaria hasta el dia de cobrar.
-    const q1 = sumarLoDeLaEmpresa(deQuincena(estado.datos.consumos, estado.anio, estado.mes, 1, e));
-    const q2 = sumarLoDeLaEmpresa(deQuincena(estado.datos.consumos, estado.anio, estado.mes, 2, e));
-    return { empresa: e, q1, q2, total: q1 + q2 };
+    const q1 = deQuincena(estado.datos.consumos, estado.anio, estado.mes, 1, e);
+    const q2 = deQuincena(estado.datos.consumos, estado.anio, estado.mes, 2, e);
+    const cobraQ1 = sumarLoDeLaEmpresa(q1);
+    const cobraQ2 = sumarLoDeLaEmpresa(q2);
+    return {
+      empresa: e,
+      q1: cobraQ1,
+      q2: cobraQ2,
+      total: cobraQ1 + cobraQ2,
+      facturas: contarFacturas(q1.filter(loPagaLaEmpresa)) + contarFacturas(q2.filter(loPagaLaEmpresa)),
+      deContado: sumarLoDeContado(q1) + sumarLoDeContado(q2),
+    };
   });
 }
 

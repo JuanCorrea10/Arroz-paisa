@@ -5,7 +5,9 @@
 //  como un documento serio, no como una captura de pantalla.
 // ============================================================================
 
-import { pesos, fechaCorta, fechaLarga, nombreMes } from "../nucleo/formato.js";
+import { pesos, fechaCorta, fechaLarga, nombreMes ,
+  sedeDeEmpresa, razonSocialDe,
+} from "../nucleo/formato.js";
 
 // Los mismos colores del restaurante que usa la app. Cuando el supervisor
 // recibe el PDF tiene que reconocerlo como el mismo documento que le mostraron
@@ -286,15 +288,30 @@ export function pdfCuentaDeCobro(cuenta, acreedor) {
   // Quién le debe a quién. Es lo primero que mira el contador del cliente.
   //
   // Va primero el que DEBE y después a quién, para que se lea como la frase
-  // que es: "BOTAS AGROINDUSTRIAL SAS debe a VALENTINA SANCHEZ GUZMAN". Al
-  // reves -- que es como estaba -- hay que armar la frase de memoria, y en un
-  // papel que se entrega eso se presta para leerlo al contrario.
+  // que es: "BASARILI debe a VALENTINA SANCHEZ GUZMAN". Al reves -- que es como
+  // estaba -- hay que armar la frase de memoria, y en un papel que se entrega
+  // eso se presta para leerlo al contrario.
+  //
+  // En grande va la SEDE y no la razón social. Tres de las cuatro empresas se
+  // llaman "BOTAS AGROINDUSTRIAL SAS", así que las cuentas de AGRO, BASARILI y
+  // PUNTERAS salían EXACTAMENTE iguales en la parte de arriba: ella no sabía
+  // cuál entregar y quien la recibía no sabía si era la suya. La razón social y
+  // el NIT no se van -- son el deudor legal y el contador los necesita -- se
+  // bajan al renglón de abajo.
   //
   // Los dos nombres salen del mismo tamano y lo mas grandes que quepan. Del
   // mismo tamano porque son la misma cosa vista de los dos lados: si uno sale
   // grande y el otro chiquito, el documento se ve mal armado.
-  const quienDebe = empresa.razonSocial || empresa.codigo;
+  const quienDebe = sedeDeEmpresa(empresa);
   const debeA = acreedor.nombre || "-";
+
+  // Lo chiquito de cada lado. Son dos renglones a lo sumo, y la cajita crece
+  // para que quepan: antes cabía uno solo (el NIT) y ya.
+  const pieIzq = [razonSocialDe(empresa), empresa.nit ? "NIT " + empresa.nit : null]
+    .filter(Boolean);
+  const pieDer = [acreedor.nit ? "NIT " + acreedor.nit : null, acreedor.ciudad || null]
+    .filter(Boolean);
+  const renglonesPie = Math.max(pieIzq.length, pieDer.length, 1);
   const utilCaja = 80;
   doc.setFont("helvetica", "bold");
   const mideIzq = medirAjustado(doc, quienDebe, utilCaja, 15, 9.5);
@@ -306,7 +323,7 @@ export function pdfCuentaDeCobro(cuenta, acreedor) {
   // de 26 mm fijos y por eso el nombre tenia que ser chiquito para caber.
   const baseNombre = y + 14;
   const baseNit = baseNombre + (renglonesNombre - 1) * tamNombre * ALTO_RENGLON + 8;
-  const altoCaja = baseNit - y + 5;
+  const altoCaja = baseNit - y + 5 + (renglonesPie - 1) * 4.6;
 
   doc.setDrawColor(207, 219, 203);
   doc.setFillColor(251, 252, 250);
@@ -326,9 +343,13 @@ export function pdfCuentaDeCobro(cuenta, acreedor) {
   doc.text(doc.splitTextToSize(debeA, utilCaja), 112, baseNombre);
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.text("NIT " + (empresa.nit || "-"), 18, baseNit);
-  doc.text("NIT " + (acreedor.nit || "-"), 112, baseNit);
+  doc.setFontSize(8.5);
+  doc.setTextColor(...GRIS);
+  pieIzq.forEach((linea, i) =>
+    escribirAjustado(doc, linea, 18, baseNit + i * 4.6, utilCaja, 8.5, 6.5));
+  pieDer.forEach((linea, i) =>
+    escribirAjustado(doc, linea, 112, baseNit + i * 4.6, utilCaja, 8.5, 6.5));
+  doc.setTextColor(22, 33, 27);
 
   y += altoCaja + 7;
   doc.setFontSize(10);
@@ -975,7 +996,14 @@ export function pdfCocina(filas, fecha, codigos, acreedor, notas = []) {
  * descontar, y la del mes es para cuadrar. Mandar las tres cuando solo hace
  * falta una es darle a alguien tres números para que lea el que no es.
  */
-export function pdfPorPersona(filas, anio, mes, nombreEmpresa, acreedor, fechaDia = null, que = "todo", soloValor = false) {
+export function pdfPorPersona(filas, anio, mes, nombreEmpresa, acreedor, fechaDia = null, que = "todo", soloValor = false, hastaDia = null) {
+  // El papel tiene que decir el MISMO periodo que la pantalla. Si ella mira del
+  // 18 al 25 y el PDF rotula la columna "18/08", quien lo recibe suma ocho días
+  // creyendo que es uno -- y el número que se ve es correcto, así que nadie se
+  // da cuenta.
+  const rotuloDia = hastaDia && hastaDia > fechaDia
+    ? `${fechaCorta(fechaDia)} – ${fechaCorta(hastaDia)}`
+    : fechaCorta(fechaDia);
   const conDia = Boolean(fechaDia) && (que === "todo" || que === "dia");
   const conQuincena = que === "todo" || que === "quincena";
   const conMes = que === "todo" || que === "mes";
@@ -994,7 +1022,7 @@ export function pdfPorPersona(filas, anio, mes, nombreEmpresa, acreedor, fechaDi
     : mezcladas ? "Quincena en curso"
     : `Quincena ${quincenas[0]}`;
 
-  const deQue = que === "dia" ? `Solo el ${fechaCorta(fechaDia)}`
+  const deQue = que === "dia" ? `Solo ${hastaDia && hastaDia > fechaDia ? "del " + rotuloDia : "el " + rotuloDia}`
     : que === "quincena" ? `Solo la ${rotuloQuincena.toLowerCase()}`
     : que === "mes" ? "Solo el mes"
     : null;
@@ -1049,7 +1077,7 @@ export function pdfPorPersona(filas, anio, mes, nombreEmpresa, acreedor, fechaDi
   }
   if (conDia) {
     columnas.push({
-      titulo: fechaCorta(fechaDia), ancho: { halign: "right", cellWidth: 30 },
+      titulo: rotuloDia, ancho: { halign: "right", cellWidth: 30 },
       de: (f) => (f.dia ? pesos(f.dia) : "—"),
       pie: suma((f) => f.dia || 0),
     });
@@ -1101,7 +1129,7 @@ export function pdfPorPersona(filas, anio, mes, nombreEmpresa, acreedor, fechaDi
   }
 
   pieDePagina(doc);
-  const sufijo = (que === "dia" ? "-dia-" + fechaDia
+  const sufijo = (que === "dia" ? (hastaDia && hastaDia > fechaDia ? `-del-${fechaDia}-al-${hastaDia}` : "-dia-" + fechaDia)
     : que === "quincena" ? "-quincena"
     : que === "mes" ? "-mes" : "") + (soloValor ? "-solo-valor" : "");
   guardar(doc, `consumo-por-persona-${anio}-${String(mes).padStart(2, "0")}${sufijo}.pdf`);
@@ -1188,7 +1216,8 @@ function portada(doc, informe) {
   // parecia una nota al pie: el mes se leia mas que la empresa. Ahora sale con
   // la letra mas grande que quepa en el hueco que deja el logo.
   doc.setFont("helvetica", "bold");
-  const nombre = escribirAjustado(doc, empresa.razonSocial || empresa.codigo, 18, 58, ancho - 76, 22, 11);
+  // La SEDE en grande. La razón social va debajo, en el renglón chiquito.
+  const nombre = escribirAjustado(doc, sedeDeEmpresa(empresa), 18, 58, ancho - 76, 22, 11);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9.5);
   doc.text("Sede " + empresa.codigo, 18, 58 + (nombre.renglones.length - 1) * nombre.tam * ALTO_RENGLON + 7);
@@ -1257,7 +1286,7 @@ function portada(doc, informe) {
   doc.setFontSize(8.5);
   doc.text(
     "Este documento trae únicamente la información de " +
-    (empresa.razonSocial || empresa.codigo) +
+    sedeDeEmpresa(empresa) +
     ". La de las otras empresas no está adentro.",
     18, y, { maxWidth: ancho - 36 }
   );
@@ -1320,7 +1349,7 @@ const totalALaIzquierda = (d) => {
 export function pdfInformeCompleto(informe) {
   const doc = nuevoDocumento();
   const { empresa, anio, mes, totales, platos, personas, dias, acreedor } = informe;
-  const quien = empresa.razonSocial || empresa.codigo;
+  const quien = sedeDeEmpresa(empresa);
   const cuando = nombreMes(mes) + " " + anio + " · " + quien;
 
   portada(doc, informe);

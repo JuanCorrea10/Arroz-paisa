@@ -112,6 +112,48 @@ export function coincide(texto, busqueda) {
   return b.split(" ").every((palabra) => t.includes(palabra));
 }
 
+/**
+ * Cómo se NOMBRA una empresa en cualquier sitio donde se vea.
+ *
+ * Manda la SEDE (AGRO, BASARILI, MGP, PUNTERAS), no la razón social.
+ *
+ * No es preferencia: TRES de las cuatro empresas se llaman "BOTAS
+ * AGROINDUSTRIAL SAS". Un papel que diga solo eso no dice CUÁL de las tres es
+ * -- ella no sabe cuál entregar y quien lo recibe no sabe si es el suyo. La
+ * sede es además el nombre con el que la llama todo el mundo, empezando por
+ * los trabajadores.
+ */
+export function sedeDeEmpresa(empresa) {
+  const e = empresa || {};
+  return String(e.codigo || "").trim() || String(e.razonSocial || "").trim() || "—";
+}
+
+/**
+ * El renglón chiquito de debajo: la razón social, y el NIT si se pide.
+ *
+ * Chiquito NO quiere decir que sobre. Es el deudor legal, y es lo que el
+ * contador de la fábrica necesita para pasar la cuenta a pagar. Lo que cambió
+ * es el ORDEN: primero quién es para nosotros, después quién es para la ley.
+ *
+ * Sale vacío cuando la razón social es igual a la sede, para no escribir el
+ * mismo nombre dos veces seguidas.
+ */
+export function razonSocialDe(empresa, { conNit = false } = {}) {
+  const e = empresa || {};
+  const razon = String(e.razonSocial || "").trim();
+  const sede = String(e.codigo || "").trim();
+  const partes = [];
+  if (razon && razon !== sede) partes.push(razon);
+  if (conNit && e.nit) partes.push("NIT " + e.nit);
+  return partes.join("  ·  ");
+}
+
+/** La sede con su razón social detrás: "BASARILI · BOTAS AGROINDUSTRIAL SAS". */
+export function nombreLargoDeEmpresa(empresa) {
+  const detras = razonSocialDe(empresa);
+  return detras ? `${sedeDeEmpresa(empresa)} · ${detras}` : sedeDeEmpresa(empresa);
+}
+
 /** Convierte lo que sea a un número entero >= 0 (para cantidades y precios). */
 export function aEntero(valor, porDefecto = 0) {
   if (typeof valor === "number" && Number.isFinite(valor)) return Math.round(valor);

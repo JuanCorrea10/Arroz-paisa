@@ -11,7 +11,7 @@
 
 import { archivoDesdeHojas } from "../datos/excel.js";
 import { descargarBlob } from "../datos/almacen.js";
-import { nombreMes } from "../nucleo/formato.js";
+import { nombreMes, sedeDeEmpresa, razonSocialDe } from "../nucleo/formato.js";
 import {
   indicePorCodigo, quincenaDe, subtotal, delMes, deQuincena, sumar,
   contarFacturas, informePorPersona, clavePrecio,
@@ -145,7 +145,8 @@ export async function exportarEmpresaAExcel(datos, codigoEmpresa, anio, mes) {
 
   const portada = [
     ["CONSUMO DE ALMUERZOS"],
-    [empresa.razonSocial || empresa.codigo],
+    [sedeDeEmpresa(empresa)],
+    [razonSocialDe(empresa, { conNit: true })],
     ["NIT", empresa.nit],
     [],
     ["Periodo", `${nombreMes(mes)} ${anio}`],

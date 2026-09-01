@@ -12,7 +12,7 @@
 // ============================================================================
 
 import { descargarBlob } from "../datos/almacen.js";
-import { pesos, fechaCorta, fechaLarga, nombreMes } from "../nucleo/formato.js";
+import { pesos, fechaCorta, fechaLarga, nombreMes, sedeDeEmpresa, razonSocialDe } from "../nucleo/formato.js";
 import { subtotal, sumar, contarFacturas, informeCompletoDeEmpresa } from "../nucleo/calculos.js";
 
 /**
@@ -62,7 +62,7 @@ export function generarReporteEmpresa(datos, codigoEmpresa, anio, mes) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(empresa.razonSocial || empresa.codigo)} · Almuerzos ${esc(nombreMes(mes))} ${anio}</title>
+<title>${esc(sedeDeEmpresa(empresa))} · Almuerzos ${esc(nombreMes(mes))} ${anio}</title>
 <style>
   :root{--verde:#a81e17;--verde2:#d92b22;--achiote:#d92b22;--tinta:#241b18;--suave:#85756e;--borde:#e5dccc;--raya:#fbf6ed;--papel:#fff;--fondo:#f5eee2}
   *{box-sizing:border-box}
@@ -100,7 +100,8 @@ export function generarReporteEmpresa(datos, codigoEmpresa, anio, mes) {
 <body>
 <header>
   <div class="caja">
-    <h1>${esc(empresa.razonSocial || empresa.codigo)}</h1>
+    <h1>${esc(sedeDeEmpresa(empresa))}</h1>
+    ${razonSocialDe(empresa) ? `<p class="razon">${esc(razonSocialDe(empresa, { conNit: true }))}</p>` : ""}
     <div class="sub">Consumo de almuerzos · ${esc(nombreMes(mes))} de ${anio} · Sede ${esc(empresa.codigo)}${empresa.nit ? " · NIT " + esc(empresa.nit) : ""}</div>
     <div class="prov">Proveedor: ${esc(acreedor.nombre || "")}${acreedor.nit ? " · NIT " + esc(acreedor.nit) : ""}${acreedor.ciudad ? " · " + esc(acreedor.ciudad) : ""}</div>
   </div>
@@ -156,7 +157,7 @@ export function generarReporteEmpresa(datos, codigoEmpresa, anio, mes) {
 
 <footer>
   Documento generado el ${esc(fechaCorta(new Date().toISOString().slice(0, 10)))} por ${esc(acreedor.nombre || "el proveedor")}.
-  Contiene únicamente la información de ${esc(empresa.razonSocial || empresa.codigo)} — sede ${esc(empresa.codigo)}.
+  Contiene únicamente la información de ${esc(sedeDeEmpresa(empresa))}.
 </footer>
 </body>
 </html>`;

@@ -9,7 +9,7 @@ import { el, vaciar, tabla, cifra, cifraPlata, acciones, vacio, mensaje, cinta, 
   pedirDatos, colorDeEmpresa, ventana,
 } from "./componentes.js";
 import { estado, cambio, empresas, empresaPorCodigo } from "./estado.js";
-import { pesos, fechaLarga, fechaCorta, nombreMes, diasDelMes, hoyISO, coincide } from "../nucleo/formato.js";
+import { pesos, fechaLarga, fechaCorta, nombreMes, diasDelMes, hoyISO, coincide, diaDe } from "../nucleo/formato.js";
 import {
   informeCocina, informeDia, informePorPersona, informeCuadre, notasDelDia,
   indicePorCodigo, delDia, contarFacturas, comandasDelDia,
@@ -35,6 +35,13 @@ function nombreDeEmpresa(codigo) {
   const razon = (emp.razonSocial || "").trim();
   const sede = emp.codigo || codigo;
   return razon && razon !== sede ? `${sede} · ${razon}` : sede;
+}
+
+/** Cuántos días hay entre dos fechas, contando los dos extremos. */
+function diasDelRango(desde, hasta) {
+  const a = new Date(desde + "T00:00:00");
+  const b = new Date(hasta + "T00:00:00");
+  return Math.round((b - a) / 86400000) + 1;
 }
 
 /** El selector de día que usan varias pantallas. */
@@ -309,6 +316,13 @@ let soloDelDia = false;
 let ordenPorPersona = "nombre";
 /** Lo que escribió en el buscador. Son 268 personas: sin esto toca ir bajando. */
 let buscaEnPersona = "";
+/**
+ * Hasta qué día llega el periodo que se está mirando. Null = un solo día.
+ *
+ * El día en que EMPIEZA es estado.fecha, el mismo de siempre, para no tener dos
+ * ideas de "el día" peleando entre pantallas.
+ */
+let hastaEnPersona = null;
 
 /**
  * Pregunta qué hay que bajar antes de bajarlo.
@@ -317,7 +331,7 @@ let buscaEnPersona = "";
  * controles, y esto no se escoge una vez y se deja quieto -- un día se manda
  * lo del día y otro lo de la quincena.
  */
-async function bajarPorPersonaEnPDF(filas, nombre) {
+async function bajarPorPersonaEnPDF(filas, nombre, hasta = null) {
   const q = filas.length ? filas[0].quincenaActual : null;
   const r = await pedirDatos({
     titulo: "¿Qué se baja?",
@@ -329,7 +343,12 @@ async function bajarPorPersonaEnPDF(filas, nombre) {
         valor: "todo",
         opciones: [
           { valor: "todo", texto: "Las tres: el día, la quincena y el mes" },
-          { valor: "dia", texto: `Solo el día (${fechaCorta(estado.fecha)})` },
+          {
+            valor: "dia",
+            texto: hasta
+              ? `Solo esos días (${fechaCorta(estado.fecha)} – ${fechaCorta(hasta)})`
+              : `Solo el día (${fechaCorta(estado.fecha)})`,
+          },
           { valor: "quincena", texto: q ? `Solo la quincena ${q}` : "Solo la quincena" },
           { valor: "mes", texto: `Solo el mes (${nombreMes(estado.mes)})` },
         ],
@@ -358,7 +377,7 @@ async function bajarPorPersonaEnPDF(filas, nombre) {
 
   try {
     pdfPorPersona(filas, estado.anio, estado.mes, nombre,
-                  estado.datos.config.acreedor, estado.fecha, r.que, r.soloValor);
+                  estado.datos.config.acreedor, estado.fecha, r.que, r.soloValor, hasta);
     mensaje("PDF descargado.", "bien");
   } catch (e) {
     mensaje(e.message, "malo", 8);
@@ -450,9 +469,41 @@ export function pintarPorPersona(raiz) {
   // Se le pasa el día para que cada renglón traiga también lo de ESE día.
   // Así en una sola fila se ve lo de hoy, lo de la quincena y lo del mes, que
   // es justo lo que le preguntan: "¿cuánto llevo?".
+  // El "hasta" solo vale si va después del día de inicio y en el mismo mes.
+  const hasta = hastaEnPersona && hastaEnPersona > estado.fecha
+    && hastaEnPersona.slice(0, 7) === estado.fecha.slice(0, 7)
+    ? hastaEnPersona
+    : null;
+
+  const finDeMesPersona = diasDelMes(estado.anio, estado.mes);
+  const fechaConDia = (d) =>
+    `${estado.anio}-${String(estado.mes).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+
+  const ponerDiaDesde = (valor) => {
+    const d = Math.max(1, Math.min(finDeMesPersona, Number(valor) || 1));
+    estado.fecha = fechaConDia(d);
+    if (hastaEnPersona && hastaEnPersona < estado.fecha) hastaEnPersona = null;
+    repintar();
+  };
+  const ponerDiaHasta = (valor) => {
+    const n = Number(valor);
+    if (!valor || !Number.isFinite(n)) { hastaEnPersona = null; repintar(); return; }
+    const d = Math.max(1, Math.min(finDeMesPersona, n));
+    const nueva = fechaConDia(d);
+    // Un "hasta" antes del "desde" no se guarda: se entiende como "un solo día".
+    hastaEnPersona = nueva > estado.fecha ? nueva : null;
+    repintar();
+  };
+
+  // Cómo se nombra el periodo. Se arma una vez: estaba escrito "el <día>" en
+  // cinco sitios, y con el rango puesto los cinco quedarían mintiendo.
+  const elPeriodo = hasta
+    ? `del ${fechaLarga(estado.fecha)} al ${fechaLarga(hasta)}`
+    : `el ${fechaLarga(estado.fecha)}`;
+
   const todas = informePorPersona(
     estado.datos.consumos, estado.anio, estado.mes, indice,
-    empresaPersonas || null, estado.fecha);
+    empresaPersonas || null, estado.fecha, hasta);
   // Se filtra en un array NUEVO, siempre. Antes, sin el visto puesto, "filas"
   // era el mismo array que "todas" y el sort de abajo se lo reordenaba a las
   // dos a la vez; ahora hace falta "todas" entero para poder decir "3 de 268".
@@ -478,7 +529,7 @@ export function pintarPorPersona(raiz) {
       ),
       acciones(
         botonImprimir(),
-        botonQueTrabaja("Bajar PDF", () => bajarPorPersonaEnPDF(filas, nombre))
+        botonQueTrabaja("Bajar PDF", () => bajarPorPersonaEnPDF(filas, nombre, hasta))
       )
     ),
     el("div", { clase: "mando" },
@@ -486,11 +537,46 @@ export function pintarPorPersona(raiz) {
       // El día vive aquí junto al mes, y al cambiarlo el mes se va con él.
       // Si no, se escoge un día de septiembre con el mes en agosto y la
       // columna sale toda en cero sin que se entienda por qué.
-      selectorDeDia(() => {
-        estado.anio = Number(estado.fecha.slice(0, 4)) || estado.anio;
-        estado.mes = Number(estado.fecha.slice(5, 7)) || estado.mes;
-        repintar();
-      }),
+      // De "Día" a "Del ___ al ___".
+      //
+      // No es un control MÁS: es el mismo, estirado. Un día suelto es un rango
+      // de un día, así que dejarlo vacío se comporta igual que antes. La otra
+      // salida era agregar dos casillas nuevas a una barra que ya lleva siete,
+      // y aquí lo que sobra estorba tanto como lo que falta.
+      // Dos casillas de DÍA, no dos de fecha completa.
+      //
+      // Dos "input date" no caben en una columna de la barra: se apilan y
+      // desalinean todo. Y no hacen falta -- el mes y el año se eligen aquí al
+      // lado. Además queda IGUAL al control de la cuenta de cobro ("del __ al
+      // __"), que es una cosa menos que entender.
+      el("div", { clase: "campo" },
+        el("label", { for: "persona-desde", texto: `Días de ${nombreMes(estado.mes).toLowerCase()}` }),
+        el("div", { clase: "fila", estilo: "align-items:center;gap:var(--e2)" },
+          el("span", { texto: "del" }),
+          el("input", {
+            type: "number", id: "persona-desde", min: 1, max: finDeMesPersona,
+            value: String(diaDe(estado.fecha) || 1),
+            estilo: "width:5rem",
+            alCambiar: (e) => { ponerDiaDesde(e.target.value); },
+          }),
+          el("span", { texto: "al" }),
+          el("input", {
+            type: "number", id: "persona-hasta", min: 1, max: finDeMesPersona,
+            value: hasta ? String(diaDe(hasta)) : "",
+            estilo: "width:5rem",
+            alCambiar: (e) => { ponerDiaHasta(e.target.value); },
+          })
+        ),
+        hasta
+          ? el("small", { estilo: "color:var(--tinta-suave)" },
+              `${diasDelRango(estado.fecha, hasta)} días. `,
+              el("button", {
+                clase: "plano chico",
+                alHacerClic: () => { hastaEnPersona = null; repintar(); },
+              }, "Ver un solo día"))
+          : el("small", { estilo: "color:var(--tinta-suave)",
+              texto: `${fechaLarga(estado.fecha)}. Ponga el segundo día para ver un periodo.` })
+      ),
       selectorDeEmpresa(empresaPersonas, (v) => { empresaPersonas = v; repintar(); }),
       el("div", { clase: "campo" },
         el("label", { for: "busca-persona", texto: "Buscar" }),
@@ -539,7 +625,7 @@ export function pintarPorPersona(raiz) {
             type: "checkbox", id: "solo-del-dia", checked: soloDelDia,
             alCambiar: (e) => { soloDelDia = e.target.checked; repintar(); },
           }),
-          el("span", { texto: "Solo los que comieron ese día" })
+          el("span", { texto: hasta ? "Solo los que comieron en esos días" : "Solo los que comieron ese día" })
         )
       )
     )
@@ -550,8 +636,8 @@ export function pintarPorPersona(raiz) {
       ? vacio(`Ninguna persona se llama así`,
           el("p", { texto: `Buscando "${buscaEnPersona}" entre ${todas.length} personas no salió ninguna. Borre lo que escribió para verlas todas.` }))
       : soloDelDia
-        ? vacio(`El ${fechaLarga(estado.fecha)} no comió nadie`,
-            el("p", { texto: "Cambie el día arriba, o quite el visto para ver a todos los del mes." }))
+        ? vacio(`No comió nadie ${elPeriodo}`,
+            el("p", { texto: "Cambie los días arriba, o quite el visto para ver a todos los del mes." }))
         : vacio(`No hay nada anotado en ${nombreMes(estado.mes)} de ${estado.anio}`,
             "Elija otro mes u otra empresa."));
     return;
@@ -576,7 +662,7 @@ export function pintarPorPersona(raiz) {
   poner(raiz,
     el("dl", { clase: "cifras", estilo: "margin-bottom:var(--e5)" },
       cifra("Personas", String(filas.length)),
-      cifraPlata(`El ${fechaCorta(estado.fecha)}`, tDia),
+      cifraPlata(hasta ? `Del ${fechaCorta(estado.fecha)} al ${fechaCorta(hasta)}` : `El ${fechaCorta(estado.fecha)}`, tDia),
       cifraPlata(rotuloQuincena, tEnCurso),
       cifraPlata("Total del mes", tMes, true)
     ),
@@ -588,17 +674,17 @@ export function pintarPorPersona(raiz) {
         ? `Mostrando ${filas.length} de ${todas.length} personas: las que dicen ` +
           `"${buscaEnPersona}". Las cifras de arriba y el TOTAL son de esas ${filas.length}.`
         : soloDelDia
-        ? `Solo las ${filas.length} personas que comieron el ${fechaLarga(estado.fecha)}. ` +
+        ? `Solo las ${filas.length} personas que comieron ${elPeriodo}. ` +
           "La quincena y el mes son los de cada una, completos."
         : conDia
-          ? `El ${fechaLarga(estado.fecha)} comieron ${conDia} de estas ${filas.length} personas. ` +
-            'Para ver solo esas, marque "Solo los que comieron ese día" arriba.'
-          : `El ${fechaLarga(estado.fecha)} no comió nadie. Cambie el día arriba para ver otro.`),
+          ? `Comieron ${conDia} de estas ${filas.length} personas ${elPeriodo}. ` +
+            'Para ver solo esas, marque el visto de arriba.'
+          : `No comió nadie ${elPeriodo}. Cambie los días arriba para ver otro periodo.`),
     tabla(
       [
         { titulo: "Persona" }, { titulo: "Empresa" },
         { titulo: "Facturas", clase: "n" },
-        { titulo: fechaCorta(estado.fecha), clase: "n" },
+        { titulo: hasta ? `${fechaCorta(estado.fecha)} – ${fechaCorta(hasta)}` : fechaCorta(estado.fecha), clase: "n" },
         { titulo: rotuloQuincena, clase: "n" },
         { titulo: "Mes", clase: "n" },
       ],

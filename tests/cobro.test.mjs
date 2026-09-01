@@ -385,6 +385,57 @@ prueba("sin renglones no hace nada y no revienta", () => {
 });
 
 // ---------------------------------------------------------------------------
+grupo("El consumo de una persona entre dos fechas");
+
+const UNOS_DIAS = [
+  renglon(A_CREDITO, { fecha: "2026-08-03" }),
+  renglon(A_CREDITO, { fecha: "2026-08-10", cantidad: 2 }),
+  renglon(A_CREDITO, { fecha: "2026-08-20" }),
+];
+const conIndice = (datos) => indicePorCodigo(datos.empresas);
+
+prueba("sin segundo día se comporta igual que antes: un solo día", () => {
+  const datos = negocio(UNOS_DIAS);
+  const filas = informePorPersona(datos.consumos, 2026, 8, conIndice(datos), null, "2026-08-10");
+  igual(filas[0].dia, PRECIO * 2, "solo lo del 10");
+});
+
+prueba("con segundo día suma todo lo que hay entre los dos, incluidos", () => {
+  const datos = negocio(UNOS_DIAS);
+  const filas = informePorPersona(datos.consumos, 2026, 8, conIndice(datos), null,
+                                  "2026-08-03", "2026-08-10");
+  igual(filas[0].dia, PRECIO * 3, "el 3 y el 10 entran los dos");
+});
+
+prueba("el rango puede cruzar el corte de la quincena", () => {
+  // Del 10 al 20 hay días de las dos quincenas (MGP corta el 15). La columna
+  // del periodo los suma todos; la de "quincena" es otra cosa y no se toca.
+  const datos = negocio(UNOS_DIAS);
+  const filas = informePorPersona(datos.consumos, 2026, 8, conIndice(datos), null,
+                                  "2026-08-10", "2026-08-20");
+  igual(filas[0].dia, PRECIO * 3, "los dos del 10 y el del 20");
+  igual(filas[0].quincenaActual, 1, "la quincena se mira por donde EMPIEZA el rango");
+});
+
+prueba("un segundo día anterior al primero se ignora, no da negativo ni cero", () => {
+  const datos = negocio(UNOS_DIAS);
+  const filas = informePorPersona(datos.consumos, 2026, 8, conIndice(datos), null,
+                                  "2026-08-10", "2026-08-03");
+  igual(filas[0].dia, PRECIO * 2, "se queda con el día de inicio, como si no hubiera rango");
+});
+
+prueba("lo que la persona pagó de su bolsillo NO entra en el rango", () => {
+  // Es la misma regla de siempre: esta columna es lo que se le descuenta.
+  const datos = negocio([
+    renglon(A_CREDITO, { fecha: "2026-08-05" }),
+    renglon(DE_CONTADO, { fecha: "2026-08-06" }),
+  ]);
+  const filas = informePorPersona(datos.consumos, 2026, 8, conIndice(datos), null,
+                                  "2026-08-01", "2026-08-31");
+  igual(filas[0].dia, PRECIO, "solo lo de crédito");
+});
+
+// ---------------------------------------------------------------------------
 grupo("Cobro: el día y la caja");
 
 prueba("el día dice cuánto vendió y cuánto de eso está en la caja", () => {

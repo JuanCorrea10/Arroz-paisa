@@ -35,7 +35,7 @@ import {
   poner,
 } from "./componentes.js";
 import { estado, empresas, empresaPorCodigo } from "./estado.js";
-import { pesos, nombreMes } from "../nucleo/formato.js";
+import { pesos, nombreMes, sedeDeEmpresa, razonSocialDe } from "../nucleo/formato.js";
 import {
   delMes, quincenaDe, sumar, contarFacturas, cuentaDeCobro, rangoQuincena, rangoDeCobro,
   fechaDeCobro, informeCompletoDeEmpresa,
@@ -111,7 +111,10 @@ function tarjetaDeEmpresa(empresa) {
     el("div", { clase: "fila entre" },
       el("div", { clase: "fila" },
         cinta(empresa.codigo),
-        el("h2", { texto: empresa.razonSocial || empresa.codigo })
+        el("h2", { texto: sedeDeEmpresa(empresa) }),
+        razonSocialDe(empresa)
+          ? el("p", { clase: "nota", estilo: "margin:0", texto: razonSocialDe(empresa, { conNit: true }) })
+          : null
       ),
       el("span", { clase: "nota", texto: empresa.nit ? "NIT " + empresa.nit : "" })
     ),

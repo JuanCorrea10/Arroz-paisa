@@ -194,6 +194,15 @@ try {
       : "MAL: no salio la tarjeta de dejados asi";
   }
 
+  // "&forzar=hasta:25" escribe el segundo dia del rango en Consumo por persona.
+  if (forzar && forzar.startsWith("hasta:")) {
+    const casilla = raiz.querySelector("#persona-hasta");
+    if (casilla) {
+      casilla.value = forzar.slice(6);
+      casilla.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  }
+
   if (forzar === "ventana") {
     const abrir = [...raiz.querySelectorAll("button")]
       .find((b) => /editar|cambiar|agregar|póngale/i.test(b.textContent));
