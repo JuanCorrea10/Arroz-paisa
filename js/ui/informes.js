@@ -525,7 +525,7 @@ export function pintarPorPersona(raiz) {
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Consumo por persona" }),
-        el("p", { texto: "Cuánto lleva cada persona: el día que elija, la quincena que va corriendo y el mes. Toque un nombre para ver todo lo que ha pedido." })
+        el("p", { texto: "Cuánto lleva cada persona y qué pidió. Toque un nombre para verlo día por día." })
       ),
       acciones(
         botonImprimir(),
@@ -682,7 +682,14 @@ export function pintarPorPersona(raiz) {
           : `No comió nadie ${elPeriodo}. Cambie los días arriba para ver otro periodo.`),
     tabla(
       [
-        { titulo: "Persona" }, { titulo: "Empresa" },
+        // El periodo se dice UNA vez, aquí, y no en cada uno de los 268
+        // renglones. Sin esto la lista de platos es ambigua: la fila tiene tres
+        // columnas de plata (el rango, la quincena y el mes) y no se sabría a
+        // cuál corresponde lo que pidió.
+        { titulo: hasta
+            ? `Persona · qué pidió del ${fechaCorta(estado.fecha)} al ${fechaCorta(hasta)}`
+            : `Persona · qué pidió en ${nombreMes(estado.mes).toLowerCase()}` },
+        { titulo: "Empresa" },
         { titulo: "Facturas", clase: "n" },
         { titulo: hasta ? `${fechaCorta(estado.fecha)} – ${fechaCorta(hasta)}` : fechaCorta(estado.fecha), clase: "n" },
         { titulo: rotuloQuincena, clase: "n" },
@@ -695,7 +702,17 @@ export function pintarPorPersona(raiz) {
               clase: "nombre-historial",
               title: `Ver todo lo que ha pedido ${f.persona}`,
               alHacerClic: () => verHistorial(f),
-            }, f.persona)
+            }, f.persona),
+            // Lo que pidió, debajo del nombre.
+            //
+            // Esto ya se podía ver tocando el nombre, pero nadie va a tocar 268
+            // nombres uno por uno: una función que hay que ir a buscar, para
+            // quien usa esto, no existe. La ventana del historial sigue estando
+            // para el detalle día por día; esto es para verlo de corrido.
+            f.platos.length
+              ? el("div", { clase: "que-pidio" },
+                  f.platos.map((x) => `${x.cantidad}× ${x.producto}`).join(",  "))
+              : null
           ),
           el("td", {}, cinta(f.empresa)),
           el("td", { clase: "n", texto: String(f.facturas) }),

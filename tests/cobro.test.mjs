@@ -482,6 +482,39 @@ prueba("lo que la persona pagó de su bolsillo NO entra en el rango", () => {
   igual(filas[0].dia, PRECIO, "solo lo de crédito");
 });
 
+prueba("sin rango, lo que pidió es lo del MES entero", () => {
+  // Y no lo del día suelto: en un día cualquiera comen 46 de 268 personas, así
+  // que 222 renglones quedarían mudos y la lista no serviría de nada.
+  const datos = negocio(UNOS_DIAS);
+  const filas = informePorPersona(datos.consumos, 2026, 8, conIndice(datos), null, "2026-08-10");
+  igual(filas[0].platos, [{ producto: "ALMUERZO", cantidad: 4, total: PRECIO * 4 }],
+        "los tres días juntos, aunque solo se esté mirando el 10");
+});
+
+prueba("con rango, lo que pidió es solo el de esos días", () => {
+  const datos = negocio(UNOS_DIAS);
+  const filas = informePorPersona(datos.consumos, 2026, 8, conIndice(datos), null,
+                                  "2026-08-03", "2026-08-10");
+  igual(filas[0].platos[0].cantidad, 3, "el del 20 se queda por fuera");
+});
+
+prueba("lo que pidió va junto por plato y de mayor a menor", () => {
+  const datos = negocio([
+    renglon(A_CREDITO, { fecha: "2026-08-03", producto: "GASEOSA", precioUnitario: 7000 }),
+    renglon(A_CREDITO, { fecha: "2026-08-04" }),
+    renglon(A_CREDITO, { fecha: "2026-08-05" }),
+  ]);
+  const filas = informePorPersona(datos.consumos, 2026, 8, conIndice(datos), null, "2026-08-04");
+  igual(filas[0].platos.map((x) => `${x.cantidad} ${x.producto}`), ["2 ALMUERZO", "1 GASEOSA"]);
+});
+
+prueba("quien no pidió nada en el periodo no trae lista, y no revienta", () => {
+  const datos = negocio([renglon(A_CREDITO, { fecha: "2026-08-03" })]);
+  const filas = informePorPersona(datos.consumos, 2026, 8, conIndice(datos), null,
+                                  "2026-08-20", "2026-08-25");
+  igual(filas[0].platos, [], "comió en agosto, pero no en esos días");
+});
+
 // ---------------------------------------------------------------------------
 grupo("Cobro: el día y la caja");
 

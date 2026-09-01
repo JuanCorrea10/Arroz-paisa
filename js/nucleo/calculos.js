@@ -445,6 +445,14 @@ export function informePorPersona(consumos, anio, mes, empresasPorCodigo, codigo
   const desde = fechaDia || null;
   const hasta = desde ? (hastaDia && hastaDia >= desde ? hastaDia : desde) : null;
   const enElRango = (fecha) => Boolean(desde) && fecha >= desde && fecha <= hasta;
+
+  // ¿De qué periodo es la lista de lo que pidió cada quien?
+  //
+  // Si ella escogió un rango de días, de ese rango. Si no, del MES entero -- y
+  // no del día suelto, que dejaría la lista vacía para casi todos: en un día
+  // cualquiera comen 46 de 268 personas, así que 222 renglones no dirían nada.
+  const hayRango = Boolean(hasta && hasta > desde);
+  const cuentaEnLaLista = (fecha) => !hayRango || enElRango(fecha);
   let lista = delMes(consumos, anio, mes);
   if (codigoEmpresa) {
     const cod = normalizar(codigoEmpresa);
@@ -470,6 +478,10 @@ export function informePorPersona(consumos, anio, mes, empresasPorCodigo, codigo
         mes: 0,
         contado: 0,
         facturas: new Set(),
+        // Lo que pidió, junto por plato. Es lo que contesta "¿y esta persona
+        // qué come?" sin tener que abrir a nadie: en una lista de 268 nombres,
+        // abrirlos uno por uno no lo hace nadie.
+        platos: new Map(),
       });
     }
     const fila = porPersona.get(llave);
@@ -482,6 +494,16 @@ export function informePorPersona(consumos, anio, mes, empresasPorCodigo, codigo
     if (enElRango(c.fecha)) fila.dia += alaEmpresa;
     fila.contado += subtotalDeContado(c);
     fila.facturas.add(claveFactura(c));
+
+    if (cuentaEnLaLista(c.fecha)) {
+      const nombre = normalizar(c.producto);
+      if (!fila.platos.has(nombre)) {
+        fila.platos.set(nombre, { producto: nombre, cantidad: 0, total: 0 });
+      }
+      const plato = fila.platos.get(nombre);
+      plato.cantidad += Number(c.cantidad) || 0;
+      plato.total += subtotal(c);
+    }
   }
   // La quincena EN CURSO: la del día que se está mirando.
   //
@@ -501,6 +523,10 @@ export function informePorPersona(consumos, anio, mes, empresasPorCodigo, codigo
       return {
         ...f,
         facturas: f.facturas.size,
+        // De lo que más pidió a lo que menos: lo primero que se mira es si el
+        // número de almuerzos cuadra con los días que trabajó.
+        platos: [...f.platos.values()].sort(
+          (a, b) => b.cantidad - a.cantidad || a.producto.localeCompare(b.producto, "es")),
         quincenaActual,
         // Lo que lleva en la quincena que todavía no se ha cobrado. Es lo que
         // contesta "¿yo cuánto llevo?": la quincena pasada ya se facturó.
