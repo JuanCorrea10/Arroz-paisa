@@ -191,3 +191,9 @@ algo de `tests/salida/`. La app publicada abre vacía a propósito.
   eso. Ver la sección Comandos.)*
 * **Validación de errores**: Si una ejecución falla, no asumas la solución;
   analiza el log de error real antes de intentar arreglarlo.
+## Filosofía de Desarrollo y Sentido Común
+* **Visión de Producto**: Diseña pensando en el usuario final. Las pantallas de gestión (tablas, listas) DEBEN incluir por defecto buscadores, paginación y filtros lógicos sin que el usuario los pida.
+* **Principio KISS (Mantenerlo Simple)**: Prohibido sobre-ingenierizar. Si un error se puede arreglar con 3 líneas de código limpias, no reescribas un módulo entero ni añadas dependencias.
+* **Eliminación de Código Muerto**: Si detectas funciones, variables o archivos que no aportan valor, "no cuadran" o complican el flujo, propón su eliminación inmediata.
+* **Freno de Emergencia**: Si arreglar un bug requiere cambiar más de 2 archivos, detente, explica el problema estructural y pide confirmación.
+* **Siempre deployar**: despues de cada cambio deployar a github, pero eso si, tener copias de respaldo por si algo se daña

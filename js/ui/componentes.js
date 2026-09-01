@@ -117,12 +117,29 @@ export function ventana({ titulo, cuerpo, botones = [], alCerrar }) {
       }, b.texto)
     );
   }
+  // El pie va FUERA del cuerpo, no adentro.
+  //
+  // Estaba adentro, y el cuerpo es el que scrollea: en una ventana larga --
+  // el historial de alguien que lleva medio año comiendo -- el botón de
+  // "Cerrar" quedaba al final de diecisiete días de comidas. Para cerrar la
+  // ventana había que recorrerla entera. Ahora el cuerpo se mueve y el pie se
+  // queda quieto abajo, siempre a la vista.
+  //
+  // Y además una "×" arriba a la derecha, que es donde todo el mundo la busca.
+  // Escape también cierra, pero eso hay que saberlo; la × se ve.
+  const equis = el("button", {
+    clase: "cerrar-x",
+    type: "button",
+    "aria-label": "Cerrar",
+    title: "Cerrar",
+    alHacerClic: () => cerrar(),
+  }, "×");
+
   const contenido = el("div", { clase: "ventana-cuerpo" },
     el("h3", { texto: titulo }),
-    cuerpo,
-    botones.length ? pie : null
+    cuerpo
   );
-  dialogo.append(contenido);
+  dialogo.append(equis, contenido, botones.length ? pie : null);
   document.body.append(dialogo);
 
   function cerrar() {
@@ -140,7 +157,11 @@ export function ventana({ titulo, cuerpo, botones = [], alCerrar }) {
   }
   dialogo.addEventListener("cancel", (e) => { e.preventDefault(); cerrar(); });
   dialogo.showModal();
-  const primero = dialogo.querySelector("input, select, textarea, button");
+  // Se busca dentro del CUERPO y no en la ventana entera: si no, el foco se lo
+  // llevaría la × y un formulario dejaría de abrir con el cursor en su primera
+  // casilla, que es lo que hace que se pueda llenar escribiendo de una.
+  const primero = contenido.querySelector("input, select, textarea, button")
+    || pie.querySelector("button");
   if (primero) {
     setTimeout(() => {
       // El preventScroll y el scrollTop van juntos, y hacen falta los dos.

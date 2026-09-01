@@ -898,11 +898,44 @@ dialog::backdrop { background: rgba(18, 60, 41, 0.42); }
   vista, apiladas al final de la página.
 */
 dialog[open] {
+  position: relative;
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 2rem);
 }
-.ventana-cuerpo { overflow-y: auto; }
+
+/* El cuerpo es lo único que se mueve; el pie se queda quieto. */
+.ventana-cuerpo { overflow-y: auto; flex: 1 1 auto; }
+
+/*
+  La × de cerrar, arriba a la derecha.
+
+  Antes la única salida era el botón del final, y en una ventana larga ese
+  botón quedaba a diecisiete días de scroll de distancia. La × está siempre
+  donde uno la busca, se vea lo que se vea de la ventana.
+*/
+.cerrar-x {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  z-index: 2;
+  min-height: 40px;
+  width: 40px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--tinta-suave);
+  font-size: 1.6rem;
+  line-height: 1;
+}
+.cerrar-x:hover, .cerrar-x:focus-visible {
+  background: var(--marca-claro);
+  border-color: transparent;
+  color: var(--marca-oscuro);
+  transform: none;
+}
+/* Que un título largo no se meta debajo de la ×. */
+.ventana-cuerpo h3 { padding-right: 2.4rem; }
 
 /*
   Dentro de una ventana, la tabla NO lleva su propia barra.
@@ -927,7 +960,16 @@ dialog .marco-tabla { overflow: visible; }
 */
 dialog tfoot td, dialog tfoot th { position: static; }
 .ventana-cuerpo { padding: var(--e5); display: flex; flex-direction: column; gap: var(--e4); }
-.ventana-pie { display: flex; gap: var(--e3); justify-content: flex-end; flex-wrap: wrap; }
+.ventana-pie {
+  display: flex;
+  gap: var(--e3);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  flex: none;
+  padding: var(--e3) var(--e5);
+  border-top: 1px solid var(--borde);
+  background: var(--papel-raya);
+}
 
 /* --------------------------------------------------------------------- */
 /*  Estados del cuadre                                                     */
