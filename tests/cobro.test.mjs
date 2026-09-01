@@ -169,6 +169,53 @@ prueba("quien solo pagó de contado NO sale en la cuenta", () => {
         "ANA ya pagó en la caja: cobrarle a la empresa sería cobrar dos veces");
 });
 
+prueba("cada persona trae lo que pidió, junto por plato", () => {
+  // Es lo que contesta "yo no pedí eso" sin salirse del papel.
+  const datos = negocio([
+    renglon(A_CREDITO, { fecha: "2026-08-03" }),
+    renglon(A_CREDITO, { fecha: "2026-08-05" }),
+    renglon(A_CREDITO, { fecha: "2026-08-05", producto: "GASEOSA", precioUnitario: 7000 }),
+  ]);
+  const cuenta = cuentaDeCobro(datos.consumos, 2026, 8, 1, datos.empresas[0]);
+  const juan = cuenta.personas[0];
+
+  igual(juan.platos.length, 2, "dos platos distintos, no tres renglones");
+  igual(juan.platos[0], { producto: "ALMUERZO", cantidad: 2, total: PRECIO * 2 },
+        "los dos almuerzos de días distintos van juntos");
+  igual(juan.platos[1], { producto: "GASEOSA", cantidad: 1, total: 7000 });
+});
+
+prueba("lo que pidió suma exactamente lo que debe", () => {
+  // Si no cuadra, el papel se contradice a sí mismo en el mismo renglón.
+  const datos = negocio([
+    renglon(A_CREDITO, { cantidad: 3 }),
+    renglon(A_CREDITO, { producto: "GASEOSA", precioUnitario: 7000, cantidad: 2 }),
+  ]);
+  const p = cuentaDeCobro(datos.consumos, 2026, 8, 1, datos.empresas[0]).personas[0];
+  igual(p.platos.reduce((a, x) => a + x.total, 0), p.total);
+});
+
+prueba("lo que se pagó de contado no aparece en lo que pidió", () => {
+  // Coherente con el total: si el renglón no se le cobra a la empresa, tampoco
+  // puede figurar en el papel que dice qué se le está cobrando.
+  const datos = negocio([
+    renglon(A_CREDITO),
+    renglon(DE_CONTADO, { producto: "GASEOSA", precioUnitario: 7000 }),
+  ]);
+  const p = cuentaDeCobro(datos.consumos, 2026, 8, 1, datos.empresas[0]).personas[0];
+  igual(p.platos.map((x) => x.producto), ["ALMUERZO"]);
+});
+
+prueba("de lo que más pidió a lo que menos", () => {
+  const datos = negocio([
+    renglon(A_CREDITO, { producto: "GASEOSA", precioUnitario: 7000 }),
+    renglon(A_CREDITO, { cantidad: 5 }),
+  ]);
+  const p = cuentaDeCobro(datos.consumos, 2026, 8, 1, datos.empresas[0]).personas[0];
+  igual(p.platos.map((x) => x.producto), ["ALMUERZO", "GASEOSA"],
+        "primero lo que más pidió: es lo que se mira para cuadrar los días");
+});
+
 // ---------------------------------------------------------------------------
 grupo("Una cuenta de cobro puede cubrir los días que ella escoja");
 

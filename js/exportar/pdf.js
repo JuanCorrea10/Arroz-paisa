@@ -359,12 +359,18 @@ export function pdfCuentaDeCobro(cuenta, acreedor) {
   doc.text(`Almuerzos y bebidas suministrados. ${periodo}.`, 36, y);
   y += 8;
 
-  // Una persona por renglón y lo que debe, sin platos.
+  // Una persona por renglón: quién, qué pidió y cuánto debe.
   //
-  // Es lo que el cliente pide: con esto el contador de la fábrica descuenta
-  // por nómina, y para eso lo que necesita es un nombre y un número. El
-  // desglose de qué comió cada quien sigue estando en el Excel del mes y en
-  // el reporte, que es donde se va a mirar el día que alguien reclame.
+  // El nombre y el número son para el contador, que descuenta por nómina. La
+  // columna del medio es para el otro momento: cuando el trabajador dice "yo no
+  // pedí eso". Antes tocaba irse al Excel o al informe del mes con la persona
+  // esperando; ahora está en el mismo papel que ella tiene en la mano.
+  //
+  // Va JUNTO por plato y no día por día: una quincena son diez o quince días, y
+  // listarlos volvería la cuenta un mamotreto de veinte hojas.
+  const queDioCada = (p) => p.platos
+    .map((x) => `${x.cantidad}× ${x.producto}`)
+    .join(",  ") || "—";
   // Con 66 personas la cuenta se va a tres hojas, y una hoja suelta llena de
   // nombres y de plata que no dice de quién es ni de qué mes se archiva mal o
   // se le entrega a la empresa equivocada. Desde la segunda, cada una vuelve a
@@ -374,13 +380,14 @@ export function pdfCuentaDeCobro(cuenta, acreedor) {
     ...estiloTabla,
     startY: y,
     margin: { left: 14, right: 14, top: 34, bottom: 20 },
-    head: [["Persona", "Total"]],
-    body: personas.map((p) => [p.persona, pesos(p.total)]),
+    head: [["Persona", "Qué pidió", "Total"]],
+    body: personas.map((p) => [p.persona, queDioCada(p), pesos(p.total)]),
     columnStyles: {
-      0: { cellWidth: "auto" },
-      1: { halign: "right", cellWidth: 40, fontStyle: "bold" },
+      0: { cellWidth: 48 },
+      1: { cellWidth: "auto", fontSize: 8.5, textColor: GRIS },
+      2: { halign: "right", cellWidth: 34, fontStyle: "bold" },
     },
-    foot: [["TOTAL A PAGAR", pesos(total)]],
+    foot: [["TOTAL A PAGAR", "", pesos(total)]],
     footStyles: { fillColor: [255, 255, 255], textColor: MARCA, fontStyle: "bold", fontSize: 12, lineWidth: 0.4, lineColor: MARCA, halign: "right" },
     didParseCell: (d) => { if (d.section === "foot" && d.column.index === 0) d.cell.styles.halign = "left"; },
     didDrawPage: () => {

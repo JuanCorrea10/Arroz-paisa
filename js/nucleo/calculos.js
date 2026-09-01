@@ -537,14 +537,38 @@ export function cuentaDeCobro(consumos, anio, mes, quincena, empresa, fechaCuent
   for (const c of lista) {
     const llave = clavePersona(c.empresa, c.persona);
     if (!porPersona.has(llave)) {
-      porPersona.set(llave, { persona: normalizar(c.persona), total: 0, facturas: new Set() });
+      porPersona.set(llave, {
+        persona: normalizar(c.persona), total: 0, facturas: new Set(), platos: new Map(),
+      });
     }
     const fila = porPersona.get(llave);
     fila.total += subtotal(c);
     fila.facturas.add(claveFactura(c));
+
+    // Lo que pidió, junto por plato y no día por día.
+    //
+    // Una quincena de una persona son diez o quince días; listarlos uno por uno
+    // volvería la cuenta de cobro un mamotreto. Juntos por plato caben en un
+    // renglón -- "8x ALMUERZO, 3x COCA COLA 1.5" -- y contestan lo único que se
+    // pregunta cuando alguien reclama: "¿yo qué pedí?".
+    const nombre = normalizar(c.producto);
+    if (!fila.platos.has(nombre)) {
+      fila.platos.set(nombre, { producto: nombre, cantidad: 0, total: 0 });
+    }
+    const plato = fila.platos.get(nombre);
+    plato.cantidad += Number(c.cantidad) || 0;
+    plato.total += subtotal(c);
   }
   const personas = [...porPersona.values()]
-    .map((p) => ({ persona: p.persona, total: p.total, facturas: p.facturas.size }))
+    .map((p) => ({
+      persona: p.persona,
+      total: p.total,
+      facturas: p.facturas.size,
+      // De lo que más pidió a lo que menos: lo primero que se mira es si el
+      // número de almuerzos cuadra con los días que trabajó.
+      platos: [...p.platos.values()].sort(
+        (a, b) => b.cantidad - a.cantidad || a.producto.localeCompare(b.producto, "es")),
+    }))
     .sort((a, b) => a.persona.localeCompare(b.persona, "es"));
 
   const porPlato = new Map();

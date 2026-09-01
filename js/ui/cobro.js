@@ -79,8 +79,6 @@ export function pintarCobro(raiz) {
     : deQuincena(estado.datos.consumos, estado.anio, estado.mes, quincena, empresa);
   const enCero = delPeriodo.filter((c) => !esCortesia(c) && !(c.precioUnitario > 0));
 
-  poner(raiz, tarjetaDeTodasLasEmpresas());
-
   poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
@@ -175,6 +173,15 @@ export function pintarCobro(raiz) {
     )
   );
 
+  // El resumen va DEBAJO de los controles, no encima.
+  //
+  // Lo puse arriba la primera vez, y con eso empujé el selector de quincena
+  // fuera de la primera pantalla: ella entraba y no lo veía, así que "no puedo
+  // poner la cuenta por quincena". Además rompía el orden que tienen las trece
+  // pantallas -- título, controles, contenido -- que es lo que hace que no haya
+  // que aprenderse cada una por aparte.
+  poner(raiz, tarjetaDeTodasLasEmpresas());
+
   if (enCero.length) {
     // Agrupados por PLATO, y no un renglón por renglón.
     //
@@ -252,7 +259,7 @@ export function pintarCobro(raiz) {
     );
   }
 
-  if (!cuenta.filas.length) {
+  if (!cuenta.personas.length) {
     poner(raiz, vacio(
       `No hay nada que cobrarle a ${empresaCobro} en la quincena ${quincena} de ${nombreMes(estado.mes)}`,
       "Pruebe con la otra quincena, con otro mes o con otra empresa."
@@ -286,9 +293,6 @@ function tarjetaDeTodasLasEmpresas() {
       el("h2", { texto: `Lo que va de ${nombreMes(estado.mes)} de ${estado.anio}` }),
       el("span", { clase: "comanda-total", texto: pesos(granTotal) })
     ),
-    el("p", { clase: "nota", estilo: "margin:var(--e2) 0 0" },
-      "Lo que se le cobra a cada empresa, quincena por quincena. Es la misma " +
-      "plata que sale en la cuenta de abajo."),
 
     tabla(
       [
@@ -449,15 +453,17 @@ function documentoDeCobro(cuenta, acreedor) {
     // de qué comió cada quien sigue estando en el Excel y en el reporte del
     // mes, que es donde se va a buscar el día que alguien reclame.
     tabla(
-      [{ titulo: "Persona" }, { titulo: "Total", clase: "n" }],
+      [{ titulo: "Persona" }, { titulo: "Qué pidió" }, { titulo: "Total", clase: "n" }],
       personas.map((p) =>
         el("tr", {},
           el("td", { texto: p.persona }),
+          el("td", { estilo: "color:var(--tinta-media);font-size:var(--t-sm)",
+                     texto: p.platos.map((x) => `${x.cantidad}× ${x.producto}`).join(",  ") || "—" }),
           el("td", { clase: "n", texto: pesos(p.total) })
         )
       ),
       el("tr", {},
-        el("td", { texto: "TOTAL A PAGAR" }),
+        el("td", { colspan: "2", texto: "TOTAL A PAGAR" }),
         el("td", { clase: "n", texto: pesos(total) })
       )
     ),

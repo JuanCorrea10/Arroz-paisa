@@ -203,6 +203,16 @@ try {
     }
   }
 
+  // "&forzar=quincena:2" cambia la quincena en la cuenta de cobro. Hace falta
+  // porque esa eleccion vive dentro de cobro.js y no se puede poner por URL.
+  if (forzar && forzar.startsWith("quincena:")) {
+    const sel = raiz.querySelector("#cobro-quincena");
+    if (sel) {
+      sel.value = forzar.slice(9);
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  }
+
   if (forzar === "ventana") {
     const abrir = [...raiz.querySelectorAll("button")]
       .find((b) => /editar|cambiar|agregar|póngale/i.test(b.textContent));
