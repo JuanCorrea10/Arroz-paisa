@@ -169,33 +169,57 @@ prueba("quien solo pagó de contado NO sale en la cuenta", () => {
         "ANA ya pagó en la caja: cobrarle a la empresa sería cobrar dos veces");
 });
 
-prueba("cada persona trae lo que pidió, junto por plato", () => {
-  // Es lo que contesta "yo no pedí eso" sin salirse del papel.
+prueba("cada persona trae sus pedidos con la fecha", () => {
+  // Es lo que contesta "el 3 de agosto yo no pedí nada" con el papel en la
+  // mano. Sin la fecha, ese reclamo no se puede resolver.
+  const datos = negocio([
+    renglon(A_CREDITO, { fecha: "2026-08-03" }),
+    renglon(A_CREDITO, { fecha: "2026-08-01", producto: "GASEOSA", precioUnitario: 7000 }),
+  ]);
+  const juan = cuentaDeCobro(datos.consumos, 2026, 8, 1, datos.empresas[0]).personas[0];
+
+  igual(juan.renglones.length, 2);
+  igual(juan.renglones[0], {
+    fecha: "2026-08-01", producto: "GASEOSA", precioUnitario: 7000, cantidad: 1, total: 7000,
+  }, "en orden de fecha: primero el 1, después el 3");
+  igual(juan.renglones[1].fecha, "2026-08-03");
+});
+
+prueba("el mismo plato en días distintos NO se junta", () => {
+  // Es justo lo que hay que poder ver: dos almuerzos, dos días.
   const datos = negocio([
     renglon(A_CREDITO, { fecha: "2026-08-03" }),
     renglon(A_CREDITO, { fecha: "2026-08-05" }),
-    renglon(A_CREDITO, { fecha: "2026-08-05", producto: "GASEOSA", precioUnitario: 7000 }),
   ]);
-  const cuenta = cuentaDeCobro(datos.consumos, 2026, 8, 1, datos.empresas[0]);
-  const juan = cuenta.personas[0];
-
-  igual(juan.platos.length, 2, "dos platos distintos, no tres renglones");
-  igual(juan.platos[0], { producto: "ALMUERZO", cantidad: 2, total: PRECIO * 2 },
-        "los dos almuerzos de días distintos van juntos");
-  igual(juan.platos[1], { producto: "GASEOSA", cantidad: 1, total: 7000 });
+  const juan = cuentaDeCobro(datos.consumos, 2026, 8, 1, datos.empresas[0]).personas[0];
+  igual(juan.renglones.map((r) => r.fecha), ["2026-08-03", "2026-08-05"]);
 });
 
-prueba("lo que pidió suma exactamente lo que debe", () => {
-  // Si no cuadra, el papel se contradice a sí mismo en el mismo renglón.
+prueba("el mismo plato el mismo día sí se junta, con su cantidad", () => {
+  // Dos renglones idénticos seguidos parecen un error de la app aunque estén
+  // bien. Se ven como "2x ALMUERZO" en un solo renglón.
   const datos = negocio([
-    renglon(A_CREDITO, { cantidad: 3 }),
-    renglon(A_CREDITO, { producto: "GASEOSA", precioUnitario: 7000, cantidad: 2 }),
+    renglon(A_CREDITO, { fecha: "2026-08-03" }),
+    renglon(A_CREDITO, { fecha: "2026-08-03" }),
+  ]);
+  const juan = cuentaDeCobro(datos.consumos, 2026, 8, 1, datos.empresas[0]).personas[0];
+  igual(juan.renglones.length, 1);
+  igual(juan.renglones[0].cantidad, 2);
+  igual(juan.renglones[0].total, PRECIO * 2);
+});
+
+prueba("los pedidos suman exactamente lo que debe la persona", () => {
+  // Si no cuadra, el papel se contradice a sí mismo: el nombre dice un total y
+  // los renglones de abajo dicen otro.
+  const datos = negocio([
+    renglon(A_CREDITO, { fecha: "2026-08-03", cantidad: 3 }),
+    renglon(A_CREDITO, { fecha: "2026-08-05", producto: "GASEOSA", precioUnitario: 7000, cantidad: 2 }),
   ]);
   const p = cuentaDeCobro(datos.consumos, 2026, 8, 1, datos.empresas[0]).personas[0];
-  igual(p.platos.reduce((a, x) => a + x.total, 0), p.total);
+  igual(p.renglones.reduce((a, r) => a + r.total, 0), p.total);
 });
 
-prueba("lo que se pagó de contado no aparece en lo que pidió", () => {
+prueba("lo que se pagó de contado no aparece en los pedidos", () => {
   // Coherente con el total: si el renglón no se le cobra a la empresa, tampoco
   // puede figurar en el papel que dice qué se le está cobrando.
   const datos = negocio([
@@ -203,17 +227,7 @@ prueba("lo que se pagó de contado no aparece en lo que pidió", () => {
     renglon(DE_CONTADO, { producto: "GASEOSA", precioUnitario: 7000 }),
   ]);
   const p = cuentaDeCobro(datos.consumos, 2026, 8, 1, datos.empresas[0]).personas[0];
-  igual(p.platos.map((x) => x.producto), ["ALMUERZO"]);
-});
-
-prueba("de lo que más pidió a lo que menos", () => {
-  const datos = negocio([
-    renglon(A_CREDITO, { producto: "GASEOSA", precioUnitario: 7000 }),
-    renglon(A_CREDITO, { cantidad: 5 }),
-  ]);
-  const p = cuentaDeCobro(datos.consumos, 2026, 8, 1, datos.empresas[0]).personas[0];
-  igual(p.platos.map((x) => x.producto), ["ALMUERZO", "GASEOSA"],
-        "primero lo que más pidió: es lo que se mira para cuadrar los días");
+  igual(p.renglones.map((r) => r.producto), ["ALMUERZO"]);
 });
 
 // ---------------------------------------------------------------------------

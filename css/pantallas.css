@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20260901-1606";
+  --version: "20260902-1327";
 }
 
 /* ===========================================================================
@@ -1606,6 +1606,16 @@ html { scroll-behavior: smooth; }
    cambiar algo se abre con "Abrir".
    La letra NO baja a --t-xs como en la vista abierta: esta tarjeta es la que
    se fotografía y se manda por WhatsApp, y ahí todo llega encogido. */
+/* El renglón con el nombre de la persona en la cuenta de cobro.
+   Va en beige y en negrilla, como el papelito de una comanda: separa un
+   trabajador del siguiente en una lista que puede ser de sesenta. */
+.renglon-persona td {
+  background: var(--beige-claro);
+  font-family: var(--display);
+  font-weight: 700;
+  border-top: 2px solid var(--borde-fuerte);
+}
+
 /* Lo que pidió una persona, debajo de su nombre en Consumo por persona.
    Va en gris y más chiquito que el nombre: el nombre es lo que ella busca y
    esto es lo que confirma. Se parte en varios renglones si hace falta -- un

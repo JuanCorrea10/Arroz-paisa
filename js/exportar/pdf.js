@@ -359,18 +359,30 @@ export function pdfCuentaDeCobro(cuenta, acreedor) {
   doc.text(`Almuerzos y bebidas suministrados. ${periodo}.`, 36, y);
   y += 8;
 
-  // Una persona por renglón: quién, qué pidió y cuánto debe.
+  // Cada persona, y debajo lo que pidió DÍA POR DÍA.
   //
-  // El nombre y el número son para el contador, que descuenta por nómina. La
-  // columna del medio es para el otro momento: cuando el trabajador dice "yo no
-  // pedí eso". Antes tocaba irse al Excel o al informe del mes con la persona
-  // esperando; ahora está en el mismo papel que ella tiene en la mano.
+  // El nombre y el total son para el contador, que descuenta por nómina. Los
+  // renglones de abajo son para el otro momento: cuando el trabajador dice "el
+  // 3 de agosto yo no pedí nada". Sin la fecha ese reclamo no se puede
+  // contestar con el papel en la mano, que es justo para lo que sirve.
   //
-  // Va JUNTO por plato y no día por día: una quincena son diez o quince días, y
-  // listarlos volvería la cuenta un mamotreto de veinte hojas.
-  const queDioCada = (p) => p.platos
-    .map((x) => `${x.cantidad}× ${x.producto}`)
-    .join(",  ") || "—";
+  // La persona va en un renglón aparte, ancho y en beige, y sus pedidos debajo.
+  // Es la misma forma que ya tiene el PDF de los pedidos del día, así que quien
+  // recibe los dos papeles no tiene que aprender dos maneras de leer.
+  const cuerpo = [];
+  const esPersona = [];
+  for (const p of personas) {
+    esPersona[cuerpo.length] = true;
+    cuerpo.push([{ content: `${p.persona}   ·   ${pesos(p.total)}`, colSpan: 4 }]);
+    for (const r of p.renglones) {
+      cuerpo.push([
+        fechaCorta(r.fecha),
+        r.producto,
+        String(r.cantidad),
+        pesos(r.total),
+      ]);
+    }
+  }
   // Con 66 personas la cuenta se va a tres hojas, y una hoja suelta llena de
   // nombres y de plata que no dice de quién es ni de qué mes se archiva mal o
   // se le entrega a la empresa equivocada. Desde la segunda, cada una vuelve a
@@ -380,16 +392,40 @@ export function pdfCuentaDeCobro(cuenta, acreedor) {
     ...estiloTabla,
     startY: y,
     margin: { left: 14, right: 14, top: 34, bottom: 20 },
-    head: [["Persona", "Qué pidió", "Total"]],
-    body: personas.map((p) => [p.persona, queDioCada(p), pesos(p.total)]),
+    head: [["Día", "Qué pidió", "Cant.", "Valor"]],
+    body: cuerpo,
+    // Los renglones de detalle van apretados: son muchos -- una quincena de
+    // BASARILI son sesenta personas con sus días -- y cada milímetro que se
+    // ahorra aquí es media hoja menos que imprimir. El renglón del nombre sí
+    // respira, porque es el que separa a un trabajador del siguiente.
+    bodyStyles: { fontSize: 9, cellPadding: { top: 1.3, bottom: 1.3, left: 2.2, right: 2.2 } },
     columnStyles: {
-      0: { cellWidth: 48 },
-      1: { cellWidth: "auto", fontSize: 8.5, textColor: GRIS },
-      2: { halign: "right", cellWidth: 34, fontStyle: "bold" },
+      0: { cellWidth: 26 },
+      1: { cellWidth: "auto" },
+      2: { halign: "right", cellWidth: 16 },
+      3: { halign: "right", cellWidth: 30 },
     },
-    foot: [["TOTAL A PAGAR", "", pesos(total)]],
+    // El total ocupa las tres primeras columnas: en la de "Día", que mide 26 mm,
+    // "TOTAL A PAGAR" se partía en dos renglones.
+    foot: [[{ content: "TOTAL A PAGAR", colSpan: 3 }, pesos(total)]],
     footStyles: { fillColor: [255, 255, 255], textColor: MARCA, fontStyle: "bold", fontSize: 12, lineWidth: 0.4, lineColor: MARCA, halign: "right" },
-    didParseCell: (d) => { if (d.section === "foot" && d.column.index === 0) d.cell.styles.halign = "left"; },
+    // Que el nombre no se quede solo al pie de una hoja con sus pedidos en la
+    // siguiente: leído así, esos pedidos parecen de la persona de arriba.
+    rowPageBreak: "avoid",
+    didParseCell: (d) => {
+      if (d.section === "foot") {
+        if (d.column.index === 0) d.cell.styles.halign = "left";
+        return;
+      }
+      if (d.section !== "body") return;
+      if (esPersona[d.row.index]) {
+        d.cell.styles.fillColor = BEIGE;
+        d.cell.styles.textColor = TINTA;
+        d.cell.styles.fontStyle = "bold";
+        d.cell.styles.fontSize = 10;
+        d.cell.styles.cellPadding = { top: 2.2, bottom: 2.2, left: 2.2, right: 2.2 };
+      }
+    },
     didDrawPage: () => {
       if (primeraHoja) { primeraHoja = false; return; }
       encabezado(doc, "CUENTA DE COBRO", `${rotulo} · ${quienDebe}`, acreedor);

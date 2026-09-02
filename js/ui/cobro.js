@@ -446,24 +446,32 @@ function documentoDeCobro(cuenta, acreedor) {
       cifraPlata("Total a pagar", total, true)
     ),
 
-    // Una persona por renglón y su valor, sin platos.
+    // Cada persona con sus pedidos día por día, igual que en el PDF.
     //
-    // Es lo que el cliente pide: el contador de la fábrica descuenta esto por
-    // nómina, y para eso lo que necesita es un nombre y un número. El desglose
-    // de qué comió cada quien sigue estando en el Excel y en el reporte del
-    // mes, que es donde se va a buscar el día que alguien reclame.
+    // Esta pantalla existe para ver el documento TAL CUAL va a quedar impreso,
+    // así que las dos tienen que mostrar lo mismo: si aquí se viera un resumen
+    // y en el papel el detalle, ella revisaría una cosa y entregaría otra.
     tabla(
-      [{ titulo: "Persona" }, { titulo: "Qué pidió" }, { titulo: "Total", clase: "n" }],
-      personas.map((p) =>
-        el("tr", {},
-          el("td", { texto: p.persona }),
-          el("td", { estilo: "color:var(--tinta-media);font-size:var(--t-sm)",
-                     texto: p.platos.map((x) => `${x.cantidad}× ${x.producto}`).join(",  ") || "—" }),
+      [
+        { titulo: "Día" }, { titulo: "Qué pidió" },
+        { titulo: "Cant.", clase: "n" }, { titulo: "Valor", clase: "n" },
+      ],
+      personas.flatMap((p) => [
+        el("tr", { clase: "renglon-persona" },
+          el("td", { colspan: "3", texto: p.persona }),
           el("td", { clase: "n", texto: pesos(p.total) })
-        )
-      ),
+        ),
+        ...p.renglones.map((r) =>
+          el("tr", {},
+            el("td", { clase: "dato", texto: fechaCorta(r.fecha) }),
+            el("td", { texto: r.producto }),
+            el("td", { clase: "n", texto: String(r.cantidad) }),
+            el("td", { clase: "n", texto: pesos(r.total) })
+          )
+        ),
+      ]),
       el("tr", {},
-        el("td", { colspan: "2", texto: "TOTAL A PAGAR" }),
+        el("td", { colspan: "3", texto: "TOTAL A PAGAR" }),
         el("td", { clase: "n", texto: pesos(total) })
       )
     ),

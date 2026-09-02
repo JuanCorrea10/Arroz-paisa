@@ -554,46 +554,54 @@ export function cuentaDeCobro(consumos, anio, mes, quincena, empresa, fechaCuent
     : deQuincena(consumos, anio, mes, quincena, empresa)
   ).filter(loPagaLaEmpresa);
 
-  // Por PERSONA, que es como la pide el cliente: un renglón por trabajador
-  // con lo que debe, sin el desglose de platos. El contador de la fábrica
-  // descuenta por nómina, y para eso lo que necesita es un nombre y un valor;
-  // el detalle de qué comió cada uno está en el informe completo y en el
-  // Excel, que es donde se va a buscar cuando alguien reclama.
+  // Por PERSONA y, dentro de cada una, DÍA POR DÍA.
+  //
+  // Primero se probó junto por plato ("8x ALMUERZO, 3x COCA COLA"), pensando que
+  // listar los días volvería la cuenta un mamotreto. Estaba mal: cuando el
+  // trabajador reclama no dice "yo no pedí ocho almuerzos", dice "el 3 de agosto
+  // yo no pedí nada". Sin la fecha, ese reclamo no se puede contestar con el
+  // papel en la mano, que es justo para lo que sirve.
+  //
+  // Sí cuesta hojas -- una quincena de BASARILI pasa de tres a unas siete --
+  // pero es lo que hace que la cuenta se pueda defender renglón por renglón.
   const porPersona = new Map();
   for (const c of lista) {
     const llave = clavePersona(c.empresa, c.persona);
     if (!porPersona.has(llave)) {
       porPersona.set(llave, {
-        persona: normalizar(c.persona), total: 0, facturas: new Set(), platos: new Map(),
+        persona: normalizar(c.persona), total: 0, facturas: new Set(), renglones: new Map(),
       });
     }
     const fila = porPersona.get(llave);
     fila.total += subtotal(c);
     fila.facturas.add(claveFactura(c));
 
-    // Lo que pidió, junto por plato y no día por día.
-    //
-    // Una quincena de una persona son diez o quince días; listarlos uno por uno
-    // volvería la cuenta de cobro un mamotreto. Juntos por plato caben en un
-    // renglón -- "8x ALMUERZO, 3x COCA COLA 1.5" -- y contestan lo único que se
-    // pregunta cuando alguien reclama: "¿yo qué pedí?".
+    // Se junta lo que es EL MISMO pedido: mismo día, mismo plato, mismo precio.
+    // Si alguien anotó dos veces "1 almuerzo" el mismo día, en el papel se ve
+    // "2x ALMUERZO" y no dos renglones idénticos, que parecen un error de la
+    // app aunque estén bien.
+    const dia = String(c.fecha || "");
     const nombre = normalizar(c.producto);
-    if (!fila.platos.has(nombre)) {
-      fila.platos.set(nombre, { producto: nombre, cantidad: 0, total: 0 });
+    const precio = Number(c.precioUnitario) || 0;
+    const llavePedido = `${dia}|${nombre}|${precio}`;
+    if (!fila.renglones.has(llavePedido)) {
+      fila.renglones.set(llavePedido, {
+        fecha: dia, producto: nombre, precioUnitario: precio, cantidad: 0, total: 0,
+      });
     }
-    const plato = fila.platos.get(nombre);
-    plato.cantidad += Number(c.cantidad) || 0;
-    plato.total += subtotal(c);
+    const pedido = fila.renglones.get(llavePedido);
+    pedido.cantidad += Number(c.cantidad) || 0;
+    pedido.total += subtotal(c);
   }
   const personas = [...porPersona.values()]
     .map((p) => ({
       persona: p.persona,
       total: p.total,
       facturas: p.facturas.size,
-      // De lo que más pidió a lo que menos: lo primero que se mira es si el
-      // número de almuerzos cuadra con los días que trabajó.
-      platos: [...p.platos.values()].sort(
-        (a, b) => b.cantidad - a.cantidad || a.producto.localeCompare(b.producto, "es")),
+      // En orden de fecha: así se lee como un extracto y se puede seguir con el
+      // dedo contra la planilla de asistencia.
+      renglones: [...p.renglones.values()].sort(
+        (a, b) => a.fecha.localeCompare(b.fecha) || a.producto.localeCompare(b.producto, "es")),
     }))
     .sort((a, b) => a.persona.localeCompare(b.persona, "es"));
 
