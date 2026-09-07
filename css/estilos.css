@@ -598,6 +598,17 @@ tfoot td.n { font-family: var(--dato); }
   font-size: var(--t-base);
 }
 .comanda-platos li + li { border-top: 1px dotted var(--borde); }
+/* La empresa, en la tarjeta, más grande que en el resto de la app.
+
+   Estas tarjetas se imprimen y se recortan, y el papelito se lo lee gente que
+   no ve bien de lejos. En una tabla la cinta es una etiqueta y puede ser
+   chiquita; aquí es la seña que dice de dónde salió el papel. */
+.comanda-cabeza .cinta {
+  font-size: var(--t-sm);
+  padding: 0.22rem 0.6rem;
+  letter-spacing: 0.08em;
+}
+
 .comanda-cant { font-family: var(--dato); color: var(--tinta-media); }
 .comanda-plato { overflow-wrap: anywhere; }
 .comanda-valor { font-family: var(--dato); font-variant-numeric: tabular-nums; }
@@ -1064,4 +1075,25 @@ tr[data-estado="cuadra"] .diferencia { color: var(--verde); }
   tr { page-break-inside: avoid; }
   thead { display: table-header-group; }
   .comanda { page-break-inside: avoid; }
+
+  /* Cada empresa arranca en su propia hoja.
+     Es la misma regla que ya cumple el PDF. Sin esto, al imprimir la pantalla
+     con "Todas las empresas" los pedidos de MGP y el título de AGRO caían en
+     la misma hoja, y esa hoja no se le puede mandar a ninguna de las dos. */
+  .documento.aparte + .documento.aparte { break-before: page; page-break-before: always; }
+
+  /* La cinta de la empresa, en papel, con letra negra y recuadro.
+
+     En pantalla es letra blanca sobre el color de la empresa. Al imprimir, el
+     navegador BOTA los fondos si no le dicen lo contrario -- y la casilla de
+     "gráficos de fondo" viene apagada de fábrica --, así que la cinta salía
+     con letra blanca sobre papel blanco: la tarjeta recortada llegaba a la
+     fábrica sin decir de qué fábrica era, que es justo lo que se quería
+     evitar. Con letra negra sale siempre, con fondos o sin ellos. */
+  .cinta {
+    background: transparent !important;
+    color: #000 !important;
+    border: 1.5px solid #000;
+    font-size: var(--t-sm);
+  }
 }

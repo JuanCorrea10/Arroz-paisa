@@ -346,7 +346,9 @@ export function pintarResumenDia(raiz) {
   // -- y con los platos de las otras tres adentro.
   for (const sec of secciones) {
     poner(raiz,
-      el("div", { clase: "documento" },
+      // "aparte" = al imprimir, esto arranca en hoja nueva. La hoja de una
+      // empresa no puede llevar pegados los pedidos de otra.
+      el("div", { clase: "documento aparte" },
         el("div", { clase: "titulo-lista", estilo: `--cinta:${sec.color}` },
           el("div", { clase: "titulo-lista-quien" },
             el("p", { clase: "titulo-lista-arriba", texto: "Resumen del día" }),
@@ -389,7 +391,7 @@ export function pintarResumenDia(raiz) {
   // sola sería el mismo número escrito dos veces.
   if (secciones.length > 1) {
     poner(raiz,
-      el("div", { clase: "documento" },
+      el("div", { clase: "documento aparte" },
         el("div", { clase: "fila entre" },
           el("h2", { texto: "El día completo" }),
           el("span", { clase: "comanda-total", texto: pesos(informe.total) })

@@ -719,10 +719,15 @@ function tarjetasDeComandas(doc, comandas, y, alCambiarDeHoja, colorEmpresa, fec
   // y el día. Antes medía 1,4 mm y solo tenía el color, que sirve mientras las
   // cuatro hojas están juntas y a color -- recortada y fotocopiada, las cuatro
   // empresas son el mismo gris y el papelito no dice de dónde salió.
-  const CINTA = 7.4;
+  //
+  // La empresa va MÁS GRANDE que el nombre de la persona, que es al revés de
+  // lo que uno haría. Es a propósito: al que recibe el papelito no hay que
+  // decirle cómo se llama -- eso ya lo sabe --, hay que decirle de dónde salió
+  // ese papel, y varios de ellos no ven bien de lejos.
+  const CINTA = 10.4;
 
   const T_NOMBRE = 12.5, T_PLATO = 10.5, T_VALOR = 9.5, T_CANT = 9, T_NUM = 8, T_TOTAL = 13;
-  const T_NOTA = 9, T_CINTA = 9.5, T_ROTULO = 8.5;
+  const T_NOTA = 9, T_CINTA = 15, T_DIA = 10.5, T_ROTULO = 8.5;
   const NUM_ANCHO = 7.8, NUM_ALTO = 5.4, CANT_ANCHO = 6.8, ALTO_PIE = 10.5;
 
   const ancho = (anchoHoja - 28 - (COLS - 1) * HUECO) / COLS;
@@ -733,8 +738,8 @@ function tarjetasDeComandas(doc, comandas, y, alCambiarDeHoja, colorEmpresa, fec
   // confunde con la de ayer apenas se juntan dos días de papelitos.
   const dia = fecha ? fechaCorta(fecha) : "";
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(T_CINTA);
-  const anchoDia = dia ? doc.getTextWidth(dia) + 3 : 0;
+  doc.setFontSize(T_DIA);
+  const anchoDia = dia ? doc.getTextWidth(dia) + 4 : 0;
 
   // El ancho de la columna de la plata se MIDE, no se adivina: "pagó $ 12.000"
   // ocupa casi el doble que "$ 7.000". Con un ancho fijo, o el número se parte
@@ -838,14 +843,14 @@ function tarjetasDeComandas(doc, comandas, y, alCambiarDeHoja, colorEmpresa, fec
     // la fotocopia.
     doc.setFillColor(...cinta);
     doc.rect(x, y0, ancho, CINTA, "F");
-    const baseCinta = y0 + CINTA - 2.4;
+    const baseCinta = y0 + CINTA - 3.2;
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(m.empresa.tam);
     doc.text(m.empresa.renglones[0], x + PAD, baseCinta);
     if (dia) {
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(T_CINTA);
+      doc.setFontSize(T_DIA);
       doc.text(dia, x + ancho - PAD, baseCinta, { align: "right" });
     }
 
