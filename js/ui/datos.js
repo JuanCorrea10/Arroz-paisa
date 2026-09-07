@@ -274,7 +274,7 @@ function tarjetaProblemas(raiz) {
               el("td", {}, cinta(c.empresa)),
               el("td", { texto: c.persona }),
               el("td", { texto: c.producto }),
-              el("td", { clase: "dato", texto: String(c.cantidad) })
+              el("td", { clase: "dato cant", texto: String(c.cantidad) })
             )
           )
         ),

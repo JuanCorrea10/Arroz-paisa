@@ -140,8 +140,8 @@ export function pintarCocina(raiz) {
       filas.map((f) =>
         el("tr", {},
           el("td", { texto: f.producto }),
-          ...codigos.map((c) => el("td", { clase: "n", texto: f.porEmpresa[c] ? String(f.porEmpresa[c]) : "·" })),
-          el("td", { clase: "n", estilo: "font-weight:700", texto: String(f.total) })
+          ...codigos.map((c) => el("td", { clase: "n cant", texto: f.porEmpresa[c] ? String(f.porEmpresa[c]) : "·" })),
+          el("td", { clase: "n cant", estilo: "font-size:1.15em", texto: String(f.total) })
         )
       ),
       el("tr", {},
@@ -169,7 +169,7 @@ export function pintarCocina(raiz) {
               el("td", {}, cinta(n.empresa)),
               el("td", { texto: n.persona }),
               el("td", { texto: n.producto }),
-              el("td", { clase: "n", texto: String(n.cantidad) }),
+              el("td", { clase: "n cant", texto: String(n.cantidad) }),
               el("td", {}, el("strong", { clase: "texto-nota", texto: n.nota }))
             )
           )
@@ -249,7 +249,7 @@ function tablaDePlatosDelDia(informe) {
             : f.forma === CORTESIA
               ? el("span", { clase: "marca-cobro cortesia", texto: "cortesía" })
               : null),
-        el("td", { clase: "n", texto: String(f.cantidad) }),
+        el("td", { clase: "n cant", texto: String(f.cantidad) }),
         el("td", { clase: "n", texto: f.forma === CORTESIA ? "—" : pesos(f.precioUnitario) }),
         el("td", { clase: "n", texto: f.forma === CORTESIA ? "—" : pesos(f.total) })
       )
@@ -539,8 +539,10 @@ function verHistorial(fila) {
               el("td", {}, ...d.platos.map((c) =>
                 el("div", {
                   estilo: esCortesia(c) || yaLoPago(c) ? "color:var(--tinta-suave)" : "",
-                  texto: `${c.cantidad}× ${c.producto}${comoSePago(c)}`,
-                })
+                },
+                  el("span", { clase: "cant", texto: `${c.cantidad}× ` }),
+                  `${c.producto}${comoSePago(c)}`
+                )
               )),
               el("td", { clase: "n", texto: pesos(d.total) })
             )

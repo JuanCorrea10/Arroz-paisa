@@ -486,6 +486,14 @@ td.n, th.n { text-align: right; }
   white-space: nowrap;
 }
 
+/* La cantidad, en negrilla en toda la app y en los PDF.
+
+   No es un número más de la fila: es el que se lee para saber cuántos platos
+   hay que preparar y cuántos se le entregaron a la persona. Iba con el mismo
+   peso que el precio unitario y que el total, y en una tabla de veinte platos
+   había que ir siguiendo la columna con el dedo. */
+.cant, td.cant, .comanda-cant { font-weight: 700; }
+
 tfoot td {
   border-top: 2.5px solid var(--marca-hondo);
   padding: 0.7rem var(--e3);

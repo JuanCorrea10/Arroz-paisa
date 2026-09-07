@@ -30,7 +30,7 @@ function renglonDelDia(c) {
   const nota = c.observacion ? ' <em class="nota">' + esc(c.observacion) + "</em>" : "";
   return `<tr><td>${esc(c.persona)}</td>` +
     `<td${forma === "empresa" ? "" : ' class="nocobra"'}>${esc(c.producto)}${aclara}${nota}</td>` +
-    `<td class="n">${c.cantidad}</td>` +
+    `<td class="n cant">${c.cantidad}</td>` +
     `<td class="n">${forma === "empresa" ? esc(pesos(subtotal(c))) : "—"}</td></tr>`;
 }
 
@@ -87,6 +87,7 @@ export function generarReporteEmpresa(datos, codigoEmpresa, anio, mes) {
   td{padding:8px 10px;border-top:1px solid var(--borde);vertical-align:top}
   tr:nth-child(even) td{background:var(--raya)}
   .n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .cant{font-weight:700}
   tfoot td{border-top:2px solid var(--verde);font-weight:700;background:#fdfaf4}
   .dia{margin-bottom:18px}
   .dia h3{font-size:1rem;margin:0 0 8px;display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap}
@@ -123,7 +124,7 @@ export function generarReporteEmpresa(datos, codigoEmpresa, anio, mes) {
     <div class="marco"><table>
       <thead><tr><th>Plato</th><th class="n">Cantidad</th><th class="n">Valor unitario</th><th class="n">Total</th></tr></thead>
       <tbody>
-        ${platos.map((p) => `<tr><td>${esc(p.producto)}</td><td class="n">${p.cantidad}</td><td class="n">${esc(pesos(p.precio))}</td><td class="n">${esc(pesos(p.total))}</td></tr>`).join("\n        ")}
+        ${platos.map((p) => `<tr><td>${esc(p.producto)}</td><td class="n cant">${p.cantidad}</td><td class="n">${esc(pesos(p.precio))}</td><td class="n">${esc(pesos(p.total))}</td></tr>`).join("\n        ")}
       </tbody>
       <tfoot><tr><td>TOTAL</td><td class="n">${totales.platos}</td><td></td><td class="n">${esc(pesos(total))}</td></tr></tfoot>
     </table></div>

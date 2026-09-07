@@ -280,7 +280,7 @@ function tablaDePlatos(renglones, raiz) {
       ),
       el("td", { clase: "n", estilo: "white-space:nowrap" },
         el("button", { clase: "chico", "aria-label": "Quitar uno", alHacerClic: () => cambiarCantidad(c, -1, raiz) }, "−"),
-        el("span", { clase: "num", estilo: "display:inline-block;min-width:2ch;text-align:center;margin:0 .3rem", texto: String(c.cantidad) }),
+        el("span", { clase: "num cant", estilo: "display:inline-block;min-width:2ch;text-align:center;margin:0 .3rem", texto: String(c.cantidad) }),
         el("button", { clase: "chico", "aria-label": "Agregar uno", alHacerClic: () => cambiarCantidad(c, +1, raiz) }, "+")
       ),
       el("td", { clase: "n", texto: pesos(c.precioUnitario) }),

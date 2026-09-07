@@ -402,7 +402,9 @@ export function pdfCuentaDeCobro(cuenta, acreedor) {
     columnStyles: {
       0: { cellWidth: 26 },
       1: { cellWidth: "auto" },
-      2: { halign: "right", cellWidth: 16 },
+      // La cantidad en negrilla, igual que en la pantalla y en las tarjetas:
+      // es el número que se cuadra contra lo que se entregó.
+      2: { halign: "right", cellWidth: 16, fontStyle: "bold" },
       3: { halign: "right", cellWidth: 30 },
     },
     // El total ocupa las tres primeras columnas: en la de "Día", que mide 26 mm,
@@ -622,7 +624,7 @@ function tablaDeComandas(doc, comandas, y, alCambiarDeHoja) {
     body: cuerpo,
     columnStyles: {
       0: { cellWidth: "auto" },
-      1: { halign: "right", cellWidth: 18 },
+      1: { halign: "right", cellWidth: 18, fontStyle: "bold" },
       2: { halign: "right", cellWidth: 32 },
       3: { halign: "right", cellWidth: 32 },
     },
@@ -875,7 +877,7 @@ function tarjetasDeComandas(doc, comandas, y, alCambiarDeHoja, colorEmpresa, fec
       // Lo que NO se le cobra a la empresa va en gris, como en la pantalla: el
       // supervisor tiene que poder saltárselo al cuadrar la cuenta.
       doc.setTextColor(...(forma === "empresa" ? TINTA : GRIS));
-      doc.setFont("courier", "normal");
+      doc.setFont("courier", "bold");
       doc.setFontSize(T_CANT);
       doc.text(String(p.c.cantidad) + "×", x + PAD, base);
 
@@ -957,7 +959,7 @@ function tablaDePlatos(doc, informe, y, alCambiarDeHoja) {
     ]),
     columnStyles: {
       0: { cellWidth: "auto" },
-      1: { halign: "right", cellWidth: 24 },
+      1: { halign: "right", cellWidth: 24, fontStyle: "bold" },
       2: { halign: "right", cellWidth: 32 },
       3: { halign: "right", cellWidth: 34 },
     },
@@ -1035,8 +1037,8 @@ export function pdfCocina(filas, fecha, codigos, acreedor, notas = []) {
     head: [["Plato", ...codigos, "TOTAL"]],
     body: filas.map((f) => [f.producto, ...codigos.map((c) => String(f.porEmpresa[c] || 0)), String(f.total)]),
     columnStyles: Object.fromEntries(
-      codigos.map((_, i) => [i + 1, { halign: "right", cellWidth: 22 }]).concat([
-        [codigos.length + 1, { halign: "right", cellWidth: 22, fontStyle: "bold" }],
+      codigos.map((_, i) => [i + 1, { halign: "right", cellWidth: 22, fontStyle: "bold" }]).concat([
+        [codigos.length + 1, { halign: "right", cellWidth: 22, fontStyle: "bold", fontSize: 11.5 }],
       ])
     ),
     foot: [["TOTAL DE PLATOS", ...codigos.map((c) => String(filas.reduce((a, f) => a + (f.porEmpresa[c] || 0), 0))),
@@ -1059,7 +1061,7 @@ export function pdfCocina(filas, fecha, codigos, acreedor, notas = []) {
       head: [["Empresa", "Persona", "Plato", "Cant.", "Nota"]],
       body: notas.map((n) => [n.empresa, n.persona, n.producto, String(n.cantidad), n.nota]),
       headStyles: { ...estiloTabla.headStyles, fillColor: [156, 106, 6] },
-      columnStyles: { 3: { halign: "right", cellWidth: 16 } },
+      columnStyles: { 3: { halign: "right", cellWidth: 16, fontStyle: "bold" } },
     });
   }
 
@@ -1456,7 +1458,7 @@ export function pdfInformeCompleto(informe) {
     body: platos.map((p) => [p.producto, String(p.cantidad), pesos(p.precio), pesos(p.total)]),
     columnStyles: {
       0: { cellWidth: "auto" },
-      1: { halign: "right", cellWidth: 24 },
+      1: { halign: "right", cellWidth: 24, fontStyle: "bold" },
       2: { halign: "right", cellWidth: 32 },
       3: { halign: "right", cellWidth: 34, fontStyle: "bold" },
     },
@@ -1555,7 +1557,7 @@ export function pdfInformeCompleto(informe) {
     columnStyles: {
       0: { cellWidth: 62 },
       1: { cellWidth: "auto" },
-      2: { halign: "right", cellWidth: 18 },
+      2: { halign: "right", cellWidth: 18, fontStyle: "bold" },
       3: { halign: "right", cellWidth: 30 },
     },
     didParseCell: (d) => {

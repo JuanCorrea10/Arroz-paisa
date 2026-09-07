@@ -465,7 +465,7 @@ function documentoDeCobro(cuenta, acreedor) {
           el("tr", {},
             el("td", { clase: "dato", texto: fechaCorta(r.fecha) }),
             el("td", { texto: r.producto }),
-            el("td", { clase: "n", texto: String(r.cantidad) }),
+            el("td", { clase: "n cant", texto: String(r.cantidad) }),
             el("td", { clase: "n", texto: pesos(r.total) })
           )
         ),
