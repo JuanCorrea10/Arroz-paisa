@@ -529,7 +529,7 @@ export function pdfResumenDia(secciones, fecha, acreedor, combinado = null) {
         `Quién pidió qué  ·  ${cuantas} ${cuantas === 1 ? "persona" : "personas"}`,
         y, pesos(suma)
       );
-      tarjetasDeComandas(doc, sec.comandas, y, rotulo, sec.color);
+      tarjetasDeComandas(doc, sec.comandas, y, rotulo, sec.color, fecha);
     }
   }
 
@@ -689,27 +689,50 @@ function valorDe(c) {
 /**
  * Pinta las comandas como tarjetas y devuelve dónde terminó.
  *
+ * Cada tarjeta tiene que sostenerse SOLA. En la fábrica imprimen esta hoja y
+ * la recortan para repartirle a cada quien su papelito, así que el título de
+ * la sección y el encabezado de la hoja se quedan en el pedazo que se bota.
+ * Por eso la empresa y el día van dentro de la tarjeta y no solo arriba.
+ *
  * alCambiarDeHoja vuelve a pintar el encabezado rojo cuando toca pasar de
  * hoja, y devuelve la altura en la que se puede seguir escribiendo.
  */
-function tarjetasDeComandas(doc, comandas, y, alCambiarDeHoja, colorEmpresa) {
+function tarjetasDeComandas(doc, comandas, y, alCambiarDeHoja, colorEmpresa, fecha) {
   const anchoHoja = doc.internal.pageSize.getWidth();
   const altoHoja = doc.internal.pageSize.getHeight();
 
-  const COLS = 3;
-  const HUECO = 5;    // el aire entre tarjeta y tarjeta
-  const PAD = 2.6;    // el margen de adentro
-  const CINTA = 1.4;  // la franja de color de la empresa, arriba
+  // Dos por fila, no tres.
+  //
+  // Estas tarjetas no se leen en la hoja: se recortan y cada papelito se le
+  // entrega a una persona. Se acaban leyendo de lejos, doblados y en
+  // fotocopia. Con tres por fila cabían más en menos hojas, pero la letra
+  // quedaba del tamaño de un tiquete de parqueadero.
+  const COLS = 2;
+  const HUECO = 6;    // el aire entre tarjeta y tarjeta: es por donde se corta
+  const PAD = 3.4;    // el margen de adentro
   const TOPE = 34;    // donde arranca el contenido en una hoja nueva
   const PIE = 18;     // lo que hay que dejarle al pie de página
 
-  const T_NOMBRE = 10, T_PLATO = 8.5, T_VALOR = 8, T_CANT = 7.5, T_NUM = 7, T_TOTAL = 10.5;
-  const T_NOTA = 7.5;
-  const NUM_ANCHO = 6.6, NUM_ALTO = 4.4, CANT_ANCHO = 5.4, ALTO_PIE = 8.6;
+  // La franja de arriba dejó de ser un adorno: ahora lleva adentro la empresa
+  // y el día. Antes medía 1,4 mm y solo tenía el color, que sirve mientras las
+  // cuatro hojas están juntas y a color -- recortada y fotocopiada, las cuatro
+  // empresas son el mismo gris y el papelito no dice de dónde salió.
+  const CINTA = 7.4;
+
+  const T_NOMBRE = 12.5, T_PLATO = 10.5, T_VALOR = 9.5, T_CANT = 9, T_NUM = 8, T_TOTAL = 13;
+  const T_NOTA = 9, T_CINTA = 9.5, T_ROTULO = 8.5;
+  const NUM_ANCHO = 7.8, NUM_ALTO = 5.4, CANT_ANCHO = 6.8, ALTO_PIE = 10.5;
 
   const ancho = (anchoHoja - 28 - (COLS - 1) * HUECO) / COLS;
   const cinta = aRGB(colorEmpresa, MARCA);
   const de = (tam) => tam * ALTO_RENGLON;
+
+  // El día va en la franja, a la derecha. Una tarjeta recortada sin fecha se
+  // confunde con la de ayer apenas se juntan dos días de papelitos.
+  const dia = fecha ? fechaCorta(fecha) : "";
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(T_CINTA);
+  const anchoDia = dia ? doc.getTextWidth(dia) + 3 : 0;
 
   // El ancho de la columna de la plata se MIDE, no se adivina: "pagó $ 12.000"
   // ocupa casi el doble que "$ 7.000". Con un ancho fijo, o el número se parte
@@ -749,7 +772,12 @@ function tarjetasDeComandas(doc, comandas, y, alCambiarDeHoja, colorEmpresa) {
   // ese alto no se sabe hasta haber medido las tres.
   const medidas = comandas.map((com, i) => {
     doc.setFont("helvetica", "bold");
-    const nombre = medirAjustado(doc, com.persona, anchoNombre, T_NOMBRE, 7.5);
+    const empresa = medirAjustado(
+      doc, String(com.empresa || "").toUpperCase(),
+      ancho - PAD * 2 - anchoDia, T_CINTA, 6.5);
+
+    doc.setFont("helvetica", "bold");
+    const nombre = medirAjustado(doc, com.persona, anchoNombre, T_NOMBRE, 9);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(T_PLATO);
@@ -777,7 +805,7 @@ function tarjetasDeComandas(doc, comandas, y, alCambiarDeHoja, colorEmpresa) {
     const cabeza = CINTA + PAD + Math.max(NUM_ALTO, nombre.alto) + PAD;
     const cuerpo = 1.6 + platos.reduce((a, p) => a + p.alto, 0) + 1.6;
     return {
-      com, nombre, platos, cabeza,
+      com, nombre, platos, cabeza, empresa,
       numero: String(i + 1).padStart(2, "0"),
       alto: cabeza + cuerpo + ALTO_PIE,
     };
@@ -803,10 +831,21 @@ function tarjetasDeComandas(doc, comandas, y, alCambiarDeHoja, colorEmpresa) {
     doc.setLineWidth(0.2);
     doc.rect(x, y0, ancho, altoFila, "FD");
 
-    // La cinta de color ES el borde de arriba, como en la pantalla: dice de
-    // qué empresa es la tarjeta sin que haya que leer nada.
+    // La franja: el color de la empresa como en la pantalla, y adentro su
+    // nombre y el día en letra blanca, que es lo que sobrevive al recorte y a
+    // la fotocopia.
     doc.setFillColor(...cinta);
     doc.rect(x, y0, ancho, CINTA, "F");
+    const baseCinta = y0 + CINTA - 2.4;
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(m.empresa.tam);
+    doc.text(m.empresa.renglones[0], x + PAD, baseCinta);
+    if (dia) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(T_CINTA);
+      doc.text(dia, x + ancho - PAD, baseCinta, { align: "right" });
+    }
 
     // El numerito se queda chiquito a propósito: es para contar, no para leer.
     const yc = y0 + CINTA + PAD;
@@ -817,12 +856,12 @@ function tarjetasDeComandas(doc, comandas, y, alCambiarDeHoja, colorEmpresa) {
     doc.setFont("courier", "bold");
     doc.setFontSize(T_NUM);
     doc.setTextColor(...GRIS);
-    doc.text(m.numero, x + PAD + NUM_ANCHO / 2, yc + 3.1, { align: "center" });
+    doc.text(m.numero, x + PAD + NUM_ANCHO / 2, yc + 3.7, { align: "center" });
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(m.nombre.tam);
     doc.setTextColor(...TINTA);
-    doc.text(m.nombre.renglones, x + PAD + NUM_ANCHO + 1.6, yc + 3.3);
+    doc.text(m.nombre.renglones, x + PAD + NUM_ANCHO + 1.6, yc + 4.2);
 
     punteada(x, x + ancho, y0 + m.cabeza);
 
@@ -864,10 +903,18 @@ function tarjetasDeComandas(doc, comandas, y, alCambiarDeHoja, colorEmpresa) {
     doc.setFillColor(...HUESO);
     doc.rect(x + 0.25, yPie, ancho - 0.5, ALTO_PIE - 0.25, "F");
     punteada(x, x + ancho, yPie);
+
+    // "TOTAL" escrito, no sobreentendido: en la tarjeta suelta hay dos cifras
+    // (el valor del plato y esta) y nada decía cuál era la que se le cobra.
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(T_ROTULO);
+    doc.setTextColor(...GRIS);
+    doc.text("TOTAL", x + PAD, yPie + 7.1);
+
     doc.setFont("courier", "bold");
     doc.setTextColor(...TINTA);
-    escribirAjustado(doc, pesos(m.com.total), x + ancho - PAD, yPie + 5.9,
-                     ancho - PAD * 2, T_TOTAL, 7, { align: "right" });
+    escribirAjustado(doc, pesos(m.com.total), x + ancho - PAD, yPie + 7.1,
+                     ancho - PAD * 2 - 16, T_TOTAL, 8, { align: "right" });
     doc.setTextColor(0, 0, 0);
   }
 

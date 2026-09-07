@@ -215,9 +215,9 @@ function seccionesDelDia() {
       return {
         codigo: cod,
         razonSocial: emp.razonSocial || "",
-        // El mismo color con el que sale en la pantalla. Las tarjetas del PDF
-        // lo llevan de cinta arriba, así que quien recibe cuatro hojas
-        // reconoce la suya por el color antes de leer el nombre.
+        // El mismo color con el que sale en la pantalla. Es una ayuda, no la
+        // seña: el nombre de la empresa va escrito en cada tarjeta, porque el
+        // color se pierde apenas alguien fotocopia la hoja en blanco y negro.
         color: colorDeEmpresa(cod),
         informe: informeDia(estado.datos.consumos, estado.fecha, cod),
         comandas: comandasDelDia(estado.datos.consumos, estado.fecha, cod),
@@ -274,7 +274,11 @@ function tarjetasDelDia(comandas, color) {
       el("article", { clase: "comanda", estilo: `--cinta:${color}` },
         el("header", { clase: "comanda-cabeza" },
           el("span", { clase: "comanda-numero", texto: String(i + 1).padStart(2, "0") }),
-          el("h4", { clase: "comanda-nombre", texto: com.persona })
+          el("h4", { clase: "comanda-nombre", texto: com.persona }),
+          // La empresa en la tarjeta, no solo en el título de la sección: es
+          // la misma razón que en el PDF. Estas tarjetas se recortan, y una
+          // vez cortada la tarjeta ya no tiene arriba a quién pertenece.
+          cinta(com.empresa)
         ),
         el("ul", { clase: "comanda-platos" },
           ...com.platos.map((c) =>
