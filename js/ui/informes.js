@@ -13,7 +13,7 @@ import { pesos, fechaLarga, fechaCorta, nombreMes, diasDelMes, hoyISO, coincide,
 import {
   informeCocina, informeDia, informePorPersona, informeCuadre, notasDelDia,
   indicePorCodigo, delDia, contarFacturas, comandasDelDia,
-  historialDePersona, esCortesia, yaLoPago,
+  historialDePersona, esCortesia, yaLoPago, subtotal,
   A_CREDITO, DE_CONTADO, CORTESIA,
 } from "../nucleo/calculos.js";
 import { pdfCocina, pdfResumenDia, pdfPorPersona, pdfCuadre } from "../exportar/pdf.js";
@@ -195,9 +195,21 @@ let empresaResumen = "";
  * Las empresas que ese día no vendieron nada se quedan por fuera: una hoja
  * que solo dice el nombre y una tabla vacía no le sirve a nadie.
  */
-function bajarResumenEnPDF(informe) {
+/**
+ * Las secciones del día: una por empresa, con su nombre, sus platos y su gente.
+ *
+ * La arman la PANTALLA y el PDF, las dos de aquí.
+ *
+ * Antes cada una hacía lo suyo, y terminaron mostrando cosas distintas: el
+ * papel salía partido por empresa, con su nombre en grande, y la pantalla
+ * juntaba las cuatro en una sola tabla que decía "Todas las empresas". Ella
+ * imprime lo que ve, así que le estaba mandando a la fábrica un papel que no
+ * decía de qué fábrica era. Con una sola fuente eso no se puede volver a
+ * separar sin que alguien lo note.
+ */
+function seccionesDelDia() {
   const codigos = empresaResumen ? [empresaResumen] : empresas().map((e) => e.codigo);
-  const secciones = codigos
+  return codigos
     .map((cod) => {
       const emp = empresaPorCodigo(cod) || {};
       return {
@@ -212,7 +224,10 @@ function bajarResumenEnPDF(informe) {
       };
     })
     .filter((sec) => sec.informe.filas.length);
+}
 
+function bajarResumenEnPDF(informe) {
+  const secciones = seccionesDelDia();
   if (!secciones.length) {
     mensaje("Ese día no hay nada anotado.", "ojo");
     return;
@@ -221,18 +236,82 @@ function bajarResumenEnPDF(informe) {
   mensaje("PDF descargado.", "bien");
 }
 
+/** La tabla de platos de una empresa: qué se preparó y a cómo. */
+function tablaDePlatosDelDia(informe) {
+  return tabla(
+    [{ titulo: "Plato" }, { titulo: "Cantidad", clase: "n" },
+     { titulo: "Valor unitario", clase: "n" }, { titulo: "Total", clase: "n" }],
+    informe.filas.map((f) =>
+      el("tr", {},
+        el("td", {}, f.producto,
+          f.forma === DE_CONTADO
+            ? el("span", { clase: "marca-cobro contado", texto: "pagó de una" })
+            : f.forma === CORTESIA
+              ? el("span", { clase: "marca-cobro cortesia", texto: "cortesía" })
+              : null),
+        el("td", { clase: "n", texto: String(f.cantidad) }),
+        el("td", { clase: "n", texto: f.forma === CORTESIA ? "—" : pesos(f.precioUnitario) }),
+        el("td", { clase: "n", texto: f.forma === CORTESIA ? "—" : pesos(f.total) })
+      )
+    ),
+    el("tr", {},
+      el("td", { colspan: "3", texto: `TOTAL · ${informe.facturas} facturas` }),
+      el("td", { clase: "n", texto: pesos(informe.total) })
+    )
+  );
+}
+
+/**
+ * Quién pidió qué, en las mismas tarjetas de Registrar.
+ *
+ * Comparten el CSS a propósito: es el mismo papelito de talonario que ella ya
+ * conoce y que sale en el PDF. Aquí van SIN los botones de borrar y abrir --
+ * esta pantalla es para mirar y entregar, no para corregir.
+ */
+function tarjetasDelDia(comandas, color) {
+  return el("div", { clase: "comandas" },
+    ...comandas.map((com, i) =>
+      el("article", { clase: "comanda", estilo: `--cinta:${color}` },
+        el("header", { clase: "comanda-cabeza" },
+          el("span", { clase: "comanda-numero", texto: String(i + 1).padStart(2, "0") }),
+          el("h4", { clase: "comanda-nombre", texto: com.persona })
+        ),
+        el("ul", { clase: "comanda-platos" },
+          ...com.platos.map((c) =>
+            el("li", { clase: esCortesia(c) ? "gratis" : yaLoPago(c) ? "pagado" : "" },
+              el("span", { clase: "comanda-cant", texto: c.cantidad + "×" }),
+              el("span", { clase: "comanda-plato" },
+                c.producto,
+                c.observacion
+                  ? el("span", { clase: "nota-en-comanda", texto: c.observacion })
+                  : null),
+              el("span", { clase: "comanda-valor",
+                texto: esCortesia(c) ? "cortesía"
+                     : yaLoPago(c) ? "pagó · " + pesos(subtotal(c))
+                     : pesos(subtotal(c)) })
+            )
+          )
+        ),
+        el("footer", { clase: "comanda-pie" },
+          el("span", {}),
+          el("span", { clase: "comanda-total", texto: pesos(com.total) })
+        )
+      )
+    )
+  );
+}
+
 export function pintarResumenDia(raiz) {
   vaciar(raiz);
   const repintar = () => pintarResumenDia(raiz);
+  // El día entero, para el bloque del final. Cada empresa trae el suyo aparte.
   const informe = informeDia(estado.datos.consumos, estado.fecha, empresaResumen || null);
-  const emp = empresaResumen ? empresaPorCodigo(empresaResumen) : null;
-  const nombre = nombreDeEmpresa(emp ? emp.codigo : null);
 
   poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Resumen del día" }),
-        el("p", { texto: "Lo que se le manda a la empresa cada día." })
+        el("p", { texto: "Lo que se le manda a cada empresa, tal cual sale impreso." })
       ),
       acciones(
         botonImprimir(),
@@ -248,61 +327,76 @@ export function pintarResumenDia(raiz) {
     )
   );
 
-  if (!informe.filas.length) {
+  const secciones = seccionesDelDia();
+
+  if (!secciones.length) {
     poner(raiz, vacio(`No hay nada anotado para el ${fechaCorta(estado.fecha)}`, "Elija otro día u otra empresa."));
     return;
   }
 
-  poner(raiz,
-    el("div", { clase: "documento" },
-      el("h2", { texto: "Resumen del día" }),
-      el("p", { estilo: "text-align:center;color:var(--tinta-media);margin-bottom:var(--e5)" },
-        fechaLarga(informe.fecha), " · ", el("strong", { texto: nombre })),
-      el("dl", { clase: "cifras", estilo: "margin-bottom:var(--e4)" },
-        cifra("Facturas", String(informe.facturas)),
-        cifra("Renglones", String(informe.renglones)),
-        cifraPlata("Vendido en el día", informe.total, true)
-      ),
-
-      // Cuando hubo pagos de contado, hace falta partir el total: uno es
-      // plata que va a llegar en la quincena y el otro es plata que TIENE que
-      // estar en la caja ahora mismo. Juntos no sirven para cuadrar nada.
-      //
-      // Si no hubo ninguno, esto no sale: no hay por qué mostrarle una fila
-      // en cero todos los días.
-      informe.deContado > 0
-        ? el("div", { clase: "caja-del-dia" },
-            el("dl", { clase: "cifras" },
-              cifraPlata("Se le cobra a la empresa", informe.aCredito),
-              cifraPlata("Pagaron de una", informe.deContado)
-            ),
-            el("p", { clase: "nota" },
-              "En la caja tienen que estar esos ",
-              el("strong", { texto: pesos(informe.deContado) }),
-              ". Lo otro se le cobra a la empresa en la cuenta de la quincena."))
-        : null,
-      tabla(
-        [{ titulo: "Plato" }, { titulo: "Cantidad", clase: "n" }, { titulo: "Valor unitario", clase: "n" }, { titulo: "Total", clase: "n" }],
-        informe.filas.map((f) =>
-          el("tr", {},
-            el("td", {}, f.producto,
-              f.forma === DE_CONTADO
-                ? el("span", { clase: "marca-cobro contado", texto: "pagó de una" })
-                : f.forma === CORTESIA
-                  ? el("span", { clase: "marca-cobro cortesia", texto: "cortesía" })
-                  : null),
-            el("td", { clase: "n", texto: String(f.cantidad) }),
-            el("td", { clase: "n", texto: f.forma === CORTESIA ? "—" : pesos(f.precioUnitario) }),
-            el("td", { clase: "n", texto: f.forma === CORTESIA ? "—" : pesos(f.total) })
-          )
+  // Una sección por empresa, CON SU NOMBRE, igual que en el papel.
+  //
+  // Antes esto era una sola tabla con las cuatro empresas revueltas y un
+  // rótulo que decía "Todas las empresas". Ella imprime lo que ve y se lo
+  // manda a la fábrica, así que el papel llegaba sin decir de qué fábrica era
+  // -- y con los platos de las otras tres adentro.
+  for (const sec of secciones) {
+    poner(raiz,
+      el("div", { clase: "documento" },
+        el("div", { clase: "titulo-lista", estilo: `--cinta:${sec.color}` },
+          el("div", { clase: "titulo-lista-quien" },
+            el("p", { clase: "titulo-lista-arriba", texto: "Resumen del día" }),
+            el("h3", { clase: "titulo-lista-sede", texto: sec.codigo }),
+            el("p", { clase: "titulo-lista-pie",
+              texto: [sec.razonSocial, fechaLarga(estado.fecha)].filter(Boolean).join(" · ") })
+          ),
+          el("span", { clase: "titulo-lista-cuenta plata",
+            texto: `${sec.informe.facturas} facturas · ${pesos(sec.informe.total)}` })
         ),
-        el("tr", {},
-          el("td", { colspan: "3", texto: "TOTAL" }),
-          el("td", { clase: "n", texto: pesos(informe.total) })
-        )
+
+        // Lo de contado se parte aparte: uno es plata que llega en la quincena
+        // y el otro es plata que TIENE que estar en la caja ahora mismo.
+        sec.informe.deContado > 0
+          ? el("div", { clase: "caja-del-dia" },
+              el("dl", { clase: "cifras" },
+                cifraPlata("Se le cobra a la empresa", sec.informe.aCredito),
+                cifraPlata("Pagaron de una", sec.informe.deContado)
+              ),
+              el("p", { clase: "nota" },
+                "En la caja tienen que estar esos ",
+                el("strong", { texto: pesos(sec.informe.deContado) }),
+                ". Lo otro se le cobra a la empresa en la cuenta de la quincena."))
+          : null,
+
+        el("h4", { estilo: "margin:var(--e4) 0 var(--e3)", texto: "Lo que se pidió" }),
+        tablaDePlatosDelDia(sec.informe),
+
+        sec.comandas.length
+          ? el("div", {},
+              el("h4", { estilo: "margin:var(--e5) 0 var(--e3)",
+                texto: `Quién pidió qué · ${sec.comandas.length} ${sec.comandas.length === 1 ? "persona" : "personas"}` }),
+              tarjetasDelDia(sec.comandas, sec.color))
+          : null
       )
-    )
-  );
+    );
+  }
+
+  // El día completo, al final y solo cuando hay más de una empresa: con una
+  // sola sería el mismo número escrito dos veces.
+  if (secciones.length > 1) {
+    poner(raiz,
+      el("div", { clase: "documento" },
+        el("div", { clase: "fila entre" },
+          el("h2", { texto: "El día completo" }),
+          el("span", { clase: "comanda-total", texto: pesos(informe.total) })
+        ),
+        el("p", { clase: "nota", estilo: "margin:var(--e2) 0 var(--e4)" },
+          `Las ${secciones.length} empresas juntas · ${informe.facturas} facturas · ` +
+          `${informe.renglones} renglones. Esto NO se le manda a ninguna: es para usted.`),
+        tablaDePlatosDelDia(informe)
+      )
+    );
+  }
 }
 
 // ===========================================================================
