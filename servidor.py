@@ -105,10 +105,25 @@ class Manejador(http.server.SimpleHTTPRequestHandler):
             super().log_message(formato, *args)
 
 
+class Servidor(socketserver.ThreadingTCPServer):
+    """Atiende varias peticiones a la vez.
+
+    Era socketserver.TCPServer a secas, que atiende UNA a la vez. El navegador
+    pide los 25 módulos de la app casi al tiempo, así que se le quedaban
+    esperando en fila y la app arrancaba a medias o no arrancaba: la pantalla
+    salía en blanco sin ningún error, que es la peor forma de fallar.
+
+    daemon_threads deja que Ctrl+C apague de una, sin quedarse esperando a las
+    peticiones a medio atender.
+    """
+
+    daemon_threads = True
+    allow_reuse_address = True
+
+
 def main():
-    socketserver.TCPServer.allow_reuse_address = True
     try:
-        with socketserver.TCPServer(("127.0.0.1", PUERTO), Manejador) as servidor:
+        with Servidor(("127.0.0.1", PUERTO), Manejador) as servidor:
             print()
             print("  Arroz Paisa está andando.")
             print()
