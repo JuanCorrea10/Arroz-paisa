@@ -69,6 +69,33 @@ export function completarDatos(datos) {
     if (!c.id) c.id = nuevoId();
     if (!Array.isArray(c.revisar)) c.revisar = [];
   }
+  // Un plato o una persona SIN NOMBRE es basura, y es basura peligrosa.
+  //
+  // No sirve para nada -- los renglones apuntan a los platos y a la gente POR
+  // NOMBRE, asi que a uno sin nombre no lo puede referenciar nadie -- pero sí
+  // alcanza a tumbar una pantalla: la lista de platos de Registrar se ordena
+  // con localeCompare, y localeCompare de "nada" revienta. Y revienta en el
+  // peor momento posible: esa lista se arma SOLO al elegir a la persona, así
+  // que la pantalla se ve bien, los nombres salen, y al tocar uno no pasa
+  // nada. Se vivió: la señora no pudo trabajar en toda una mañana.
+  //
+  // El importador de Excel no pasa por agregarProducto ni agregarPersona (que
+  // sí exigen nombre), arma las listas él mismo. Por eso la limpieza va aquí,
+  // al cargar: es el único sitio por el que pasan TODOS los datos, vengan de
+  // donde vengan.
+  //
+  // Se dice cuántos se botaron. Botarlos callada sería cambiarle el catálogo
+  // sin avisar, y eso es justo lo que hacía el Excel viejo.
+  const tieneNombre = (x) => String((x && x.nombre) ?? "").trim() !== "";
+  const productosAntes = salida.productos.length;
+  const personasAntes = salida.personas.length;
+  salida.productos = salida.productos.filter(tieneNombre);
+  salida.personas = salida.personas.filter(tieneNombre);
+  salida.sinNombre = {
+    productos: productosAntes - salida.productos.length,
+    personas: personasAntes - salida.personas.length,
+  };
+
   salida.unificadas = unificarEmpresa(salida);
   return salida;
 }

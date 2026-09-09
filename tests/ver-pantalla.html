@@ -84,7 +84,10 @@ try {
   if (params.get("empresa")) estado.empresa = params.get("empresa").toUpperCase();
 
   // Un cambio pedido por la prueba, para poder ver cómo se ve el aviso.
-  const forzar = new URLSearchParams(location.search).get("forzar");
+  // Nunca null: mas abajo se le pregunta con .includes() para poder pedir dos
+  // casos a la vez ("forzar=plato-sin-nombre+elegir-persona"), y .includes()
+  // de null revienta la pagina entera antes de pintar nada.
+  const forzar = new URLSearchParams(location.search).get("forzar") || "";
   if (forzar === "precio-disparejo" && datos.productos.length) {
     const plato = datos.productos.find((p) => p.nombre === "OFERTA") || datos.productos[0];
     const empresa = datos.empresas[2] || datos.empresas[0];
@@ -194,6 +197,15 @@ try {
       : "MAL: no salio la tarjeta de dejados asi";
   }
 
+  // Un plato del catalogo con el nombre en blanco.
+  //
+  // Es lo que se sospecha que tiene ella: la lista de platos se arma SOLO al
+  // elegir a la persona, asi que un plato dañado no molesta hasta ese momento
+  // exacto -- y ahi tumba la pantalla entera, que es justo lo que describio.
+  if (forzar.includes("plato-sin-nombre") && datos.productos.length) {
+    datos.productos.push({ nombre: null, activo: true });
+  }
+
   // "&forzar=elegir-persona" hace lo que ella hace cada manana en Registrar:
   // escribir un nombre y elegirlo de la lista, para que salga el buscador de
   // platos. Es EL flujo de la app -- sin el no se puede anotar nada -- y hasta
@@ -202,7 +214,7 @@ try {
   //
   // El buscador de personas de Registrar no tiene id fijo (componentes.js le
   // pone uno al azar), asi que se busca por su etiqueta.
-  if (forzar === "elegir-persona") {
+  if (forzar.includes("elegir-persona")) {
     const pasos = [];
     const etiqueta = [...raiz.querySelectorAll("label")]
       .find((l) => /Quien comio|Qui.n comi./i.test(l.textContent));

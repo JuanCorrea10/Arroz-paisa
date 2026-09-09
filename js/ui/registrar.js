@@ -195,7 +195,11 @@ function comandaEnCurso(raiz) {
     placeholder: 'Escriba el plato. Puede poner la cantidad adelante: "3 almuerzo"',
     permiteCantidad: true,
     opciones: estado.datos.productos
-      .filter((p) => p.activo !== false)
+      // El nombre en blanco se saca aquí también, aunque completarDatos ya lo
+      // bote al cargar. Esta lista se arma al elegir a la persona, que es el
+      // paso del que depende toda la mañana: si se cae, ella no puede anotar
+      // nada. Una línea de más aquí vale lo que cuesta.
+      .filter((p) => p.activo !== false && String(p.nombre || "").trim() !== "")
       .map((p) => {
         const v = precioDe(estado.datos, p.nombre, laEmpresa);
         return { texto: p.nombre, valor: p.nombre, apunte: v === null ? "sin precio" : pesos(v) };

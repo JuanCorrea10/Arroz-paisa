@@ -7,6 +7,7 @@ import "./sueltos.test.mjs";
 import "./habitos.test.mjs";
 import "./cantidad.test.mjs";
 import "./precios.test.mjs";
+import "./catalogo-sano.test.mjs";
 import "./cobro.test.mjs";
 import "./informe.test.mjs";
 import "./empresa-unica.test.mjs";

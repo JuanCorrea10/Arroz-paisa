@@ -394,7 +394,42 @@ function headerQueSeEncoge() {
   ).observe(centinela);
 }
 
+/**
+ * La red que faltaba.
+ *
+ * pintarPantalla() ya atrapaba lo que se dañara al ENTRAR a una pantalla. Pero
+ * las pantallas se vuelven a pintar solas cada vez que ella toca algo -- elegir
+ * una persona, agregar un plato -- y ESE repintado no lo atrapaba nadie: si se
+ * caía, la pantalla se quedaba a medias, sin un solo aviso, y el error solo
+ * aparecía en una consola que ella nunca va a abrir.
+ *
+ * Fue exactamente lo que pasó: un plato sin nombre en el catálogo tumbaba el
+ * repintado al elegir a la persona, y desde afuera se veía como si la app
+ * simplemente no hiciera nada.
+ *
+ * Aquí no se arregla el error -- eso se arregla donde toque --, pero deja de
+ * ser invisible, que es la regla que manda en esta app.
+ */
+function nadaFallaCallado() {
+  let yaAvise = false;
+  const avisar = (error) => {
+    console.error(error);
+    if (yaAvise) return;
+    yaAvise = true;
+    setTimeout(() => { yaAvise = false; }, 4000);
+    mensaje(
+      "Algo se dañó al dibujar la pantalla y quedó a medias. Sus datos están " +
+      "guardados. Recargue la página (Ctrl + Shift + R) y, si vuelve a pasar, " +
+      "avísele a Juan: " + String((error && error.message) || error),
+      "malo", 20
+    );
+  };
+  window.addEventListener("error", (e) => avisar(e.error || e.message));
+  window.addEventListener("unhandledrejection", (e) => avisar(e.reason));
+}
+
 async function arrancar() {
+  nadaFallaCallado();
   revisarLaVersion();
   construirMenu();
   headerQueSeEncoge();
@@ -456,6 +491,19 @@ async function arrancar() {
   // arranca igual y el primer PDF sale sin logo, que es preferible a hacerla
   // esperar por una imagen.
   import("./exportar/pdf.js").then((m) => m.prepararLogo()).catch(() => {});
+
+  // Lo que se boto al cargar. Se dice, no se calla: es el catalogo de ella.
+  const basura = estado.datos.sinNombre || { productos: 0, personas: 0 };
+  if (basura.productos || basura.personas) {
+    const partes = [];
+    if (basura.productos) partes.push(`${basura.productos} plato(s)`);
+    if (basura.personas) partes.push(`${basura.personas} persona(s)`);
+    mensaje(
+      `Había ${partes.join(" y ")} guardados sin nombre y se quitaron. ` +
+      "No se perdió ningún pedido: los pedidos guardan el nombre aparte.",
+      "ojo", 12
+    );
+  }
 
   window.addEventListener("hashchange", pintar);
   // Si cambia el tamaño de la ventana, la pestaña activa se movió de sitio.
