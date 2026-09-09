@@ -346,9 +346,16 @@ if (revento) {
     anotar("MAL  no se generó");
   } else {
     const crudo = capturado.doc.output();
-    anotar(crudo.includes(LARGO)
-      ? "OK   el nombre largo sale entero y en un solo renglón"
-      : "OJO  el nombre largo no salió de una pieza: se partió para caber");
+    // Lo que importa del nombre largo es que se lea COMPLETO, no que quepa en
+    // un renglón. Desde que el total va al lado del nombre, uno de 36 letras
+    // parte en dos líneas -- y eso es mejor que encogerlo hasta 7 pt, que es
+    // lo que hacía antes: la tarjeta la lee gente que no ve bien de lejos.
+    // Lo que sí sería un error es que le faltara un pedazo.
+    const pedazos = LARGO.split(" ");
+    const faltan = pedazos.filter((p) => !crudo.includes(p));
+    anotar(faltan.length
+      ? "MAL  al nombre largo le falta: " + faltan.join(", ")
+      : `OK   el nombre largo sale completo (${pedazos.length} palabras), parta o no en dos renglones`);
     anotar(crudo.includes("cortes") ? "OK   la cortesía se dice" : "MAL  no dice la cortesía");
     anotar(crudo.includes("pag") ? "OK   el 'pagó de una' se dice" : "MAL  no dice el 'pagó de una'");
     try {

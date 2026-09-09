@@ -374,8 +374,12 @@ export function pintarResumenDia(raiz) {
                 ". Lo otro se le cobra a la empresa en la cuenta de la quincena."))
           : null,
 
-        el("h4", { estilo: "margin:var(--e4) 0 var(--e3)", texto: "Lo que se pidió" }),
-        tablaDePlatosDelDia(sec.informe),
+        // La tabla de "Lo que se pidió" salió de aquí igual que del papel.
+        //
+        // Esta pantalla promete mostrar lo que se le manda a la empresa "tal
+        // cual sale impreso", así que si el papel no la lleva, aquí tampoco.
+        // El cuánto-de-cada-plato sigue abajo, en "El día completo", y en la
+        // pantalla de Cocina, que es donde se pregunta eso.
 
         sec.comandas.length
           ? el("div", {},

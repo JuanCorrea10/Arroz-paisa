@@ -502,8 +502,18 @@ export function pdfResumenDia(secciones, fecha, acreedor, combinado = null) {
       y
     );
 
-    y = tituloDeSeccion(doc, "Lo que se pidió", y + 2);
-    y = tablaDePlatos(doc, sec.informe, y, rotulo);
+    // La tabla de "Lo que se pidió" ya NO va en la hoja de cada empresa.
+    //
+    // Decía cuántos almuerzos y cuántas gaseosas salieron en total. Eso es una
+    // pregunta de COCINA -- cuánto hay que preparar --, y para eso ya está el
+    // papel de Cocina, que además lo trae de las cuatro empresas juntas. En la
+    // hoja que se le manda a la fábrica repetía algo que a ellos no les sirve:
+    // el supervisor no cocina, reparte, y para repartir necesita los nombres.
+    //
+    // Sigue estando en la hoja del final, la del día completo, que es la de
+    // ella. Ahí sí es el número que se busca.
+    //
+    // Se quitó porque son diez hojas todos los días.
 
     // Lo pagado de una se dice aparte: esa plata está en la caja y NO va en la
     // cuenta de la empresa. Si no se dijera, el supervisor sumaría de más.
@@ -726,9 +736,14 @@ function tarjetasDeComandas(doc, comandas, y, alCambiarDeHoja, colorEmpresa, fec
   // ese papel, y varios de ellos no ven bien de lejos.
   const CINTA = 10.4;
 
-  const T_NOMBRE = 12.5, T_PLATO = 10.5, T_VALOR = 9.5, T_CANT = 9, T_NUM = 8, T_TOTAL = 13;
+  // La cantidad va en 12, más grande que el nombre del plato.
+  //
+  // Es el número que se cuadra contra lo que se entrega, y en fotocopia un 9
+  // en courier se pierde. Al lado de un plato de 10,5 se lee "DOS almuerzos",
+  // que es el orden en que hay que entenderlo.
+  const T_NOMBRE = 12.5, T_PLATO = 10.5, T_VALOR = 9.5, T_CANT = 12, T_NUM = 8, T_TOTAL = 13;
   const T_NOTA = 9, T_CINTA = 15, T_DIA = 10.5, T_ROTULO = 8.5;
-  const NUM_ANCHO = 7.8, NUM_ALTO = 5.4, CANT_ANCHO = 6.8, ALTO_PIE = 10.5;
+  const NUM_ANCHO = 7.8, NUM_ALTO = 5.4, CANT_ANCHO = 8.6, ALTO_PIE = 10.5;
 
   const ancho = (anchoHoja - 28 - (COLS - 1) * HUECO) / COLS;
   const cinta = aRGB(colorEmpresa, MARCA);
@@ -770,7 +785,21 @@ function tarjetasDeComandas(doc, comandas, y, alCambiarDeHoja, colorEmpresa, fec
   doc.setFontSize(tamValor);
   const anchoValor = Math.min(doc.getTextWidth(masAncho) + 0.6, hueco);
 
-  const anchoNombre = ancho - PAD * 2 - NUM_ANCHO - 1.6;
+  // El total ya no va en una franja aparte abajo: va al lado del nombre.
+  //
+  // La franja del pie costaba 10,5 mm en CADA tarjeta -- una cuarta parte de
+  // una tarjeta de un solo plato -- solo para repetir un numero. Con 46
+  // personas al dia eso son hojas enteras de puro pie de pagina. Arriba se lee
+  // igual de bien ("JUAN ZAMORA ... $ 12.000") y la tarjeta cabe en menos.
+  doc.setFont("courier", "bold");
+  doc.setFontSize(T_TOTAL);
+  let anchoTotal = 0;
+  for (const com of comandas) {
+    anchoTotal = Math.max(anchoTotal, doc.getTextWidth(pesos(com.total)));
+  }
+  anchoTotal = Math.min(anchoTotal + 2, ancho * 0.42);
+
+  const anchoNombre = ancho - PAD * 2 - NUM_ANCHO - 1.6 - anchoTotal;
   const anchoPlato = ancho - PAD * 2 - CANT_ANCHO - anchoValor - 1.4;
 
   // Primero se mide TODO y después se pinta. No se puede pintar sobre la
@@ -814,7 +843,7 @@ function tarjetasDeComandas(doc, comandas, y, alCambiarDeHoja, colorEmpresa, fec
     return {
       com, nombre, platos, cabeza, empresa,
       numero: String(i + 1).padStart(2, "0"),
-      alto: cabeza + cuerpo + ALTO_PIE,
+      alto: cabeza + cuerpo,
     };
   });
 
@@ -870,6 +899,12 @@ function tarjetasDeComandas(doc, comandas, y, alCambiarDeHoja, colorEmpresa, fec
     doc.setTextColor(...TINTA);
     doc.text(m.nombre.renglones, x + PAD + NUM_ANCHO + 1.6, yc + 4.2);
 
+    // El total, al lado del nombre y en la letra de los numeros: es lo que se
+    // busca en la tarjeta y ahora se lee de una, sin bajar la vista.
+    doc.setFont("courier", "bold");
+    escribirAjustado(doc, pesos(m.com.total), x + ancho - PAD, yc + 4.2,
+                     anchoTotal, T_TOTAL, 8, { align: "right" });
+
     punteada(x, x + ancho, y0 + m.cabeza);
 
     let yp = y0 + m.cabeza + 1.6;
@@ -905,23 +940,6 @@ function tarjetasDeComandas(doc, comandas, y, alCambiarDeHoja, colorEmpresa, fec
       yp += p.alto;
     }
 
-    // El pie: el total de la persona, que es lo que se busca en la tarjeta.
-    const yPie = y0 + altoFila - ALTO_PIE;
-    doc.setFillColor(...HUESO);
-    doc.rect(x + 0.25, yPie, ancho - 0.5, ALTO_PIE - 0.25, "F");
-    punteada(x, x + ancho, yPie);
-
-    // "TOTAL" escrito, no sobreentendido: en la tarjeta suelta hay dos cifras
-    // (el valor del plato y esta) y nada decía cuál era la que se le cobra.
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(T_ROTULO);
-    doc.setTextColor(...GRIS);
-    doc.text("TOTAL", x + PAD, yPie + 7.1);
-
-    doc.setFont("courier", "bold");
-    doc.setTextColor(...TINTA);
-    escribirAjustado(doc, pesos(m.com.total), x + ancho - PAD, yPie + 7.1,
-                     ancho - PAD * 2 - 16, T_TOTAL, 8, { align: "right" });
     doc.setTextColor(0, 0, 0);
   }
 
