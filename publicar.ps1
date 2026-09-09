@@ -68,6 +68,24 @@ $html = [regex]::Replace($html, '<meta name="version" content="[^"]*">', "<meta 
 $html = [regex]::Replace($html, '\?v=[0-9-]+', "?v=$version")
 [System.IO.File]::WriteAllText($rutaHtml, $html, $sinBom)
 
+# El mapa de direcciones se rehace leyendo la carpeta js/, no a mano.
+#
+# El "?v=" de arriba ya le cambia la version a las direcciones que YA estan en
+# el mapa. Lo que no puede hacer es meter un modulo NUEVO: si alguien agrega
+# js/ui/loquesea.js y se olvida del mapa, ese archivo queda pedido siempre a la
+# misma direccion y el navegador lo puede dar viejo -- callado, que es lo peor.
+# Rehacerlo aqui hace que eso no dependa de que alguien se acuerde.
+$modulos = Get-ChildItem -Path (Join-Path $PSScriptRoot "js") -Recurse -Filter *.js |
+    ForEach-Object { "./" + $_.FullName.Substring($PSScriptRoot.Length + 1).Replace("\", "/") } |
+    Sort-Object
+$lineas = $modulos | ForEach-Object { '    "' + $_ + '": "' + $_ + '?v=' + $version + '"' }
+$mapa = "<!-- MAPA:INICIO --><script type=`"importmap`">`r`n{`r`n  `"imports`": {`r`n" +
+        ($lineas -join ",`r`n") + "`r`n  }`r`n}`r`n</script><!-- MAPA:FIN -->"
+$html = [regex]::Replace($html, '<!-- MAPA:INICIO -->.*?<!-- MAPA:FIN -->', $mapa,
+                         [System.Text.RegularExpressions.RegexOptions]::Singleline)
+[System.IO.File]::WriteAllText($rutaHtml, $html, $sinBom)
+Write-Host "  Mapa de modulos: $($modulos.Count) archivos" -ForegroundColor DarkGray
+
 $rutaCss = Join-Path $PSScriptRoot "css/pantallas.css"
 $css = [System.IO.File]::ReadAllText($rutaCss)
 $css = [regex]::Replace($css, '--version: "[^"]*";', "--version: `"$version`";")

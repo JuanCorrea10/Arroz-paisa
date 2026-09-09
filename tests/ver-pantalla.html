@@ -194,6 +194,47 @@ try {
       : "MAL: no salio la tarjeta de dejados asi";
   }
 
+  // "&forzar=elegir-persona" hace lo que ella hace cada manana en Registrar:
+  // escribir un nombre y elegirlo de la lista, para que salga el buscador de
+  // platos. Es EL flujo de la app -- sin el no se puede anotar nada -- y hasta
+  // ahora no se probaba de ninguna forma: se dano y nadie se entero hasta que
+  // ella no pudo trabajar.
+  //
+  // El buscador de personas de Registrar no tiene id fijo (componentes.js le
+  // pone uno al azar), asi que se busca por su etiqueta.
+  if (forzar === "elegir-persona") {
+    const pasos = [];
+    const etiqueta = [...raiz.querySelectorAll("label")]
+      .find((l) => /Quien comio|Qui.n comi./i.test(l.textContent));
+    const casilla = etiqueta ? raiz.querySelector("#" + CSS.escape(etiqueta.htmlFor)) : null;
+    if (!casilla) {
+      loQueSeTecleo = "MAL: no aparece el buscador de personas";
+    } else {
+      pasos.push("hay buscador de personas");
+      casilla.focus();
+      for (const letra of "a") {
+        casilla.value += letra;
+        casilla.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      const opciones = [...raiz.querySelectorAll('li[role="option"]')]
+        .filter((li) => !li.classList.contains("crear"));
+      pasos.push(opciones.length + " nombres en la lista");
+      if (!opciones.length) {
+        loQueSeTecleo = "MAL: " + pasos.join(" · ") + " · la lista salio vacia";
+      } else {
+        const quien = opciones[0].textContent.trim();
+        opciones[0].click();
+        await new Promise((r) => setTimeout(r, 60));
+        const pidio = [...raiz.querySelectorAll("label")]
+          .find((l) => /Que pidio|Qu. pidi./i.test(l.textContent));
+        pasos.push(pidio
+          ? 'salio "' + pidio.textContent.trim() + '"'
+          : "MAL: NO salio el buscador de platos para " + quien);
+        loQueSeTecleo = pasos.join(" · ");
+      }
+    }
+  }
+
   // "&forzar=hasta:25" escribe el segundo dia del rango en Consumo por persona.
   if (forzar && forzar.startsWith("hasta:")) {
     const casilla = raiz.querySelector("#persona-hasta");

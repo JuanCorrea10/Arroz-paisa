@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<title>Probar la app entera</title>
+<style>
+  body { font-family: system-ui, sans-serif; padding: 1rem; background: #f5eee2; margin: 0; }
+  h1 { font-size: 1.15rem; margin: 0 0 .3rem; }
+  p { margin: 0 0 .8rem; font-size: .9rem; color: #574b45; max-width: 68ch; }
+  pre { background: #fff; padding: .7rem; font-size: .85rem; white-space: pre-wrap; }
+  iframe { width: 1240px; height: 900px; border: 1px solid #c9b99f; background: #fff; }
+</style>
+</head>
+<body>
+<h1>La app entera, haciendo lo que ella hace</h1>
+<p>
+  Las otras pruebas miran las cuentas (<code>tests/correr.mjs</code>) o una
+  pantalla suelta (<code>tests/ver-pantalla.html</code>). Ninguna arrancaba la
+  app <strong>de verdad</strong>: con su IndexedDB, su ruteo por
+  <code>#hash</code> y sus veinticinco módulos. Por ahí se puede dañar el
+  trabajo de todos los días sin que nada avise.
+</p>
+<p>
+  Hay que abrirla a velocidad normal (nada de
+  <code>--virtual-time-budget</code>: no espera a IndexedDB) y con un servidor
+  que reciba el POST del veredicto.
+</p>
+<pre id="salida">probando…</pre>
+<iframe id="app" src="../index.html#registrar"></iframe>
+
+<script type="module">
+const lineas = [];
+const salida = document.getElementById("salida");
+const anotar = (t) => { lineas.push(t); salida.textContent = lineas.join("\n"); };
+const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function esperarA(condicion, cuanto = 20000) {
+  const hasta = Date.now() + cuanto;
+  while (Date.now() < hasta) {
+    try { const v = condicion(); if (v) return v; } catch { /* todavía no */ }
+    await esperar(120);
+  }
+  return null;
+}
+
+const marco = document.getElementById("app");
+
+marco.addEventListener("load", async () => {
+  const doc = marco.contentDocument;
+  const ven = marco.contentWindow;
+
+  // Cualquier error suelto de la app tiene que salir AQUÍ, no en una consola
+  // que nadie mira.
+  const reventones = [];
+  ven.addEventListener("error", (e) => reventones.push(String(e.message)));
+  ven.addEventListener("unhandledrejection", (e) => reventones.push("promesa: " + e.reason));
+
+  const buscadorDe = (texto) => {
+    const etiqueta = [...doc.querySelectorAll("label")].find((l) => texto.test(l.textContent));
+    return etiqueta ? doc.getElementById(etiqueta.htmlFor) : null;
+  };
+  const opciones = () => [...doc.querySelectorAll('li[role="option"]')]
+    .filter((li) => !li.classList.contains("crear"));
+  const teclear = (casilla, texto) => {
+    casilla.focus();
+    casilla.value = texto;
+    casilla.dispatchEvent(new ven.Event("input", { bubbles: true }));
+  };
+
+  // --- 1. Que TODOS los módulos lleguen con su versión ---------------------
+  //
+  //  De los 25 módulos, 24 se pedían siempre a la misma dirección: el
+  //  navegador podía darlos de lo que tenía guardado y dejar la app corriendo
+  //  con HTML nuevo y JavaScript viejo. Lo arregla el mapa de direcciones del
+  //  index.html, y esto comprueba que el mapa de verdad esté sirviendo.
+  const modulos = ven.performance.getEntriesByType("resource")
+    .map((r) => r.name).filter((u) => /\/js\/.*\.js(\?|$)/.test(u));
+  const sinVersion = modulos.filter((u) => !/\?v=/.test(u));
+  anotar(sinVersion.length
+    ? `MAL  ${sinVersion.length} de ${modulos.length} módulos llegan SIN versión: ` +
+      sinVersion.map((u) => u.split("/").slice(-2).join("/")).join(", ")
+    : `OK   los ${modulos.length} módulos llegan con su versión`);
+
+  // --- 2. Anotarle un plato a alguien que ya existe ------------------------
+  const buscaPersona = await esperarA(() => buscadorDe(/Qui[eé]n comi[oó]/i));
+  if (!buscaPersona) { anotar("MAL  la app nunca mostró el buscador de personas"); return mandar(); }
+  anotar("OK   arrancó la app y salió el buscador de personas");
+
+  teclear(buscaPersona, "a");
+  const quien = await esperarA(() => opciones()[0], 8000);
+  if (!quien) { anotar("MAL  al escribir un nombre no salió ninguna persona"); return mandar(); }
+  const suNombre = quien.textContent.trim();
+  quien.click();
+
+  const buscaPlato = await esperarA(() => buscadorDe(/Qu[eé] pidi[oó]/i), 8000);
+  if (!buscaPlato) { anotar(`MAL  al elegir a ${suNombre} NO salió el apartado de pedidos`); return mandar(); }
+  anotar(`OK   al elegir a ${suNombre} salió el apartado de pedidos`);
+
+  teclear(buscaPlato, "almuerzo");
+  const plato = await esperarA(() => opciones()[0], 8000);
+  if (!plato) { anotar("MAL  el buscador de platos no ofrece nada"); return mandar(); }
+  plato.click();
+  const anotado = await esperarA(() => {
+    const t = doc.body.textContent || "";
+    return /ALMUERZO/i.test(t) && !/Todav[ií]a no le ha anotado nada/.test(t);
+  }, 8000);
+  anotar(anotado ? "OK   el plato quedó anotado" : "MAL  el plato no quedó anotado");
+
+  // --- 3. Crear a alguien que no existe ------------------------------------
+  //
+  //  Es lo que hace cuando entra alguien nuevo a la fábrica, y pasa por la
+  //  ventana emergente, que es otra pieza que ninguna prueba tocaba.
+  const NUEVO = "ZZ PRUEBA " + Date.now();
+  const otraVez = await esperarA(() => buscadorDe(/Qui[eé]n comi[oó]/i), 8000);
+  teclear(otraVez, NUEVO);
+  const crear = await esperarA(() => doc.querySelector('li[role="option"].crear'), 8000);
+  if (!crear) { anotar("MAL  no ofrece crear a una persona nueva"); return mandar(); }
+  crear.click();
+
+  const dialogo = await esperarA(() => doc.querySelector("dialog[open]"), 8000);
+  if (!dialogo) { anotar("MAL  no abrió la ventana para crear la persona"); return mandar(); }
+  const tieneEquis = !!dialogo.querySelector(".cerrar-x");
+  const tienePie = dialogo.querySelectorAll(".ventana-pie button").length;
+  anotar(`OK   abrió la ventana (× de cerrar: ${tieneEquis ? "sí" : "NO"}, botones al pie: ${tienePie})`);
+  if (!tieneEquis || !tienePie) anotar("MAL  la ventana quedó sin forma de cerrarla");
+
+  const campoNombre = dialogo.querySelector("#campo-nombre");
+  if (!campoNombre) { anotar("MAL  la ventana no trae la casilla del nombre"); return mandar(); }
+  teclear(campoNombre, NUEVO);
+  const guardar = [...dialogo.querySelectorAll(".ventana-pie button")]
+    .find((b) => /Crear|Guardar/i.test(b.textContent));
+  guardar.click();
+
+  const suyo = await esperarA(() => buscadorDe(/Qu[eé] pidi[oó]/i), 8000);
+  anotar(suyo
+    ? "OK   la persona nueva quedó creada y con su apartado de pedidos"
+    : "MAL  se creó la persona pero NO salió el apartado de pedidos");
+
+  mandar();
+
+  async function mandar() {
+    if (reventones.length) anotar("MAL  la app reventó: " + reventones.join(" | "));
+    const malas = lineas.filter((l) => l.startsWith("MAL")).length;
+    anotar(malas ? `\n${malas} cosas MAL.` : "\nTodo bien.");
+    try { await fetch("/veredicto", { method: "POST", body: lineas.join(" · ") }); } catch { /* sin servidor */ }
+  }
+});
+</script>
+</body>
+</html>

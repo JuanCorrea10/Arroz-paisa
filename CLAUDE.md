@@ -55,6 +55,12 @@ está en `.gitignore`. Sin ellos esas fallan; las demás corren igual.
   en un buscador). Es el sitio donde se agregan casos nuevos para poder MIRARLOS.
 - `tests/probar-pdf.html` arma los PDF de verdad, los revisa y los deja en
   `tests/salida/` (ignorado por git: lleva nombres de personas).
+- `tests/probar-app.html` arranca la APP ENTERA en un marco y hace lo que ella
+  hace cada mañana: elegir una persona, anotarle un plato y crear a alguien
+  nuevo. Es lo único que prueba el arranque de verdad (IndexedDB, el ruteo por
+  `#hash`, los 25 módulos) y que todos lleguen con su versión. Hay que abrirla
+  a velocidad normal — `--virtual-time-budget` no espera a IndexedDB — con un
+  servidor que reciba el POST del veredicto en `/veredicto`.
 - Chrome sin ventana:
   `chrome --headless=new --virtual-time-budget=25000 --dump-dom <url>` y sacar
   el texto de `<pre id="salida">`. Ojo: `--virtual-time-budget` no espera a
@@ -153,6 +159,11 @@ prueba; la pantalla solo la llama y la pinta.
   diciendo qué hacer ("Póngale precio", no "Error: precio inválido").
 - Sin framework y sin paso de compilación: módulos ES nativos que el navegador
   carga directo. `vendor/` trae jsPDF, autoTable y SheetJS ya bajados.
+- **La versión va en la dirección de TODO lo que se carga.** El `index.html`
+  trae un mapa de direcciones (`importmap`) que le pone `?v=` a los 25 módulos;
+  lo rehace `publicar.ps1` leyendo la carpeta `js/`. Sin eso el navegador
+  mezcla HTML nuevo con JavaScript viejo y la app hace cosas raras "de la
+  nada". A mano no se toca el mapa.
 
 ---
 
