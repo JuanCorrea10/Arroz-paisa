@@ -545,21 +545,16 @@ export function pdfResumenDia(secciones, fecha, acreedor, combinado = null) {
     }
   }
 
-  // El día completo, para ella. Es lo que traía el PDF viejo cuando estaba
-  // puesto "Todas las empresas", así que no se pierde por meter lo nuevo.
-  if (combinado && secciones.length > 1) {
-    doc.addPage();
-    const rotulo = () =>
-      encabezado(doc, "RESUMEN DEL DÍA", `${fechaLarga(fecha)} · Todas las empresas`, acreedor);
-    let y = rotulo();
-    y = tituloDeEmpresa(
-      doc, "EL DÍA COMPLETO", `Las ${secciones.length} empresas juntas`,
-      `${combinado.facturas} facturas  ·  ${pesos(combinado.total)}`,
-      y
-    );
-    y = tituloDeSeccion(doc, "Todo lo que se pidió", y + 2);
-    tablaDePlatos(doc, combinado, y, rotulo);
-  }
+  // La hoja de "El día completo" tampoco va.
+  //
+  // Lo único que llevaba era la tabla de todo lo que se pidió, y esa tabla se
+  // quitó: quedaba una hoja entera para un solo total. Este papel se imprime
+  // todos los días y se le manda a las fábricas; una hoja que no es de nadie
+  // es una hoja botada.
+  //
+  // El total del día no se pierde: está en la pantalla de Resumen del día, y
+  // el detalle por plato -- que es el que sirve para saber cuánto preparar --
+  // está en Cocina, que tiene su propio papel.
 
   pieDePagina(doc);
   const cual = secciones.length === 1 ? "-" + String(secciones[0].codigo).replace(/\s+/g, "-") : "";
@@ -917,7 +912,12 @@ function tarjetasDeComandas(doc, comandas, y, alCambiarDeHoja, colorEmpresa, fec
       // Lo que NO se le cobra a la empresa va en gris, como en la pantalla: el
       // supervisor tiene que poder saltárselo al cuadrar la cuenta.
       doc.setTextColor(...(forma === "empresa" ? TINTA : GRIS));
-      doc.setFont("courier", "bold");
+      // Helvetica negrita, no courier negrita.
+      //
+      // La courier es de palo delgado: en negrita casi no cambia, y en
+      // fotocopia menos. Se veía igual que el resto y era justo el número que
+      // ella quería que saltara. La helvetica negrita sí se nota.
+      doc.setFont("helvetica", "bold");
       doc.setFontSize(T_CANT);
       doc.text(String(p.c.cantidad) + "×", x + PAD, base);
 
@@ -961,40 +961,6 @@ function tarjetasDeComandas(doc, comandas, y, alCambiarDeHoja, colorEmpresa, fec
 
   doc.setTextColor(0, 0, 0);
   return yFila - HUECO;
-}
-
-/** La tabla de platos del día: cuánto se preparó de cada cosa y a cómo. */
-function tablaDePlatos(doc, informe, y, alCambiarDeHoja) {
-  let primeraHoja = true;
-  doc.autoTable({
-    ...estiloTabla,
-    startY: y,
-    margin: { left: 14, right: 14, top: 34, bottom: 20 },
-    showHead: "everyPage",
-    head: [["Plato", "Cantidad", "Valor unitario", "Total"]],
-    body: informe.filas.map((f) => [
-      f.producto +
-        (f.forma === "contado" ? "  (pagó de una)" : "") +
-        (f.forma === "cortesia" ? "  (cortesía)" : ""),
-      String(f.cantidad),
-      f.forma === "cortesia" ? "—" : pesos(f.precioUnitario),
-      f.forma === "cortesia" ? "—" : pesos(f.total),
-    ]),
-    columnStyles: {
-      0: { cellWidth: "auto" },
-      1: { halign: "right", cellWidth: 24, fontStyle: "bold" },
-      2: { halign: "right", cellWidth: 32 },
-      3: { halign: "right", cellWidth: 34 },
-    },
-    foot: [[`TOTAL · ${informe.facturas} facturas`, "", "", pesos(informe.total)]],
-    footStyles: { fillColor: [255, 255, 255], textColor: MARCA, fontStyle: "bold", fontSize: 11.5, lineWidth: 0.4, lineColor: MARCA, halign: "right" },
-    didParseCell: (d) => { if (d.section === "foot" && d.column.index === 0) d.cell.styles.halign = "left"; },
-    didDrawPage: () => {
-      if (primeraHoja) { primeraHoja = false; return; }
-      if (alCambiarDeHoja) alCambiarDeHoja();
-    },
-  });
-  return doc.lastAutoTable.finalY;
 }
 
 /**

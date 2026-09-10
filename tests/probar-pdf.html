@@ -275,10 +275,13 @@ if (revento) {
       ? `OK   las ${secciones.length} empresas están adentro`
       : `MAL  faltan: ${faltan.map((s) => s.codigo).join(", ")}`);
 
-    // Cada empresa arranca en hoja nueva, más la del día completo.
-    anotar(hojas >= secciones.length + 1
-      ? `OK   trae al menos una hoja por empresa y la del día completo`
-      : `MAL  solo trae ${hojas} hojas para ${secciones.length} empresas`);
+    // Cada empresa arranca en hoja nueva. Ya NO hay hoja del día completo: lo
+    // único que llevaba era la tabla de platos, y esa se quitó -- era una hoja
+    // entera, todos los días, para un solo total que ella ya tiene en la
+    // pantalla y en el papel de Cocina.
+    anotar(hojas >= secciones.length
+      ? `OK   trae al menos una hoja por cada una de las ${secciones.length} empresas`
+      : `MAL  ${hojas} hojas para ${secciones.length} empresas: alguna quedó pegada a otra`);
 
     // Y la gente tiene que estar: es la mitad nueva del documento.
     const gente = secciones.flatMap((s) => s.comandas.map((c) => c.persona));

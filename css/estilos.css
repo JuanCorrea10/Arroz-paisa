@@ -609,7 +609,14 @@ tfoot td.n { font-family: var(--dato); }
   letter-spacing: 0.08em;
 }
 
-.comanda-cant { font-family: var(--dato); color: var(--tinta-media); }
+/* La cantidad NO lleva color propio: hereda el del renglón.
+
+   Tenía color gris fijo, y como el gris se lo ponía encima al negro, el
+   "font-weight: 700" no se notaba: quedaba un 1x gris claro y gordo, que se
+   lee igual de flojo que uno delgado -- y en fotocopia, peor. Heredando, en un
+   pedido normal sale de tinta negra y en uno de cortesía o ya pagado sale
+   apagado, que es justo lo que se quiere decir en cada caso. */
+.comanda-cant { font-family: var(--dato); }
 .comanda-plato { overflow-wrap: anywhere; }
 .comanda-valor { font-family: var(--dato); font-variant-numeric: tabular-nums; }
 .comanda-platos .gratis { color: var(--tinta-suave); font-style: italic; }

@@ -14,7 +14,6 @@ import {
   informeCocina, informeDia, informePorPersona, informeCuadre, notasDelDia,
   indicePorCodigo, delDia, contarFacturas, comandasDelDia,
   historialDePersona, esCortesia, yaLoPago, subtotal,
-  A_CREDITO, DE_CONTADO, CORTESIA,
 } from "../nucleo/calculos.js";
 import { pdfCocina, pdfResumenDia, pdfPorPersona, pdfCuadre } from "../exportar/pdf.js";
 
@@ -236,31 +235,6 @@ function bajarResumenEnPDF(informe) {
   mensaje("PDF descargado.", "bien");
 }
 
-/** La tabla de platos de una empresa: qué se preparó y a cómo. */
-function tablaDePlatosDelDia(informe) {
-  return tabla(
-    [{ titulo: "Plato" }, { titulo: "Cantidad", clase: "n" },
-     { titulo: "Valor unitario", clase: "n" }, { titulo: "Total", clase: "n" }],
-    informe.filas.map((f) =>
-      el("tr", {},
-        el("td", {}, f.producto,
-          f.forma === DE_CONTADO
-            ? el("span", { clase: "marca-cobro contado", texto: "pagó de una" })
-            : f.forma === CORTESIA
-              ? el("span", { clase: "marca-cobro cortesia", texto: "cortesía" })
-              : null),
-        el("td", { clase: "n cant", texto: String(f.cantidad) }),
-        el("td", { clase: "n", texto: f.forma === CORTESIA ? "—" : pesos(f.precioUnitario) }),
-        el("td", { clase: "n", texto: f.forma === CORTESIA ? "—" : pesos(f.total) })
-      )
-    ),
-    el("tr", {},
-      el("td", { colspan: "3", texto: `TOTAL · ${informe.facturas} facturas` }),
-      el("td", { clase: "n", texto: pesos(informe.total) })
-    )
-  );
-}
-
 /**
  * Quién pidió qué, en las mismas tarjetas de Registrar.
  *
@@ -393,17 +367,22 @@ export function pintarResumenDia(raiz) {
 
   // El día completo, al final y solo cuando hay más de una empresa: con una
   // sola sería el mismo número escrito dos veces.
+  // El día completo: el número de control de ella, sin la tabla.
+  //
+  // Lleva "no-imprimir" a propósito. Ya decía que no se le manda a ninguna
+  // empresa, pero igual salía en el papel y se llevaba una hoja para una sola
+  // cifra. En la pantalla no cuesta nada y ahí sí le sirve.
   if (secciones.length > 1) {
     poner(raiz,
-      el("div", { clase: "documento aparte" },
+      el("div", { clase: "documento no-imprimir" },
         el("div", { clase: "fila entre" },
           el("h2", { texto: "El día completo" }),
           el("span", { clase: "comanda-total", texto: pesos(informe.total) })
         ),
-        el("p", { clase: "nota", estilo: "margin:var(--e2) 0 var(--e4)" },
+        el("p", { clase: "nota", estilo: "margin:var(--e2) 0 0" },
           `Las ${secciones.length} empresas juntas · ${informe.facturas} facturas · ` +
-          `${informe.renglones} renglones. Esto NO se le manda a ninguna: es para usted.`),
-        tablaDePlatosDelDia(informe)
+          `${informe.renglones} renglones. Esto es solo para usted: no sale impreso ` +
+          "y no se le manda a ninguna empresa.")
       )
     );
   }
