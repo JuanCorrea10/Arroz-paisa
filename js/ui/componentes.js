@@ -179,12 +179,22 @@ export function ventana({ titulo, cuerpo, botones = [], alCerrar }) {
 }
 
 /** Pregunta sí o no. Devuelve una promesa con true o false. */
+/** Dos saltos de linea seguidos: asi se parte un mensaje en parrafos. */
+export const SALTO = "\n\n";
+
 export function confirmar({ titulo, mensaje: texto, siTexto = "Sí, hacerlo", noTexto = "Cancelar", peligroso = false }) {
   return new Promise((resolver) => {
     let respuesta = false;
     ventana({
       titulo,
-      cuerpo: el("p", { texto }),
+      // Un renglón en blanco parte el mensaje en dos párrafos.
+      //
+      // Antes todo iba en un solo <p>, así que un aviso de dos ideas -- "esto
+      // hace tal cosa" y "si quería la otra, haga esto" -- salía como un
+      // ladrillo de texto que ella no iba a leer. Los mensajes de una sola
+      // idea no llevan renglón en blanco y siguen saliendo igual que siempre.
+      cuerpo: el("div", {},
+        ...String(texto).split(SALTO).map((parrafo) => el("p", { texto: parrafo }))),
       botones: [
         { texto: noTexto, alHacerClic: () => { respuesta = false; } },
         { texto: siTexto, clase: peligroso ? "peligro" : "principal", alHacerClic: () => { respuesta = true; } },

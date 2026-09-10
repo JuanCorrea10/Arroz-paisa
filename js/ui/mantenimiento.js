@@ -8,7 +8,7 @@
 // ============================================================================
 
 import {
-  el, vaciar, mensaje, confirmar, pedirDatos, tabla, cinta, cifra, vacio, ventana,
+  el, vaciar, mensaje, confirmar, pedirDatos, tabla, cinta, cifra, vacio, ventana, SALTO,
   poner,
 } from "./componentes.js";
 import { estado, cambio, empresas } from "./estado.js";
@@ -218,6 +218,15 @@ export function pintarCatalogo(raiz) {
   const precioDeCada = new Map(
     productos.map((p) => [p.nombre, precioDelPlato(estado.datos, p.nombre, codigos)]));
 
+  // Cuántos renglones tiene cada plato. Se cuenta UNA vez aquí y no por fila:
+  // preguntarlo plato por plato serían 77 recorridos de 1135 renglones cada
+  // vez que se escribe una letra en el buscador.
+  const renglonesDe = new Map();
+  for (const c of estado.datos.consumos) {
+    const k = normalizar(c.producto);
+    renglonesDe.set(k, (renglonesDe.get(k) || 0) + 1);
+  }
+
   // Un plato sin precio es un renglón que va a entrar en $ 0.
   const sinPrecio = productos.filter((p) => precioDeCada.get(p.nombre).falta > 0);
 
@@ -304,7 +313,7 @@ export function pintarCatalogo(raiz) {
       if (cuerpo) {
         vaciar(cuerpo);
         for (const p of productos.filter((x) => coincide(x.nombre, buscaPlato))) {
-          cuerpo.append(filaDePlato(raiz, p, lista));
+          cuerpo.append(filaDePlato(raiz, p, lista, renglonesDe));
         }
       }
     },
@@ -326,18 +335,20 @@ export function pintarCatalogo(raiz) {
       { titulo: "Precio", clase: "dato" },
       { titulo: "", clase: "dato" },
     ],
-    visibles.map((p) => filaDePlato(raiz, p, lista))
+    visibles.map((p) => filaDePlato(raiz, p, lista, renglonesDe))
   );
   const laTabla = suTabla.querySelector("table") || suTabla;
   laTabla.classList.add("tabla-catalogo");
   poner(raiz, suTabla);
 }
 
-function filaDePlato(raiz, producto, lista) {
+function filaDePlato(raiz, producto, lista, renglonesDe) {
   const codigos = lista.map((e) => e.codigo);
   const info = precioDelPlato(estado.datos, producto.nombre, codigos);
 
   const llave = normalizar(producto.nombre);
+  const cuantos = (renglonesDe && renglonesDe.get(llave)) || 0;
+  const apagado = producto.activo === false;
 
   return el("tr", { clase: producto.activo === false ? "apagada" : "" },
     el("td", {},
@@ -354,7 +365,23 @@ function filaDePlato(raiz, producto, lista) {
     ),
     el("td", {},
       el("strong", { texto: producto.nombre }),
-      producto.activo === false ? el("span", { clase: "etiqueta", texto: "apagado" }) : null,
+      apagado ? el("span", { clase: "etiqueta", estilo: "margin-left:.4rem", texto: "apagado" }) : null,
+
+      // "Apagado" se lee como "borrado", y no lo es.
+      //
+      // Pasó de verdad: apagó un plato que ya no usaba y siguió saliendo en
+      // las cuentas, en el resumen del día y en cuánto vendió. Desde afuera
+      // eso se ve como que el botón no sirve. El aviso del momento en que se
+      // apaga no basta: se lee una vez, a las seis de la mañana, y se olvida.
+      // Aquí queda escrito, al lado del plato, todos los días.
+      apagado && cuantos
+        ? el("p", { clase: "nota", estilo: "margin:var(--e1) 0 0" },
+            el("strong", { texto: `Apagado NO lo quita de lo ya anotado. ` }),
+            `Sus ${cuantos} renglones siguen contando en las cuentas y en los ` +
+            "informes. Para que deje de salir aparte, márquelo junto con el " +
+            "plato bueno y únalos.")
+        : null,
+
       // Solo cuando de verdad hay algo raro se muestra el detalle por empresa.
       // El otro 100 % del tiempo esa fila sobraba y llenaba la pantalla.
       info.igual ? null : detalleDisparejo(raiz, producto, info, codigos)
@@ -375,12 +402,8 @@ function filaDePlato(raiz, producto, lista) {
         }, "Renombrar"),
         el("button", {
           clase: "plano chico",
-          alHacerClic: () => {
-            producto.activo = producto.activo === false;
-            cambio();
-            pintarCatalogo(raiz);
-          },
-        }, producto.activo === false ? "Prender" : "Apagar"),
+          alHacerClic: () => apagarOPrender(raiz, producto, cuantos),
+        }, apagado ? "Prender" : "Apagar"),
         el("button", {
           clase: "plano chico peligro-suave",
           alHacerClic: () => quitarPlato(raiz, producto),
@@ -1097,6 +1120,47 @@ async function quitarPersona(raiz, persona) {
     mensaje(`${persona.nombre} se borró de ${persona.empresa}.`, "bien");
   } catch (e) {
     mensaje(e.message, "malo", 9);
+  }
+}
+
+/**
+ * Apagar o prender un plato.
+ *
+ * Prender no necesita explicación: vuelve a salir al anotar y ya.
+ *
+ * Apagar sí, y antes no la daba: cambiaba el dato en silencio. La palabra
+ * "apagar" promete más de lo que hace -- ella entendió "quitar" -- y después
+ * el plato seguía saliendo en todas las cuentas sin que nada dijera por qué.
+ * Solo se pregunta cuando el plato TIENE renglones: si nunca se ha pedido, no
+ * hay nada que aclarar y una ventana de más sería estorbo.
+ */
+async function apagarOPrender(raiz, producto, cuantos) {
+  const apagar = producto.activo !== false;
+
+  if (apagar && cuantos) {
+    const seguro = await confirmar({
+      titulo: `Apagar "${producto.nombre}"`,
+      mensaje:
+        `Deja de salir al anotar, y eso sí funciona. Pero sus ${cuantos} ` +
+        "renglones ya anotados NO se quitan: van a seguir saliendo en las " +
+        "cuentas de cobro, en el resumen del día y en cuánto vendió, porque " +
+        "son ventas de verdad que ya se hicieron." + SALTO +
+        "Si lo que quiere es que ese plato deje de salir aparte, no lo apague: " +
+        "márquelo junto con el plato bueno y únalos. Ahí sí los renglones se " +
+        "pasan al nombre que se queda.",
+      siTexto: "Apagarlo de todos modos",
+      noTexto: "Mejor no",
+    });
+    if (!seguro) return;
+  }
+
+  producto.activo = !apagar;
+  cambio();
+  pintarCatalogo(raiz);
+  if (apagar && cuantos) {
+    mensaje(
+      `"${producto.nombre}" ya no sale al anotar, pero sus ${cuantos} renglones ` +
+      "siguen contando.", "ojo", 8);
   }
 }
 

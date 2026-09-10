@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20260910-1317";
+  --version: "20260910-1344";
 }
 
 /* ===========================================================================
@@ -66,8 +66,17 @@
 .acciones { flex-wrap: wrap; gap: var(--e2); margin: var(--e3) 0 var(--e5); }
 
 /* Una fila apagada: la persona o el plato que está inactivo. */
-.apagada { opacity: 0.5; }
-.apagada strong { text-decoration: line-through; }
+/* Una fila apagada se ve desvaida, pero con COLOR y no con opacity.
+
+   Con opacity se desvanece la fila entera y los hijos no pueden salirse: el
+   aviso de "esto sigue contando" salia medio borrado y tachado, o sea, como
+   si fuera lo que ya no aplica -- justo al reves de lo que dice. */
+.apagada { color: var(--tinta-suave); }
+.apagada strong { text-decoration: line-through; color: var(--tinta-suave); }
+
+/* El aviso es lo unico de esa fila que hay que leer: ni tachado ni desvaido. */
+.apagada .nota { color: var(--tinta-media); }
+.apagada .nota strong { text-decoration: none; color: var(--tinta); }
 
 /* Lista de avisos del importador. */
 .avisos {

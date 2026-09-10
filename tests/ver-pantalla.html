@@ -127,6 +127,7 @@ try {
   }
 
   let loQueSeTecleo = null;
+  let loQueSeApago = null;
 
   const [ruta, fn] = PANTALLAS[cual] || PANTALLAS.catalogo;
   const modulo = await import(ruta);
@@ -198,6 +199,15 @@ try {
       : "MAL: no salio la tarjeta de dejados asi";
   }
 
+  // Un plato APAGADO que sigue teniendo renglones. Es el caso que la confundio:
+  // apago "JUGO EN LECHE" y siguio saliendo en las cuentas, en el resumen del
+  // dia y en cuanto vendio, sin que nada dijera por que.
+  if (forzar.includes("plato-apagado")) {
+    const cual = datos.productos.find((p) =>
+      datos.consumos.some((c) => c.producto === p.nombre));
+    if (cual) { cual.activo = false; loQueSeApago = cual.nombre; }
+  }
+
   // Un plato del catalogo con el nombre en blanco.
   //
   // Es lo que se sospecha que tiene ella: la lista de platos se arma SOLO al
@@ -246,6 +256,21 @@ try {
         loQueSeTecleo = pasos.join(" · ");
       }
     }
+  }
+
+  // Dejar el plato apagado a la vista: en un catalogo de 77 platos queda muy
+  // abajo, y lo que hay que mirar es el aviso que sale al lado del nombre.
+  if (loQueSeApago) {
+    const casilla = raiz.querySelector('input[type="search"]');
+    if (casilla) {
+      casilla.value = loQueSeApago;
+      casilla.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    const fila = [...raiz.querySelectorAll("tr")]
+      .find((t) => t.textContent.includes(loQueSeApago));
+    loQueSeTecleo = fila
+      ? "APAGADO: " + fila.textContent.replace(/\s+/g, " ").trim().slice(0, 280)
+      : "MAL: no se encontro la fila de " + loQueSeApago;
   }
 
   // "&forzar=hasta:25" escribe el segundo dia del rango en Consumo por persona.
