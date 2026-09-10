@@ -79,6 +79,51 @@ export function hoyISO() {
   return `${h.getFullYear()}-${dos(h.getMonth() + 1)}-${dos(h.getDate())}`;
 }
 
+/**
+ * Corre una fecha tantos días, adelante o atrás. "2026-08-31" + 1 = "2026-09-01".
+ *
+ * Se arma con new Date(año, mes, día) -- que es hora LOCAL -- y no con
+ * Date.UTC ni con new Date("2026-08-25"), que se leen como medianoche en
+ * Greenwich. En Colombia eso son las 7 de la tarde del día ANTERIOR, así que
+ * cualquier cuenta de días saldría corrida un día. Un informe de la semana
+ * corrido un día no se ve roto: se ve como si el lunes no se hubiera vendido.
+ */
+export function sumarDias(fechaISO, dias) {
+  if (!esFechaISO(fechaISO)) return "";
+  const [a, m, d] = fechaISO.split("-").map(Number);
+  const f = new Date(a, m - 1, d);
+  f.setDate(f.getDate() + dias);
+  const dos = (n) => String(n).padStart(2, "0");
+  return `${f.getFullYear()}-${dos(f.getMonth() + 1)}-${dos(f.getDate())}`;
+}
+
+/**
+ * El lunes de la semana de esa fecha.
+ *
+ * La semana empieza el LUNES, que es como se cuenta aquí. getDay() dice 0 para
+ * el domingo, así que se corre: (dia + 6) % 7 da 0 el lunes y 6 el domingo.
+ * Sin ese ajuste, "esta semana" pedida un domingo devolvería la semana que
+ * viene y el informe saldría en cero.
+ */
+export function lunesDeLaSemana(fechaISO) {
+  if (!esFechaISO(fechaISO)) return "";
+  const [a, m, d] = fechaISO.split("-").map(Number);
+  const cuantos = (new Date(a, m - 1, d).getDay() + 6) % 7;
+  return sumarDias(fechaISO, -cuantos);
+}
+
+/** El primero y el último día del mes de esa fecha. */
+export function elMesDe(fechaISO) {
+  if (!esFechaISO(fechaISO)) return { desde: "", hasta: "" };
+  const anio = anioDe(fechaISO);
+  const mes = mesDe(fechaISO);
+  const dos = (n) => String(n).padStart(2, "0");
+  return {
+    desde: `${anio}-${dos(mes)}-01`,
+    hasta: `${anio}-${dos(mes)}-${dos(diasDelMes(anio, mes))}`,
+  };
+}
+
 // ---------------------------------------------------------------------------
 //  Textos
 // ---------------------------------------------------------------------------

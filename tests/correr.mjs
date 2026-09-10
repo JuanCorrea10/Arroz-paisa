@@ -10,6 +10,7 @@ import "./precios.test.mjs";
 import "./catalogo-sano.test.mjs";
 import "./cobro.test.mjs";
 import "./informe.test.mjs";
+import "./ventas.test.mjs";
 import "./empresa-unica.test.mjs";
 import "./aceptacion.test.mjs";
 import { correrTodo } from "./probar.mjs";

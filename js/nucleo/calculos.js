@@ -310,6 +310,105 @@ export function informeCocina(consumos, fechaISO, codigosEmpresa) {
 }
 
 /**
+ * CUÁNTO SE VENDIÓ entre dos fechas.
+ *
+ * La pregunta que no se podía contestar: "¿cuántos almuerzos vendí esta
+ * semana?". Cocina dice cuánto hay que preparar HOY y no habla de plata;
+ * Resumen del día es de UN día y de UNA empresa; la cuenta de cobro es de una
+ * quincena y solo de lo que se le cobra a la empresa. Para saber cuánto se
+ * vendió en una semana había que abrir Cocina siete veces y sumar a mano.
+ *
+ * Aquí las tres formas de cobro se mantienen separadas, como manda la regla:
+ *
+ *   vendidos   platos que alguien pagó: a crédito (la empresa) o de contado.
+ *   cortesias  platos regalados. SALIERON de la cocina pero NO son una venta.
+ *   plata      lo que entró por esos vendidos. La cortesía vale cero.
+ *
+ * Se devuelven los dos números aparte a propósito. Sumarlos daría "cuántos
+ * platos salieron", que sirve para la cocina; restarlos daría "cuánto vendí",
+ * que sirve para la plata. Si se juntaran aquí, una de las dos preguntas
+ * quedaría contestada mal y en silencio.
+ *
+ * Las fechas ISO se comparan como texto y sale bien: "2026-08-09" < "2026-08-10".
+ * Sin desde o sin hasta, ese lado queda abierto.
+ */
+export function ventasEnRango(consumos, desdeISO, hastaISO, codigoEmpresa = null) {
+  const desde = esFechaISO(desdeISO) ? desdeISO : null;
+  const hasta = esFechaISO(hastaISO) ? hastaISO : null;
+  const cod = codigoEmpresa ? normalizar(codigoEmpresa) : null;
+
+  const dentro = consumos.filter((c) => {
+    if (!esFechaISO(c.fecha)) return false;
+    if (desde && c.fecha < desde) return false;
+    if (hasta && c.fecha > hasta) return false;
+    if (cod && normalizar(c.empresa) !== cod) return false;
+    return true;
+  });
+
+  // "sinPrecio" son platos que se vendieron y no sumaron nada, porque el
+  // renglón se quedó sin precio. Sin este número la pantalla diría "vendí
+  // 1.214 platos, $ 12.264.500" y faltaría plata sin que nada lo dijera --
+  // que es el bug del Excel viejo, el que hay que hacer imposible.
+  //
+  // La cortesía NO cuenta aquí: esa vale cero a propósito.
+  const vacio = () => ({ vendidos: 0, cortesias: 0, plata: 0, aCredito: 0, deContado: 0, sinPrecio: 0 });
+  const porPlato = new Map();
+  const porDia = new Map();
+  const total = vacio();
+
+  for (const c of dentro) {
+    const plato = normalizar(c.producto);
+    if (!porPlato.has(plato)) porPlato.set(plato, { producto: plato, ...vacio() });
+    if (!porDia.has(c.fecha)) porDia.set(c.fecha, { fecha: c.fecha, ...vacio(), consumos: [] });
+
+    const fila = porPlato.get(plato);
+    const dia = porDia.get(c.fecha);
+    dia.consumos.push(c);
+
+    const cuantos = Number(c.cantidad) || 0;
+    const donde = esCortesia(c) ? "cortesias" : "vendidos";
+    fila[donde] += cuantos;
+    dia[donde] += cuantos;
+    total[donde] += cuantos;
+
+    if (donde === "vendidos" && !(Number(c.precioUnitario) > 0)) {
+      fila.sinPrecio += cuantos;
+      dia.sinPrecio += cuantos;
+      total.sinPrecio += cuantos;
+    }
+
+    for (const [campo, cuanto] of [
+      ["plata", subtotal(c)],
+      ["aCredito", subtotalAcreditoDeEmpresa(c)],
+      ["deContado", subtotalDeContado(c)],
+    ]) {
+      fila[campo] += cuanto;
+      dia[campo] += cuanto;
+      total[campo] += cuanto;
+    }
+  }
+
+  // Ordenados por cantidad, de mayor a menor: el plato que más se vende queda
+  // de primero, que es donde ella va a mirar. Alfabético dejaría "ADICIONAL DE
+  // COSTILLA" arriba y "ALMUERZO" -- que es casi todo el negocio -- perdido en
+  // la mitad de la lista.
+  const filas = [...porPlato.values()].sort(
+    (a, b) => (b.vendidos + b.cortesias) - (a.vendidos + a.cortesias) ||
+              a.producto.localeCompare(b.producto, "es"));
+
+  const dias = [...porDia.values()]
+    .sort((a, b) => a.fecha.localeCompare(b.fecha))
+    .map(({ consumos, ...d }) => ({ ...d, facturas: contarFacturas(consumos) }));
+
+  return {
+    desde, hasta,
+    filas,
+    dias,
+    total: { ...total, facturas: contarFacturas(dentro), diasConVenta: dias.length },
+  };
+}
+
+/**
  * RESUMEN DEL DÍA: los platos de un día (de una empresa o de todas), con
  * cantidad, precio y total. Es lo que se le manda a la empresa cada día.
  */

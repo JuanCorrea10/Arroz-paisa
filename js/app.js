@@ -18,6 +18,7 @@ import * as almacen from "./datos/almacen.js";
 import { pintarRegistrar } from "./ui/registrar.js";
 import { pintarCocina, pintarResumenDia, pintarPorPersona, pintarCuadre } from "./ui/informes.js";
 import { pintarCobro } from "./ui/cobro.js";
+import { pintarVentas } from "./ui/ventas.js";
 import { pintarCompartir } from "./ui/compartir.js";
 import { pintarEmpresas, pintarCatalogo, pintarPersonas } from "./ui/mantenimiento.js";
 import { pintarNombres } from "./ui/nombres.js";
@@ -42,6 +43,7 @@ const PANTALLAS = {
   resumen:   { titulo: "Resumen del día",  pintar: pintarResumenDia, menu: true },
   persona:   { titulo: "Por persona",      pintar: pintarPorPersona, menu: true },
   cobro:     { titulo: "Cuenta de cobro",  pintar: pintarCobro,     menu: true },
+  ventas:    { titulo: "Cuánto vendí",     pintar: pintarVentas,    menu: true },
   cuadre:    { titulo: "Cuadre",           pintar: pintarCuadre,    menu: true },
   compartir: { titulo: "Compartir",        pintar: pintarCompartir, menu: true },
   revisar:   { titulo: "Revisar",          pintar: pintarErrores,   menu: true,

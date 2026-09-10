@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20260910-0957";
+  --version: "20260910-1317";
 }
 
 /* ===========================================================================
@@ -1792,3 +1792,83 @@ input.precio.disparejo { border-color: var(--amarillo, #9c6a06); background: #fb
    casilla de número no deja poner texto. */
 .campo-precio { display: inline-flex; align-items: center; gap: 4px; }
 .campo-precio .signo { color: var(--tinta-suave); font-weight: 700; }
+
+/* ---------------------------------------------------------------------
+/*  Cuánto vendí
+/*
+/*  Los tres números de todos los días -- hoy, esta semana, este mes --
+/*  van ARRIBA de los controles y no debajo, y sin que haya que elegir
+/*  nada. Ella no explora: lo que hay que buscar, para ella no existe.
+/*  Debajo quedan los controles, para cuando la pregunta es otra.
+/* --------------------------------------------------------------------- */
+
+.ventas-rapidas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--e4);
+  margin-bottom: var(--e5);
+}
+
+.venta-rapida {
+  background: var(--papel);
+  border: 1px solid var(--borde);
+  border-top: 4px solid var(--marca);
+  border-radius: var(--radio-g);
+  box-shadow: var(--sombra);
+  padding: var(--e4);
+}
+
+.venta-rapida h3 {
+  margin: 0;
+  font-size: var(--t-sm);
+  color: var(--tinta-media);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* El número de platos es el titular de la tarjeta: es la respuesta a la
+   pregunta que ella hace en voz alta. La plata va debajo y más discreta. */
+.venta-rapida-platos {
+  margin: var(--e2) 0 0;
+  font-family: var(--dato);
+  font-size: var(--t-sm);
+  color: var(--tinta-media);
+}
+.venta-rapida-platos strong {
+  font-size: 2.1rem;
+  font-weight: 700;
+  color: var(--tinta);
+  line-height: 1;
+  margin-right: 0.25rem;
+}
+
+.venta-rapida-plata {
+  margin: var(--e2) 0 0;
+  font-size: var(--t-lg);
+  font-weight: 600;
+  color: var(--marca-hondo);
+}
+
+.venta-rapida-pie {
+  margin: var(--e2) 0 0;
+  font-size: var(--t-xs);
+  color: var(--tinta-suave);
+}
+
+/* Los atajos del rango: van dentro del mando, en su propia columna. */
+.atajos-rango { display: flex; flex-wrap: wrap; gap: var(--e2); }
+
+/* El aviso de "esto no es lo que usted cree que está mirando".
+
+   No es un error, así que no va en rojo; pero tampoco puede ser un renglón
+   más de texto, porque justamente sirve para que no lea agosto creyendo que
+   es septiembre. Amarillo, con su borde, como los otros avisos de la app. */
+.aviso-ojo {
+  background: #fff8e6;
+  border: 1px solid var(--amarillo);
+  border-left: 5px solid var(--amarillo);
+  border-radius: var(--r2);
+  padding: var(--e3);
+  margin: 0 0 var(--e4);
+  font-size: var(--t-sm);
+}
