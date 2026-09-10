@@ -16,9 +16,7 @@ import { el, vaciar, buscador, mensaje, pedirDatos, confirmar, ventana, tabla, c
 import { estado, cambio, empresas, asegurarEmpresa, empresaPorCodigo } from "./estado.js";
 import { pesos, fechaLarga, normalizar, hoyISO } from "../nucleo/formato.js";
 import {
-  delDia, subtotal, contarFacturas, personasDe, precioDe, clavePersona,
-  comandasDelDia,
-  A_CREDITO, DE_CONTADO, CORTESIA, formaDeCobro, esCortesia, yaLoPago,
+  delDia, subtotal, contarFacturas, personasDe, precioDe, clavePersona, comandasDelDia, A_CREDITO, DE_CONTADO, CORTESIA, formaDeCobro, esCortesia, yaLoPago, esLaCasa,
 } from "../nucleo/calculos.js";
 import { pdfComandasDelDia } from "../exportar/pdf.js";
 import { nuevoConsumo, agregarPersona, agregarProducto } from "../nucleo/modelo.js";
@@ -715,6 +713,14 @@ function agregarPlato(plato, raiz, cuantos = 1) {
   }
 
   const precio = precioDe(estado.datos, plato, laEmpresa);
+
+  // La gente del propio restaurante paga de una, de su bolsillo. Si el renglón
+  // naciera "a crédito" como los de las fábricas, esa plata quedaría anotada
+  // como deuda de una empresa a la que nunca se le va a pasar cuenta: no
+  // entraría a la caja y el cuadre no daría nunca. Y ella no se iba a acordar
+  // de marcar plato por plato a las seis de la mañana.
+  const esCasa = esLaCasa(empresaPorCodigo(laEmpresa));
+
   const renglon = nuevoConsumo({
     fecha: estado.fecha,
     empresa: laEmpresa,
@@ -722,6 +728,7 @@ function agregarPlato(plato, raiz, cuantos = 1) {
     producto: plato,
     cantidad,
     precioUnitario: precio === null ? 0 : precio,
+    cobro: esCasa ? DE_CONTADO : null,
   });
   estado.datos.consumos.push(renglon);
   cambio();

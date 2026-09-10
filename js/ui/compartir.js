@@ -34,7 +34,9 @@ import {
   el, vaciar, mensaje, tabla, cinta, cifra, vacio, acciones, ventana,
   poner,
 } from "./componentes.js";
-import { estado, empresas, empresaPorCodigo } from "./estado.js";
+import {
+  estado, empresas, empresaPorCodigo, empresasClientes,
+} from "./estado.js";
 import { pesos, nombreMes, sedeDeEmpresa, razonSocialDe } from "../nucleo/formato.js";
 import {
   delMes, quincenaDe, sumar, contarFacturas, cuentaDeCobro, rangoQuincena, rangoDeCobro,
@@ -47,7 +49,9 @@ import { pdfCuentaDeCobro, pdfInformeCompleto } from "../exportar/pdf.js";
 
 export function pintarCompartir(raiz) {
   vaciar(raiz);
-  const lista = empresas();
+  // Igual que el resumen: esto sale hacia una fábrica, y a la casa no hay a
+  // quién mandarle nada.
+  const lista = empresasClientes();
 
   poner(raiz,
     el("div", { clase: "encabezado-pantalla" },

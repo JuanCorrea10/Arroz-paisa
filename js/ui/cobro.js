@@ -10,7 +10,9 @@
 import { el, vaciar, tabla, cifra, cifraPlata, acciones, vacio, mensaje, confirmar, poner, botonQueTrabaja,
   pedirDatos, cinta,
 } from "./componentes.js";
-import { estado, cambio, empresas, empresaPorCodigo, asegurarEmpresa } from "./estado.js";
+import {
+  estado, cambio, empresas, empresaPorCodigo, asegurarEmpresa, empresasClientes,
+} from "./estado.js";
 import { pesos, nombreMes, fechaCorta, fechaLarga, diaDe, diasDelMes, normalizar,
   sedeDeEmpresa, razonSocialDe } from "../nucleo/formato.js";
 import {
@@ -32,15 +34,18 @@ export function pintarCobro(raiz) {
   vaciar(raiz);
   const repintar = () => pintarCobro(raiz);
 
-  if (!empresas().length) {
+  // A la casa no se le cobra: es el restaurante mismo. Ni se ofrece.
+  if (!empresasClientes().length) {
     poner(raiz,
       el("div", { clase: "encabezado-pantalla" }, el("div", {}, el("h1", { texto: "Cuenta de cobro" }))),
       vacio("Todavía no hay empresas", el("p", {}, "Cree las empresas en ", el("a", { href: "#empresas", texto: "Empresas" }), "."))
     );
     return;
   }
-  if (!empresaCobro || !empresas().some((e) => e.codigo === empresaCobro)) {
-    empresaCobro = (asegurarEmpresa() || empresas()[0]).codigo;
+  if (!empresaCobro || !empresasClientes().some((e) => e.codigo === empresaCobro)) {
+    const puesta = asegurarEmpresa();
+    const sirve = puesta && empresasClientes().some((e) => e.codigo === puesta.codigo);
+    empresaCobro = (sirve ? puesta : empresasClientes()[0]).codigo;
   }
 
   const empresa = empresaPorCodigo(empresaCobro);
@@ -97,7 +102,7 @@ export function pintarCobro(raiz) {
       el("div", { clase: "campo" },
         el("label", { for: "cobro-empresa", texto: "Empresa" }),
         el("select", { id: "cobro-empresa", alCambiar: (e) => { empresaCobro = e.target.value; repintar(); } },
-          ...empresas().map((e) => el("option", { value: e.codigo, selected: e.codigo === empresaCobro }, `${e.codigo} — ${e.razonSocial}`)))
+          ...empresasClientes().map((e) => el("option", { value: e.codigo, selected: e.codigo === empresaCobro }, `${e.codigo} — ${e.razonSocial}`)))
       ),
       el("div", { clase: "campo" },
         el("label", { for: "cobro-fecha", texto: "Fecha de la cuenta" }),
@@ -552,7 +557,7 @@ function paraElCliente(empresa) {
  * la cuenta de cobro otro, ella dejaría de creerle a los dos.
  */
 export function totalesDelMes() {
-  return empresas().map((e) => {
+  return empresasClientes().map((e) => {
     const q1 = deQuincena(estado.datos.consumos, estado.anio, estado.mes, 1, e);
     const q2 = deQuincena(estado.datos.consumos, estado.anio, estado.mes, 2, e);
     const cobraQ1 = sumarLoDeLaEmpresa(q1);

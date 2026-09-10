@@ -126,6 +126,34 @@ export const CORTESIA = "cortesia";
  * archivo de datos. Una conversión de 1135 renglones es una oportunidad de
  * dañarlos; leerlos bien no lo es.
  */
+/**
+ * ¿Esta "empresa" es el restaurante mismo?
+ *
+ * La mamá de Juan también le vende almuerzo a SU propia gente: la cocinera, el
+ * que reparte. Ellos PAGAN DE UNA, de su bolsillo, así que sí es una venta y
+ * esa plata sí entra a la caja. Lo que no son es un cliente al que se le pasa
+ * una cuenta a fin de quincena.
+ *
+ * Si la casa se tratara como una fábrica más, pasarían dos cosas calladitas:
+ *
+ *   1. se le armaría una cuenta de cobro a sí misma, y
+ *   2. cada plato entraría "a crédito" por defecto, o sea como plata que
+ *      alguien debe -- cuando en realidad ya la pagaron. Esa plata nunca
+ *      aparecería en la caja y el cuadre no daría nunca.
+ *
+ * Por eso la casa se marca. NO es una empresa apagada: está bien viva -- hay
+ * que cocinarle todos los días y su plata cuenta --, simplemente no es alguien
+ * a quien cobrarle.
+ */
+export function esLaCasa(empresa) {
+  return !!(empresa && empresa.esCasa);
+}
+
+/** Las empresas a las que SÍ se les cobra. La casa no es una de ellas. */
+export function empresasClientes(lista) {
+  return (lista || []).filter((e) => !esLaCasa(e));
+}
+
 export function formaDeCobro(consumo) {
   const forma = consumo && consumo.cobro;
   if (forma === A_CREDITO || forma === DE_CONTADO || forma === CORTESIA) return forma;
@@ -641,6 +669,15 @@ export function informePorPersona(consumos, anio, mes, empresasPorCodigo, codigo
  * Solo entra lo que paga la empresa: ni lo de contado ni las cortesías.
  */
 export function cuentaDeCobro(consumos, anio, mes, quincena, empresa, fechaCuenta = null, rango = null) {
+  // A la casa no se le cobra: es el restaurante mismo. Si esto llegara a
+  // pasar sería un documento cobrándose a sí misma, así que se para aquí y no
+  // en la pantalla -- una pantalla se puede olvidar, esto no.
+  if (esLaCasa(empresa)) {
+    throw new Error(
+      `"${empresa.codigo}" es su propio restaurante, no una empresa cliente. ` +
+      "A la casa no se le hace cuenta de cobro."
+    );
+  }
   // Lo de contado NO puede entrar aquí. Si entrara, se le cobraría a la
   // empresa un almuerzo que la persona ya pagó en la caja: cobrado dos veces.
   // El rango escogido MANDA. Si ella dijo "esta cuenta va del 3 al 20", la

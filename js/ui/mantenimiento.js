@@ -66,7 +66,17 @@ export function pintarEmpresas(raiz) {
       lista.map((e) =>
         el("tr", { clase: e.activa === false ? "apagada" : "" },
           el("td", {}, cinta(e.codigo)),
-          el("td", { texto: e.razonSocial || "—" }),
+          el("td", {},
+            e.razonSocial || "—",
+            // Cuál es la casa se dice en la lista, no solo dentro del
+            // formulario: es lo que explica por qué esa no sale en la cuenta
+            // de cobro ni en el resumen que se le manda a las fábricas.
+            e.esCasa
+              ? el("p", { clase: "nota", estilo: "margin:var(--e1) 0 0" },
+                  el("strong", { texto: "Es su propio restaurante. " }),
+                  "Su gente paga de una, así que entra a la caja. No se le hace " +
+                  "cuenta de cobro ni se le manda resumen.")
+              : null),
           el("td", { clase: "dato", texto: e.nit || "—" }),
           el("td", { clase: "dato", texto: diceElRango(e, 1) }),
           el("td", { clase: "dato", texto: diceElRango(e, 2) }),
@@ -156,6 +166,13 @@ const CAMPOS_EMPRESA = (e = {}) => [
   },
   { nombre: "razonSocial", etiqueta: "Razón social", valor: e.razonSocial || "", requerido: true },
   { nombre: "nit", etiqueta: "NIT", valor: e.nit || "" },
+  {
+    nombre: "esCasa", etiqueta: "Es mi propio restaurante", tipo: "casilla",
+    valor: e.esCasa === true,
+    ayuda: "Márquela para anotarle el almuerzo a SU gente (la cocinera, el que " +
+           "reparte). Ellos pagan de una, así que sus platos entran a la caja " +
+           "y no se le hace cuenta de cobro a nadie.",
+  },
   ...CAMPOS_QUINCENA(e),
 ];
 
@@ -165,7 +182,7 @@ async function nuevaEmpresa(raiz) {
   const dias = revisarQuincenas(r);
   if (dias.malo) { mensaje(dias.malo, "malo", 9); return; }
   try {
-    agregarEmpresa(estado.datos, { ...r, ...dias });
+    agregarEmpresa(estado.datos, { ...r, ...dias, esCasa: r.esCasa === true });
     cambio();
     pintarEmpresas(raiz);
     mensaje(`${normalizar(r.codigo)} quedó creada.`, "bien");
@@ -192,6 +209,7 @@ async function editarEmpresa(raiz, empresa) {
 
   empresa.razonSocial = r.razonSocial;
   empresa.nit = r.nit;
+  empresa.esCasa = r.esCasa === true;
   Object.assign(empresa, dias);
   cambio();
   pintarEmpresas(raiz);

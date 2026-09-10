@@ -208,6 +208,9 @@ export function agregarEmpresa(datos, empresa) {
     primerDiaQ2: Number(empresa.primerDiaQ2) || (Number(empresa.ultimoDiaQ1) || 15) + 1,
     ultimoDiaQ2: Number(empresa.ultimoDiaQ2) || 31,
     activa: empresa.activa !== false,
+    // La casa: el restaurante mismo, para anotarle el almuerzo a su propia
+    // gente. No se le cobra ni cuenta como venta. Ver esLaCasa() en calculos.
+    esCasa: empresa.esCasa === true,
   });
   return datos;
 }
@@ -392,7 +395,7 @@ export function ponerlePrecio(datos, renglones, valor, tambienEnCatalogo = true)
  */
 export function nuevoConsumo({
   fecha, empresa, persona, producto,
-  cantidad, precioUnitario, facturable = true, observacion = "",
+  cantidad, precioUnitario, facturable = true, observacion = "", cobro = null,
 }) {
   const revisar = [];
   const precio = Number(precioUnitario) || 0;
@@ -408,6 +411,9 @@ export function nuevoConsumo({
     cantidad: cant,
     precioUnitario: precio,
     facturable: facturable !== false,
+    // Cómo se paga, si quien lo crea ya lo sabe. Si no viene, formaDeCobro()
+    // lo resuelve como siempre: a crédito, que es el caso normal.
+    ...(cobro ? { cobro } : {}),
     observacion: String(observacion || "").trim(),
     revisar,
   };

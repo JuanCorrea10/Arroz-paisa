@@ -89,6 +89,9 @@ try {
   // casos a la vez ("forzar=plato-sin-nombre+elegir-persona"), y .includes()
   // de null revienta la pagina entera antes de pintar nada.
   const forzar = new URLSearchParams(location.search).get("forzar") || "";
+  let loQueSeTecleo = null;
+  let loQueSeApago = null;
+
   if (forzar === "precio-disparejo" && datos.productos.length) {
     const plato = datos.productos.find((p) => p.nombre === "OFERTA") || datos.productos[0];
     const empresa = datos.empresas[2] || datos.empresas[0];
@@ -126,8 +129,55 @@ try {
     for (const x of primeros) dejarComoEsta(datos, "PLATO", "", x.nombre);
   }
 
-  let loQueSeTecleo = null;
-  let loQueSeApago = null;
+  // El propio restaurante como "empresa": su gente paga de una.
+  //
+  // No esta en los datos de verdad todavia, y es lo que hay que poder MIRAR:
+  // que CASA salga en Cocina (hay que cocinarle) pero NO en la cuenta de cobro
+  // ni en el resumen que se le manda a las fabricas.
+  if (forzar.includes("casa")) {
+    const { agregarEmpresa: agEmp, agregarPersona: agPer, nuevoConsumo: nuevoC } =
+      await import("../js/nucleo/modelo.js");
+    const { DE_CONTADO } = await import("../js/nucleo/calculos.js");
+    agEmp(datos, { codigo: "CASA", razonSocial: "Arroz Paisa", esCasa: true });
+    for (const quien of ["ROSA MEJIA", "LUIS TOBON", "MARTA ARIAS"]) {
+      agPer(datos, { nombre: quien, empresa: "CASA" });
+      datos.consumos.push(nuevoC({
+        fecha: estado.fecha, empresa: "CASA", persona: quien,
+        producto: "ALMUERZO", cantidad: 1, precioUnitario: 12000, cobro: DE_CONTADO,
+      }));
+    }
+  }
+
+  // Un plato APAGADO que sigue teniendo renglones. Es el caso que la confundio:
+  // apago "JUGO EN LECHE" y siguio saliendo en las cuentas, en el resumen del
+  // dia y en cuanto vendio, sin que nada dijera por que.
+  if (forzar.includes("plato-apagado")) {
+    const cual = datos.productos.find((p) =>
+      datos.consumos.some((c) => c.producto === p.nombre));
+    if (cual) { cual.activo = false; loQueSeApago = cual.nombre; }
+  }
+
+  // Un plato del catalogo con el nombre en blanco.
+  //
+  // Es lo que se sospecha que tiene ella: la lista de platos se arma SOLO al
+  // elegir a la persona, asi que un plato dañado no molesta hasta ese momento
+  // exacto -- y ahi tumba la pantalla entera, que es justo lo que describio.
+  if (forzar.includes("plato-sin-nombre") && datos.productos.length) {
+    datos.productos.push({ nombre: null, activo: true });
+  }
+
+  // ------------------------------------------------------------------------
+  //  De aqui para arriba se TOCAN LOS DATOS, y por eso va antes de pintar.
+  //
+  //  Estaban abajo, despues del pintado, y dos funcionaban de casualidad: mas
+  //  abajo otro paso escribia en un buscador, eso repintaba, y el cambio se
+  //  alcanzaba a recoger. El tercero no tuvo esa suerte y la pagina salia como
+  //  si el caso no existiera -- la prueba decia "todo bien" sin haber probado
+  //  nada. Lo que toca datos, arriba; lo que toca la pantalla, abajo.
+  // ------------------------------------------------------------------------
+
+
+  const { formaDeCobro } = await import("../js/nucleo/calculos.js");
 
   const [ruta, fn] = PANTALLAS[cual] || PANTALLAS.catalogo;
   const modulo = await import(ruta);
@@ -199,24 +249,6 @@ try {
       : "MAL: no salio la tarjeta de dejados asi";
   }
 
-  // Un plato APAGADO que sigue teniendo renglones. Es el caso que la confundio:
-  // apago "JUGO EN LECHE" y siguio saliendo en las cuentas, en el resumen del
-  // dia y en cuanto vendio, sin que nada dijera por que.
-  if (forzar.includes("plato-apagado")) {
-    const cual = datos.productos.find((p) =>
-      datos.consumos.some((c) => c.producto === p.nombre));
-    if (cual) { cual.activo = false; loQueSeApago = cual.nombre; }
-  }
-
-  // Un plato del catalogo con el nombre en blanco.
-  //
-  // Es lo que se sospecha que tiene ella: la lista de platos se arma SOLO al
-  // elegir a la persona, asi que un plato dañado no molesta hasta ese momento
-  // exacto -- y ahi tumba la pantalla entera, que es justo lo que describio.
-  if (forzar.includes("plato-sin-nombre") && datos.productos.length) {
-    datos.productos.push({ nombre: null, activo: true });
-  }
-
   // "&forzar=elegir-persona" hace lo que ella hace cada manana en Registrar:
   // escribir un nombre y elegirlo de la lista, para que salga el buscador de
   // platos. Es EL flujo de la app -- sin el no se puede anotar nada -- y hasta
@@ -253,6 +285,34 @@ try {
         pasos.push(pidio
           ? 'salio "' + pidio.textContent.trim() + '"'
           : "MAL: NO salio el buscador de platos para " + quien);
+
+        // Y anotarle un plato de verdad, para ver COMO nace el renglon.
+        //
+        // Importa por la casa: la gente del propio restaurante paga de una, y
+        // si el renglon naciera "a credito" como los de las fabricas, esa
+        // plata quedaria como deuda de nadie y no entraria a la caja. Eso no
+        // se ve mirando la pantalla: hay que anotar y revisar el renglon.
+        if (pidio) {
+          const casillaPlato = raiz.querySelector("#" + CSS.escape(pidio.htmlFor));
+          casillaPlato.focus();
+          casillaPlato.value = "almuerzo";
+          casillaPlato.dispatchEvent(new Event("input", { bubbles: true }));
+          const platos = [...raiz.querySelectorAll('li[role="option"]')]
+            .filter((li) => !li.classList.contains("crear"));
+          if (!platos.length) {
+            pasos.push("MAL: el buscador de platos no ofrece nada");
+          } else {
+            platos[0].click();
+            await new Promise((r) => setTimeout(r, 80));
+            const suyos = datos.consumos.filter(
+              (c) => c.persona === quien && c.fecha === estado.fecha);
+            const ultimo = suyos[suyos.length - 1];
+            pasos.push(ultimo
+              ? `renglon nuevo en ${ultimo.empresa}: se cobra "${formaDeCobro(ultimo)}"`
+              : "MAL: no quedo anotado el plato");
+          }
+        }
+
         loQueSeTecleo = pasos.join(" · ");
       }
     }

@@ -6,7 +6,7 @@
 // ============================================================================
 
 import { datosVacios } from "../nucleo/modelo.js";
-import { indicePorCodigo } from "../nucleo/calculos.js";
+import { indicePorCodigo, esLaCasa } from "../nucleo/calculos.js";
 import { hoyISO } from "../nucleo/formato.js";
 import * as almacen from "../datos/almacen.js";
 
@@ -42,6 +42,18 @@ export function cambio() {
 
 export function empresas() {
   return estado.datos.empresas.filter((e) => e.activa !== false);
+}
+
+/**
+ * Las empresas a las que se les cobra. Deja por fuera la casa.
+ *
+ * Se usa donde el papel sale del restaurante hacia afuera: la cuenta de cobro,
+ * el resumen que se le manda a cada fábrica y lo que se comparte. Donde hay
+ * que COCINAR o ANOTAR se usa empresas(), que sí trae la casa: su gente come
+ * todos los días y esa comida hay que prepararla.
+ */
+export function empresasClientes() {
+  return empresas().filter((e) => !esLaCasa(e));
 }
 
 export function empresaPorCodigo(codigo) {
