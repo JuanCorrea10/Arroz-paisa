@@ -15,7 +15,7 @@ import { pesos, fechaLarga, fechaCorta, nombreMes, diasDelMes, hoyISO, coincide,
 import {
   informeCocina, informeDia, informePorPersona, informeCuadre, notasDelDia,
   indicePorCodigo, delDia, contarFacturas, comandasDelDia,
-  historialDePersona, esCortesia, yaLoPago,
+  historialDePersona, esCortesia, yaLoPago, DE_CONTADO, CORTESIA,
 } from "../nucleo/calculos.js";
 import { pdfCocina, pdfResumenDia, pdfPorPersona, pdfCuadre } from "../exportar/pdf.js";
 
@@ -241,6 +241,41 @@ function bajarResumenEnPDF(informe) {
 }
 
 /**
+ * TODO LO QUE SE PIDIÓ: cada plato del día, de las cuatro empresas juntas.
+ *
+ * Es la pregunta de la cocina -- cuántos almuerzos salieron hoy, a cómo, y
+ * cuánto dieron -- y no la contesta ninguna de las otras tablas: la de arriba
+ * va por EMPRESA y las de abajo van por PERSONA.
+ *
+ * Estuvo en el PDF y se quitó de ahí a propósito: era una hoja entera todos
+ * los días para algo que se mira una vez y no se le manda a nadie. En la
+ * pantalla no cuesta papel, que es justo de lo que se trataba.
+ */
+function tablaDePlatosDelDia(informe) {
+  return tabla(
+    [{ titulo: "Plato" }, { titulo: "Cantidad", clase: "n" },
+     { titulo: "Valor unitario", clase: "n" }, { titulo: "Total", clase: "n" }],
+    informe.filas.map((f) =>
+      el("tr", {},
+        el("td", {}, f.producto,
+          f.forma === DE_CONTADO
+            ? el("span", { clase: "marca-cobro contado", texto: "pagó de una" })
+            : f.forma === CORTESIA
+              ? el("span", { clase: "marca-cobro cortesia", texto: "cortesía" })
+              : null),
+        el("td", { clase: "n cant", texto: String(f.cantidad) }),
+        el("td", { clase: "n", texto: f.forma === CORTESIA ? "—" : pesos(f.precioUnitario) }),
+        el("td", { clase: "n", texto: f.forma === CORTESIA ? "—" : pesos(f.total) })
+      )
+    ),
+    el("tr", {},
+      el("td", { colspan: "3", texto: `TOTAL · ${informe.facturas} facturas` }),
+      el("td", { clase: "n", texto: pesos(informe.total) })
+    )
+  );
+}
+
+/**
  * EL DÍA DE UN VISTAZO: una fila por empresa y el total abajo.
  *
  * Esto es lo que faltaba. Antes, para saber cómo fue el día, había que bajar
@@ -401,7 +436,10 @@ export function pintarResumenDia(raiz) {
           ),
           el("span", { clase: "titulo-lista-cuenta plata", texto: pesos(informe.total) })
         ),
-        tablaDelDia(secciones, informe)
+        tablaDelDia(secciones, informe),
+
+        el("h4", { estilo: "margin:var(--e5) 0 var(--e3)", texto: "Todo lo que se pidió" }),
+        tablaDePlatosDelDia(informe)
       )
     );
   }
