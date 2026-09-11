@@ -129,6 +129,20 @@ try {
     for (const x of primeros) dejarComoEsta(datos, "PLATO", "", x.nombre);
   }
 
+  // Un dia con de-todo: alguien que pago de una, una cortesia y una nota.
+  //
+  // En los datos de verdad no hay NINGUNO: los 1135 renglones son todos a
+  // credito y sin notas ese dia. O sea que las columnas de "a credito" y "de
+  // contado", las marcas de cobro y las notas del pedido no se pueden mirar
+  // nunca -- y son justo las que mas facil se dañan sin que nadie lo note.
+  if (forzar.includes("raros")) {
+    const delDia = datos.consumos.filter((c) => c.fecha === estado.fecha);
+    if (delDia[0]) { delDia[0].cobro = "contado"; }
+    if (delDia[1]) { delDia[1].cobro = "cortesia"; delDia[1].facturable = false; }
+    if (delDia[2]) { delDia[2].observacion = "sin cebolla y bien caliente"; }
+    if (delDia[3]) { delDia[3].observacion = "para llevar"; delDia[3].cobro = "contado"; }
+  }
+
   // El propio restaurante como "empresa": su gente paga de una.
   //
   // No esta en los datos de verdad todavia, y es lo que hay que poder MIRAR:
@@ -339,6 +353,18 @@ try {
     if (casilla) {
       casilla.value = forzar.slice(6);
       casilla.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  }
+
+  // "&forzar=solo:MGP" elige una sola empresa en el resumen del dia. Hace
+  // falta porque esa eleccion vive dentro de informes.js y no se puede poner
+  // por URL, y con UNA empresa la pantalla es distinta: no lleva la tabla del
+  // dia completo, que seria el mismo numero escrito dos veces.
+  if (forzar.startsWith("solo:")) {
+    const sel = raiz.querySelector("#empresa-informe");
+    if (sel) {
+      sel.value = forzar.slice(5);
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
     }
   }
 

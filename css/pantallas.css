@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20260910-1417";
+  --version: "20260911-1019";
 }
 
 /* ===========================================================================
@@ -1880,4 +1880,63 @@ input.precio.disparejo { border-color: var(--amarillo, #9c6a06); background: #fb
   padding: var(--e3);
   margin: 0 0 var(--e4);
   font-size: var(--t-sm);
+}
+
+/* ---------------------------------------------------------------------
+/*  Resumen del día: el día de un vistazo
+/*
+/*  Esta pantalla arrancaba de una con las tarjetas de cada persona. Para
+/*  saber cómo había ido el día tocaba bajar por cuarenta y seis papelitos
+/*  sumando de memoria -- o imprimir, que era lo que se quería evitar.
+/*  Ahora arriba va el día entero en una tabla, y debajo cada empresa con
+/*  su gente, también en tabla. Las tarjetas se quedan en el PDF, que es
+/*  el que se recorta y se reparte.
+/* --------------------------------------------------------------------- */
+
+/* El bloque del día completo se distingue del de cada empresa: es el
+   resumen, no una de las hojas. */
+.resumen-general { border-top: 3px solid var(--marca); }
+
+/* La celda de la empresa: la cinta de color y, debajo y chiquita, la razón
+   social. Chiquita a propósito -- tres de las cuatro empresas comparten la
+   misma razón social, así que la seña útil es la cinta. */
+.celda-empresa { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
+.celda-empresa-razon {
+  font-size: var(--t-xs);
+  color: var(--tinta-suave);
+  line-height: 1.2;
+}
+
+/* El numerito de la fila: para contar, no para leer. */
+td.numero-fila {
+  font-family: var(--dato);
+  font-size: var(--t-sm);
+  color: var(--tinta-suave);
+  width: 1%;
+  white-space: nowrap;
+}
+
+/* La plata de cada renglón, un poco más marcada: es lo que se busca. */
+td.plata-fila { font-weight: 600; }
+
+/* Lo que pidió cada persona, dentro de su celda.
+
+   Cada plato es un bloque suyo, con su cantidad, su marca de cobro y su
+   nota. Separarlos con comas no servía: con una nota de por medio no se
+   sabía dónde acababa un plato y empezaba el otro. */
+.pedido-celda { line-height: 1.5; }
+.pedido-item {
+  display: inline-block;
+  margin-right: var(--e3);
+  white-space: normal;
+}
+.pedido-item .cant { font-weight: 700; font-family: var(--dato); }
+.pedido-item .marca-cobro { margin-left: 4px; vertical-align: middle; }
+
+/* La nota va DEBAJO de su plato y en cursiva: es del plato, no otro plato. */
+.nota-pedido {
+  display: block;
+  font-size: var(--t-xs);
+  color: var(--tinta-suave);
+  line-height: 1.25;
 }

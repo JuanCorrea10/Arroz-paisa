@@ -15,7 +15,7 @@ import { pesos, fechaLarga, fechaCorta, nombreMes, diasDelMes, hoyISO, coincide,
 import {
   informeCocina, informeDia, informePorPersona, informeCuadre, notasDelDia,
   indicePorCodigo, delDia, contarFacturas, comandasDelDia,
-  historialDePersona, esCortesia, yaLoPago, subtotal,
+  historialDePersona, esCortesia, yaLoPago,
 } from "../nucleo/calculos.js";
 import { pdfCocina, pdfResumenDia, pdfPorPersona, pdfCuadre } from "../exportar/pdf.js";
 
@@ -241,45 +241,102 @@ function bajarResumenEnPDF(informe) {
 }
 
 /**
- * Quién pidió qué, en las mismas tarjetas de Registrar.
+ * EL DÍA DE UN VISTAZO: una fila por empresa y el total abajo.
  *
- * Comparten el CSS a propósito: es el mismo papelito de talonario que ella ya
- * conoce y que sale en el PDF. Aquí van SIN los botones de borrar y abrir --
- * esta pantalla es para mirar y entregar, no para corregir.
+ * Esto es lo que faltaba. Antes, para saber cómo fue el día, había que bajar
+ * por cuarenta y seis tarjetas sumando de memoria. Aquí cabe entero en cinco
+ * renglones, y se lee en la pantalla sin gastar una hoja.
+ *
+ * El "de contado" tiene columna propia porque no es lo mismo: eso es plata que
+ * TIENE que estar en la caja hoy, no en la cuenta de la quincena.
  */
-function tarjetasDelDia(comandas, color) {
-  return el("div", { clase: "comandas" },
-    ...comandas.map((com, i) =>
-      el("article", { clase: "comanda", estilo: `--cinta:${color}` },
-        el("header", { clase: "comanda-cabeza" },
-          el("span", { clase: "comanda-numero", texto: String(i + 1).padStart(2, "0") }),
-          el("h4", { clase: "comanda-nombre", texto: com.persona }),
-          // La empresa en la tarjeta, no solo en el título de la sección: es
-          // la misma razón que en el PDF. Estas tarjetas se recortan, y una
-          // vez cortada la tarjeta ya no tiene arriba a quién pertenece.
-          cinta(com.empresa)
-        ),
-        el("ul", { clase: "comanda-platos" },
-          ...com.platos.map((c) =>
-            el("li", { clase: esCortesia(c) ? "gratis" : yaLoPago(c) ? "pagado" : "" },
-              el("span", { clase: "comanda-cant", texto: c.cantidad + "×" }),
-              el("span", { clase: "comanda-plato" },
-                c.producto,
-                c.observacion
-                  ? el("span", { clase: "nota-en-comanda", texto: c.observacion })
-                  : null),
-              el("span", { clase: "comanda-valor",
-                texto: esCortesia(c) ? "cortesía"
-                     : yaLoPago(c) ? "pagó · " + pesos(subtotal(c))
-                     : pesos(subtotal(c)) })
-            )
-          )
-        ),
-        el("footer", { clase: "comanda-pie" },
-          el("span", {}),
-          el("span", { clase: "comanda-total", texto: pesos(com.total) })
-        )
+function tablaDelDia(secciones, informe) {
+  const hayContado = secciones.some((sec) => sec.informe.deContado > 0);
+  const platosDe = (inf) => inf.filas.reduce((a, f) => a + f.cantidad, 0);
+
+  return tabla(
+    [
+      { titulo: "Empresa" },
+      { titulo: "Personas", clase: "n" },
+      { titulo: "Platos", clase: "n" },
+      ...(hayContado
+        ? [{ titulo: "A crédito", clase: "n" }, { titulo: "De contado", clase: "n" }]
+        : []),
+      { titulo: "Total", clase: "n" },
+    ],
+    secciones.map((sec) =>
+      el("tr", {},
+        el("td", {},
+          el("div", { clase: "celda-empresa" },
+            cinta(sec.codigo),
+            sec.razonSocial
+              ? el("span", { clase: "celda-empresa-razon", texto: sec.razonSocial })
+              : null)),
+        el("td", { clase: "n", texto: String(sec.informe.facturas) }),
+        el("td", { clase: "n cant", texto: String(platosDe(sec.informe)) }),
+        ...(hayContado
+          ? [el("td", { clase: "n", texto: pesos(sec.informe.aCredito) }),
+             el("td", { clase: "n",
+               texto: sec.informe.deContado ? pesos(sec.informe.deContado) : "·" })]
+          : []),
+        el("td", { clase: "n plata-fila", texto: pesos(sec.informe.total) })
       )
+    ),
+    el("tr", {},
+      el("td", { texto: `TODO EL DÍA · ${secciones.length} empresas` }),
+      el("td", { clase: "n", texto: String(informe.facturas) }),
+      el("td", { clase: "n cant", texto: String(platosDe(informe)) }),
+      ...(hayContado
+        ? [el("td", { clase: "n", texto: pesos(informe.aCredito) }),
+           el("td", { clase: "n", texto: pesos(informe.deContado) })]
+        : []),
+      el("td", { clase: "n", texto: pesos(informe.total) })
+    )
+  );
+}
+
+/**
+ * QUIÉN PIDIÓ QUÉ, en tabla y no en tarjetas.
+ *
+ * Las tarjetas se quedan en el PDF, que es el que se recorta y se reparte. En
+ * la pantalla ocupaban una barbaridad: cuarenta y seis papelitos para mirar un
+ * día. La misma información en una tabla cabe de un golpe y no hay que
+ * imprimir nada para verla.
+ */
+function tablaDeQuienPidio(comandas) {
+  return tabla(
+    [
+      { titulo: "#", clase: "n" },
+      { titulo: "Persona" },
+      { titulo: "Qué pidió" },
+      { titulo: "Total", clase: "n" },
+    ],
+    comandas.map((com, i) =>
+      el("tr", {},
+        el("td", { clase: "n numero-fila", texto: String(i + 1).padStart(2, "0") }),
+        el("td", {}, el("strong", { texto: com.persona })),
+        el("td", { clase: "pedido-celda" },
+          ...com.platos.map((c) =>
+            el("span", { clase: "pedido-item" },
+              el("span", { clase: "cant", texto: c.cantidad + "×" }),
+              " " + c.producto,
+              esCortesia(c)
+                ? el("span", { clase: "marca-cobro cortesia", texto: "cortesía" })
+                : yaLoPago(c)
+                  ? el("span", { clase: "marca-cobro contado", texto: "pagó de una" })
+                  : null,
+              // La nota del renglón ("sin cebolla"). Va pegada a SU plato y no
+              // al final de la celda: si no, con dos platos no se sabe de cuál.
+              c.observacion
+                ? el("em", { clase: "nota-pedido", texto: c.observacion })
+                : null))),
+        el("td", { clase: "n plata-fila", texto: pesos(com.total) })
+      )
+    ),
+    el("tr", {},
+      el("td", { colspan: "3", texto: `TOTAL · ${comandas.length} ` +
+        (comandas.length === 1 ? "persona" : "personas") }),
+      el("td", { clase: "n", texto: pesos(comandas.reduce((a, c) => a + c.total, 0)) })
     )
   );
 }
@@ -294,7 +351,7 @@ export function pintarResumenDia(raiz) {
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Resumen del día" }),
-        el("p", { texto: "Lo que se le manda a cada empresa, tal cual sale impreso." })
+        el("p", { texto: "Cómo fue el día, en pantalla. El PDF trae los papelitos para recortar." })
       ),
       acciones(
         botonImprimir(),
@@ -317,12 +374,47 @@ export function pintarResumenDia(raiz) {
     return;
   }
 
-  // Una sección por empresa, CON SU NOMBRE, igual que en el papel.
+  // ------------------------------------------------------------------------
+  //  1. EL DÍA DE UN VISTAZO
   //
-  // Antes esto era una sola tabla con las cuatro empresas revueltas y un
-  // rótulo que decía "Todas las empresas". Ella imprime lo que ve y se lo
-  // manda a la fábrica, así que el papel llegaba sin decir de qué fábrica era
-  // -- y con los platos de las otras tres adentro.
+  //  Va primero y en tabla. Antes esta pantalla arrancaba de una con las
+  //  tarjetas: para saber cómo había ido el día tocaba bajar por cuarenta y
+  //  seis papelitos sumando de memoria, o imprimir. Ahora el día entero cabe
+  //  en cinco renglones y se lee sin gastar una hoja.
+  //
+  //  Con una sola empresa elegida no se pinta: sería el mismo número dos
+  //  veces, una en la tabla y otra en el título de abajo.
+  // ------------------------------------------------------------------------
+  if (secciones.length > 1) {
+    poner(raiz,
+      // "no-imprimir": este bloque es para MIRAR en la pantalla, que es de lo
+      // que se trata -- no gastar hojas. Si se imprimiera, iria pegado a la
+      // hoja de la primera empresa y esa hoja saldria con los totales de las
+      // otras tres adentro, que es justo lo que se arreglo antes.
+      el("div", { clase: "documento resumen-general no-imprimir" },
+        el("div", { clase: "titulo-lista", estilo: "--cinta:var(--marca)" },
+          el("div", { clase: "titulo-lista-quien" },
+            el("p", { clase: "titulo-lista-arriba", texto: "El día completo" }),
+            el("h3", { clase: "titulo-lista-sede", texto: fechaLarga(estado.fecha) }),
+            el("p", { clase: "titulo-lista-pie",
+              texto: `${secciones.length} empresas · ${informe.facturas} personas` })
+          ),
+          el("span", { clase: "titulo-lista-cuenta plata", texto: pesos(informe.total) })
+        ),
+        tablaDelDia(secciones, informe)
+      )
+    );
+  }
+
+  // ------------------------------------------------------------------------
+  //  2. CADA EMPRESA, con su gente
+  //
+  //  Sigue partido por empresa y con el nombre en grande, que es lo que
+  //  arregló que un papel llegara a una fábrica con los platos de otra. Lo que
+  //  cambió es que la gente va en TABLA y no en tarjetas: las tarjetas son
+  //  para el papel, que se recorta y se reparte. En la pantalla ocupaban una
+  //  barbaridad para decir lo mismo.
+  // ------------------------------------------------------------------------
   for (const sec of secciones) {
     poner(raiz,
       // "aparte" = al imprimir, esto arranca en hoja nueva. La hoja de una
@@ -339,7 +431,7 @@ export function pintarResumenDia(raiz) {
             texto: `${sec.informe.facturas} facturas · ${pesos(sec.informe.total)}` })
         ),
 
-        // Lo de contado se parte aparte: uno es plata que llega en la quincena
+        // Lo de contado se dice aparte: uno es plata que llega en la quincena
         // y el otro es plata que TIENE que estar en la caja ahora mismo.
         sec.informe.deContado > 0
           ? el("div", { clase: "caja-del-dia" },
@@ -353,41 +445,7 @@ export function pintarResumenDia(raiz) {
                 ". Lo otro se le cobra a la empresa en la cuenta de la quincena."))
           : null,
 
-        // La tabla de "Lo que se pidió" salió de aquí igual que del papel.
-        //
-        // Esta pantalla promete mostrar lo que se le manda a la empresa "tal
-        // cual sale impreso", así que si el papel no la lleva, aquí tampoco.
-        // El cuánto-de-cada-plato sigue abajo, en "El día completo", y en la
-        // pantalla de Cocina, que es donde se pregunta eso.
-
-        sec.comandas.length
-          ? el("div", {},
-              el("h4", { estilo: "margin:var(--e5) 0 var(--e3)",
-                texto: `Quién pidió qué · ${sec.comandas.length} ${sec.comandas.length === 1 ? "persona" : "personas"}` }),
-              tarjetasDelDia(sec.comandas, sec.color))
-          : null
-      )
-    );
-  }
-
-  // El día completo, al final y solo cuando hay más de una empresa: con una
-  // sola sería el mismo número escrito dos veces.
-  // El día completo: el número de control de ella, sin la tabla.
-  //
-  // Lleva "no-imprimir" a propósito. Ya decía que no se le manda a ninguna
-  // empresa, pero igual salía en el papel y se llevaba una hoja para una sola
-  // cifra. En la pantalla no cuesta nada y ahí sí le sirve.
-  if (secciones.length > 1) {
-    poner(raiz,
-      el("div", { clase: "documento no-imprimir" },
-        el("div", { clase: "fila entre" },
-          el("h2", { texto: "El día completo" }),
-          el("span", { clase: "comanda-total", texto: pesos(informe.total) })
-        ),
-        el("p", { clase: "nota", estilo: "margin:var(--e2) 0 0" },
-          `Las ${secciones.length} empresas juntas · ${informe.facturas} facturas · ` +
-          `${informe.renglones} renglones. Esto es solo para usted: no sale impreso ` +
-          "y no se le manda a ninguna empresa.")
+        sec.comandas.length ? tablaDeQuienPidio(sec.comandas) : null
       )
     );
   }
