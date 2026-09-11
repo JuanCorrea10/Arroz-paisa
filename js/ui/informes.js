@@ -483,7 +483,26 @@ export function pintarResumenDia(raiz) {
                 ". Lo otro se le cobra a la empresa en la cuenta de la quincena."))
           : null,
 
-        sec.comandas.length ? tablaDeQuienPidio(sec.comandas) : null
+        // Lo que se pidió en ESTA empresa: los platos juntos, a cómo y cuánto.
+        //
+        // Es la misma tabla del día completo pero de una sola fábrica. Las dos
+        // hacen falta y no se pisan: esta dice CUÁNTO salió de cada plato, y
+        // la de abajo dice QUIÉN se lo llevó.
+        //
+        // Va con "no-imprimir" por lo mismo que la del día completo: se quitó
+        // del papel porque se llevaba una hoja entera por empresa, todos los
+        // días. En la pantalla no cuesta nada, y para eso es esta pantalla.
+        el("div", { clase: "no-imprimir" },
+          el("h4", { estilo: "margin:var(--e5) 0 var(--e3)", texto: "Lo que se pidió" }),
+          tablaDePlatosDelDia(sec.informe)),
+
+        sec.comandas.length
+          ? el("div", {},
+              el("h4", { clase: "no-imprimir", estilo: "margin:var(--e5) 0 var(--e3)",
+                texto: `Quién pidió qué · ${sec.comandas.length} ` +
+                  (sec.comandas.length === 1 ? "persona" : "personas") }),
+              tablaDeQuienPidio(sec.comandas))
+          : null
       )
     );
   }
