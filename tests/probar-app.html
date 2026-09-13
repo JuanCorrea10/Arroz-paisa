@@ -90,10 +90,19 @@ marco.addEventListener("load", async () => {
   ven.location.hash = "#inicio";
   await esperar(400);
   const botones = [...doc.querySelectorAll(".boton-inicio")];
+  const mundos = [...doc.querySelectorAll(".mundo")];
   const grupos = [...doc.querySelectorAll(".grupo-inicio")];
-  anotar(botones.length && grupos.length
-    ? `OK   la portada trae ${grupos.length} grupos y ${botones.length} botones`
-    : "MAL  la portada salió vacía");
+  anotar(mundos.length >= 2 && botones.length
+    ? `OK   la portada trae ${mundos.length} mundos, ${grupos.length} grupos y ${botones.length} botones`
+    : `MAL  la portada tiene ${mundos.length} mundos (deberían ser 2)`);
+
+  // Cada mundo tiene que poder abrirse: si el boton grande no lleva a ninguna
+  // pantalla, entrar a Proveedores seria imposible.
+  const puertas = [...doc.querySelectorAll(".mundo-entrar")]
+    .map((a) => a.getAttribute("href"));
+  anotar(puertas.every((h) => h && h.length > 1 && h !== "#inicio")
+    ? `OK   los ${puertas.length} mundos abren: ${puertas.join(", ")}`
+    : "MAL  hay un mundo sin puerta: " + puertas.join(", "));
 
   // Ningún botón puede apuntar a una pantalla que no existe: seria un enlace
   // que no lleva a ninguna parte, y ella no tiene como saber que le pasó.

@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20260913-1007";
+  --version: "20260913-1056";
 }
 
 /* ===========================================================================
@@ -2040,3 +2040,66 @@ td.plata-fila { font-weight: 600; }
   color: var(--tinta-media);
   line-height: 1.3;
 }
+
+/* ---------------------------------------------------------------------
+/*  Los dos mundos de la portada
+/*
+/*  El negocio son dos cosas al revés una de la otra: lo que se vende y lo
+/*  que se compra. Van en la misma app -- dos sitios serían dos respaldos
+/*  y dos versiones -- pero cada uno con su menú, para que el de arriba
+/*  vuelva a ser corto.
+/*
+/*  Cada mundo muestra lo que tiene adentro y no solo su nombre: un botón
+/*  que dice "Proveedores" y nada más la obliga a entrar a ver qué hay, y
+/*  si no le suena, no entra.
+/* --------------------------------------------------------------------- */
+
+.mundos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: var(--e5);
+  margin-bottom: var(--e6);
+}
+
+.mundo {
+  background: var(--papel);
+  border: 1px solid var(--borde);
+  border-top: 5px solid var(--marca);
+  border-radius: var(--radio-g);
+  box-shadow: var(--sombra);
+  overflow: hidden;
+}
+
+.mundo-entrar {
+  display: block;
+  padding: var(--e5) var(--e4) var(--e4);
+  text-decoration: none;
+  color: inherit;
+  background: var(--papel-hueso);
+  border-bottom: 1px solid var(--borde);
+}
+.mundo-entrar:hover { background: var(--beige); }
+.mundo-entrar h2 {
+  margin: 0;
+  font-size: 2rem;
+  color: var(--marca-hondo);
+  line-height: 1.1;
+}
+.mundo-entrar p {
+  margin: var(--e2) 0 0;
+  font-size: var(--t-sm);
+  color: var(--tinta-media);
+  line-height: 1.35;
+}
+
+.mundo-dentro {
+  display: grid;
+  gap: var(--e2);
+  padding: var(--e3);
+}
+.mundo-dentro .boton-inicio {
+  border-left-width: 3px;
+  padding: var(--e3);
+  box-shadow: none;
+}
+.mundo-dentro .boton-inicio strong { font-size: var(--t-base, 1rem); }

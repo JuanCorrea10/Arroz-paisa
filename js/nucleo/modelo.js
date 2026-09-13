@@ -2,7 +2,7 @@
 //  modelo.js  -  La forma que tienen los datos y cómo se crean vacíos.
 // ============================================================================
 
-import { normalizar, aEntero } from "./formato.js";
+import { normalizar, aEntero, esFechaISO } from "./formato.js";
 import { clavePrecio, clavePersona, formaDeCobro, CORTESIA } from "./calculos.js";
 import { limpiarNombre } from "./nombres.js";
 
@@ -35,6 +35,10 @@ export function datosVacios() {
     precios: {},
     personas: [],
     consumos: [],
+    // Las facturas que traen los proveedores: el otro lado del negocio.
+    // Van en el MISMO archivo que los consumos y no en otro aparte, para que
+    // el respaldo, la carpeta y el Excel sigan siendo uno solo.
+    compras: [],
     cuadres: {},
   };
 }
@@ -95,6 +99,15 @@ export function completarDatos(datos) {
     productos: productosAntes - salida.productos.length,
     personas: personasAntes - salida.personas.length,
   };
+
+  // Las compras pueden no existir todavía (los datos de antes no las tenían).
+  if (!Array.isArray(salida.compras)) salida.compras = [];
+  for (const c of salida.compras) {
+    if (!c.id) c.id = nuevoId();
+    // "pagadaEl" es una FECHA, no un sí/no: con un sí no hay cómo cuadrarlo
+    // contra el banco. Si viene cualquier otra cosa, no está pagada.
+    if (!esFechaISO(c.pagadaEl)) c.pagadaEl = null;
+  }
 
   salida.unificadas = unificarEmpresa(salida);
   return salida;
@@ -369,6 +382,43 @@ export function ponerComoPagaLaPersona(datos, { empresa, persona, fecha }, forma
     cambiados++;
   }
   return cambiados;
+}
+
+/**
+ * Una factura de proveedor.
+ *
+ * La CANTIDAD se guarda como texto y no como número, a propósito. En el Excel
+ * viene escrita de diecinueve formas distintas -- "20 KILOS", "20KL", "8,29
+ * KG", "20770 GRAMOS", "20KL,10.1KG,4.9KG" -- y convertirla sería inventarse
+ * un número: hay una pechuga anotada como "862 KILOS" que por el precio no
+ * puede pasar de 24. Lo que se paga es el VALOR, y ese sí es número.
+ *
+ * Devuelve la factura lista, sin meterla en ninguna lista.
+ */
+export function nuevaCompra({
+  fecha, sede, proveedor, producto, cantidad, valor, factura,
+  quienRecibe = "", observacion = "", pagadaEl = null,
+}) {
+  const plata = Number(valor);
+  return {
+    id: nuevoId(),
+    fecha: esFechaISO(fecha) ? fecha : "",
+    sede: normalizar(sede),
+    proveedor: normalizar(proveedor),
+    producto: normalizar(producto),
+    cantidad: String(cantidad || "").trim(),
+    valor: Number.isFinite(plata) && plata > 0 ? plata : 0,
+    factura: String(factura || "").trim(),
+    quienRecibe: normalizar(quienRecibe),
+    observacion: String(observacion || "").trim(),
+    pagadaEl: esFechaISO(pagadaEl) ? pagadaEl : null,
+  };
+}
+
+/** Marcar una factura como pagada (o des-pagarla, si se equivocó). */
+export function ponerPagada(compra, fechaISO) {
+  compra.pagadaEl = esFechaISO(fechaISO) ? fechaISO : null;
+  return compra;
 }
 
 export function recalcularRevisar(consumo) {

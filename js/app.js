@@ -19,6 +19,7 @@ import { pintarRegistrar } from "./ui/registrar.js";
 import { pintarCocina, pintarResumenDia, pintarPorPersona, pintarCuadre } from "./ui/informes.js";
 import { pintarCobro } from "./ui/cobro.js";
 import { pintarInicio } from "./ui/inicio.js";
+import { pintarCompras, pintarPagos } from "./ui/proveedores.js";
 import { pintarVentas } from "./ui/ventas.js";
 import { pintarCompartir } from "./ui/compartir.js";
 import { pintarEmpresas, pintarCatalogo, pintarPersonas } from "./ui/mantenimiento.js";
@@ -44,7 +45,7 @@ import { revisarTodo } from "./nucleo/calculos.js";
 const PANTALLAS = {
   inicio:    { titulo: "Inicio",           menu: true,
                dice: "Todo lo que hace la app",
-               pintar: (raiz) => pintarInicio(raiz, GRUPOS, PANTALLAS) },
+               pintar: (raiz) => pintarInicio(raiz, MUNDOS, DE_LOS_DOS, PANTALLAS) },
   registrar: { titulo: "Registrar el día", pintar: pintarRegistrar, menu: true,
                dice: "Anotar lo que pidió cada persona" },
   cocina:    { titulo: "Cocina",           pintar: pintarCocina,    menu: true,
@@ -70,6 +71,11 @@ const PANTALLAS = {
   ayuda:     { titulo: "Cómo se usa",      pintar: pintarAyuda,     menu: true,
                dice: "El manual, por si se le olvida algo" },
 
+  compras:   { titulo: "Facturas",         pintar: pintarCompras,   menu: true,
+               dice: "Anotar la factura que trajo el proveedor" },
+  pagos:     { titulo: "Pago semanal",     pintar: pintarPagos,     menu: true,
+               dice: "Cuánto hay que girarle a cada proveedor esta semana" },
+
   personas:  { titulo: "Personas",         pintar: pintarPersonas,
                dice: "La gente de cada empresa" },
   nombres:   { titulo: "Revisar nombres",  pintar: pintarNombres,
@@ -83,37 +89,75 @@ const PANTALLAS = {
 };
 
 /**
- * Los grupos de la portada.
+ * Los dos MUNDOS del negocio.
  *
- * Agrupados por PARA QUÉ SIRVEN y no por cómo está hecho el código. Es el
- * marco donde van a entrar las compras a proveedores cuando existan: un grupo
- * más, sin que el menú de arriba se vuelva una lista de veinte palabras.
+ *   Almuerzos    lo que se VENDE: a quién se le vendió y quién nos debe.
+ *   Proveedores  lo que se COMPRA: a quién le compramos y a quién le debemos.
  *
- * Si una pantalla no queda en ningún grupo, la portada la saca igual en "Lo
- * demás": esconderla sería lo mismo que borrarla.
+ *  Son negocios al revés uno del otro y casi no comparten datos: los empleados
+ *  de las fábricas no son proveedores, un almuerzo no es un tocino, y las
+ *  empresas clientes no son las sedes del restaurante. Lo único que comparten
+ *  es la señora, el día y la plata -- y por eso van en la MISMA app y no en dos
+ *  sitios distintos: dos sitios serían dos respaldos, dos versiones y dos
+ *  carpetas, y ella tendría que acordarse de en cuál está. Además el día que
+ *  quiera saber "cuánto entró contra cuánto salió", los datos tienen que estar
+ *  juntos.
+ *
+ *  El menú de arriba muestra SOLO el mundo en el que está parada. Así vuelve a
+ *  ser corto, que era el problema: con todo junto iba por doce entradas y
+ *  camino a veinte.
  */
-const GRUPOS = [
+const MUNDOS = [
   {
-    nombre: "El día a día",
-    explica: "Lo de todas las mañanas",
-    pantallas: ["registrar", "cocina", "resumen"],
+    id: "almuerzos",
+    nombre: "Almuerzos",
+    dice: "Lo que le vende a las fábricas: anotar los pedidos, las cuentas de cobro y cuánto vendió.",
+    grupos: [
+      {
+        nombre: "El día a día",
+        explica: "Lo de todas las mañanas",
+        pantallas: ["registrar", "cocina", "resumen"],
+      },
+      {
+        nombre: "La plata",
+        explica: "Lo que se cobra y lo que entra",
+        pantallas: ["cobro", "ventas", "persona", "cuadre"],
+      },
+      {
+        nombre: "Las listas",
+        explica: "La gente, los platos y las empresas",
+        pantallas: ["personas", "catalogo", "empresas", "revisar", "nombres"],
+      },
+    ],
   },
   {
-    nombre: "La plata",
-    explica: "Lo que se cobra y lo que entra",
-    pantallas: ["cobro", "ventas", "persona", "cuadre"],
-  },
-  {
-    nombre: "Las listas",
-    explica: "La gente, los platos y las empresas",
-    pantallas: ["personas", "catalogo", "empresas", "revisar", "nombres"],
-  },
-  {
-    nombre: "La app",
-    explica: "Respaldos, ajustes y ayuda",
-    pantallas: ["compartir", "datos", "ajustes", "ayuda"],
+    id: "proveedores",
+    nombre: "Proveedores",
+    dice: "Lo que le compra a los proveedores: las facturas que entran y cuánto hay que pagarles cada semana.",
+    grupos: [
+      {
+        nombre: "Las compras",
+        explica: "Las facturas que traen los proveedores",
+        pantallas: ["compras", "pagos"],
+      },
+    ],
   },
 ];
+
+// Lo que no es de ningún mundo: sirve para los dos y sale abajo en la portada.
+const DE_LOS_DOS = {
+  nombre: "La app",
+  explica: "Respaldos, ajustes y ayuda",
+  pantallas: ["compartir", "datos", "ajustes", "ayuda"],
+};
+
+/** En qué mundo está una pantalla. El de almuerzos es el de siempre. */
+function mundoDe(cual) {
+  for (const m of MUNDOS) {
+    if (m.grupos.some((g) => g.pantallas.includes(cual))) return m;
+  }
+  return null;
+}
 
 const INICIO = "registrar";
 
@@ -134,6 +178,7 @@ function pintar() {
   const donde = raiz();
 
   document.title = `${pantalla.titulo} — Arroz Paisa`;
+  construirMenu(cual);
   marcarMenu(cual);
   // Instantáneo a propósito: con scroll-behavior suave en toda la página,
   // cambiar de pantalla se volvería una animación de subida cada vez, y eso
@@ -279,11 +324,30 @@ function pintarAjustes(donde) {
 //  La barra de arriba
 // ---------------------------------------------------------------------------
 
-function construirMenu() {
+/**
+ * El menú de arriba: SOLO el mundo en el que está parada.
+ *
+ * Antes salían todas las pantallas juntas y ya iba por doce entradas, camino a
+ * veinte cuando entraran las compras. Un menú de veinte palabras, para alguien
+ * que no explora, es un menú donde no se encuentra nada.
+ *
+ * Se vuelve a armar en cada pintada porque el mundo cambia al cambiar de
+ * pantalla. "Inicio" va siempre, que es la puerta para pasar de un mundo a
+ * otro; si no estuviera, entrar a Proveedores sería un camino sin regreso.
+ */
+function construirMenu(cual) {
   const menu = document.getElementById("menu");
   vaciar(menu);
-  for (const [nombre, p] of Object.entries(PANTALLAS)) {
-    if (!p.menu) continue;
+
+  const mundo = mundoDe(cual);
+  const suyas = mundo
+    ? mundo.grupos.flatMap((g) => g.pantallas)
+    : [];
+  const visibles = ["inicio", ...suyas, ...DE_LOS_DOS.pantallas];
+
+  for (const nombre of visibles) {
+    const p = PANTALLAS[nombre];
+    if (!p) continue;
     menu.append(
       el("a", { href: "#" + nombre },
         p.titulo,
@@ -489,7 +553,7 @@ function nadaFallaCallado() {
 async function arrancar() {
   nadaFallaCallado();
   revisarLaVersion();
-  construirMenu();
+  construirMenu(pantallaActual());
   headerQueSeEncoge();
   semaforoDeGuardado();
 

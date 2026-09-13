@@ -1,13 +1,18 @@
 // ============================================================================
 //  inicio.js  -  La portada: "¿qué va a hacer?"
 //
-//  El menú de arriba es una tira de nombres sueltos, y ya va por once. Con las
-//  compras a proveedores encima se vuelve una lista de veinte palabras donde
-//  hay que ADIVINAR cuál sirve para lo que uno quiere hacer.
+//  El negocio son DOS cosas al revés una de la otra:
 //
-//  Esta pantalla es el mapa: las cosas agrupadas por para-qué-sirven, y cada
-//  una diciendo qué hace en una línea. El menú de arriba no se toca -- lo que
-//  ella ya se sabe de memoria se queda donde está.
+//    Almuerzos    lo que se VENDE. Quién nos debe.
+//    Proveedores  lo que se COMPRA. A quién le debemos.
+//
+//  Casi no comparten datos -- los empleados de las fábricas no son
+//  proveedores, un almuerzo no es un tocino -- pero van en la MISMA app: dos
+//  sitios serían dos respaldos, dos versiones y dos carpetas, y ella tendría
+//  que acordarse de en cuál está.
+//
+//  La portada es la puerta entre los dos. Al entrar a uno, el menú de arriba
+//  muestra solo ese: así vuelve a ser corto, que era el problema.
 //
 //  NO es la pantalla de arranque a propósito: la app sigue abriendo en
 //  Registrar. Ella entra a anotar a las seis de la mañana, y meterle una
@@ -20,38 +25,77 @@ import { el, poner, vaciar } from "./componentes.js";
 /**
  * Pinta la portada.
  *
- * Los grupos los manda app.js, que es quien tiene el mapa de pantallas. Así
- * una pantalla nueva no se puede quedar por fuera de la portada sin que se
- * note: si no está en ningún grupo, sale abajo en "Lo demás".
+ * Los mundos los manda app.js, que es quien tiene el mapa de pantallas. Así
+ * una pantalla nueva no se puede quedar por fuera sin que se note: si no está
+ * en ningún mundo, sale abajo en "Lo demás".
  */
-export function pintarInicio(raiz, grupos, pantallas) {
+export function pintarInicio(raiz, mundos, deLosDos, pantallas) {
   vaciar(raiz);
-
-  const ubicadas = new Set(grupos.flatMap((g) => g.pantallas));
-  const sueltas = Object.keys(pantallas).filter(
-    (k) => k !== "inicio" && !ubicadas.has(k));
 
   poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "¿Qué va a hacer?" }),
-        el("p", { texto: "Todo lo que hace la app, por grupos. Toque lo que necesite." })
+        el("p", { texto: "Toque una de las dos. Arriba le quedan solo las cosas de esa." })
       )
+    ),
+
+    el("div", { clase: "mundos" },
+      ...mundos.map((m) => tarjetaDeMundo(m, pantallas))
     )
   );
 
-  for (const grupo of grupos) {
-    poner(raiz, tarjetaDeGrupo(grupo, pantallas));
-  }
+  // Lo que sirve para los dos mundos, aparte y más discreto.
+  poner(raiz, tarjetaDeGrupo(deLosDos, pantallas));
 
-  // Una pantalla que no quedó en ningún grupo igual tiene que poder abrirse.
-  // Callarla sería esconderla, y esconder algo en una app que ella no explora
-  // es lo mismo que borrarlo.
+  // Una pantalla que no quedó en ningún lado igual tiene que poder abrirse.
+  // Esconderla, en una app que ella no explora, es lo mismo que borrarla.
+  const ubicadas = new Set([
+    ...mundos.flatMap((m) => m.grupos.flatMap((g) => g.pantallas)),
+    ...deLosDos.pantallas,
+  ]);
+  const sueltas = Object.keys(pantallas).filter(
+    (k) => k !== "inicio" && !ubicadas.has(k));
   if (sueltas.length) {
     poner(raiz, tarjetaDeGrupo(
       { nombre: "Lo demás", explica: "Todavía sin agrupar", pantallas: sueltas },
       pantallas));
   }
+}
+
+/**
+ * Un mundo: el botón grande y, debajo, lo que hay adentro.
+ *
+ * Se ve lo de adentro y no solo el nombre porque ella no explora: un botón que
+ * dice "Proveedores" y nada más la obliga a entrar a ver qué hay, y si no le
+ * suena, no entra.
+ */
+function tarjetaDeMundo(mundo, pantallas) {
+  const dentro = mundo.grupos.flatMap((g) => g.pantallas)
+    .map((cual) => pantallas[cual])
+    .filter(Boolean);
+
+  const primera = mundo.grupos[0] && mundo.grupos[0].pantallas[0];
+
+  return el("section", { clase: "mundo" },
+    el("a", { clase: "mundo-entrar", href: "#" + (primera || "inicio") },
+      el("h2", { texto: mundo.nombre }),
+      el("p", { texto: mundo.dice })
+    ),
+    el("div", { clase: "mundo-dentro" },
+      ...dentro.map((p) =>
+        el("a", { clase: "boton-inicio", href: "#" + nombreDe(pantallas, p) },
+          el("strong", { texto: p.titulo }),
+          p.dice ? el("span", { texto: p.dice }) : null
+        )
+      )
+    )
+  );
+}
+
+/** La llave de una pantalla dentro del mapa. */
+function nombreDe(pantallas, pantalla) {
+  return Object.keys(pantallas).find((k) => pantallas[k] === pantalla) || "inicio";
 }
 
 function tarjetaDeGrupo(grupo, pantallas) {
