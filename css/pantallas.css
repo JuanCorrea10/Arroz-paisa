@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20260913-1002";
+  --version: "20260913-1007";
 }
 
 /* ===========================================================================
@@ -1981,4 +1981,62 @@ td.plata-fila { font-weight: 600; }
   flex-basis: 100%;
   font-size: var(--t-xs);
   color: var(--amarillo);
+}
+
+/* ---------------------------------------------------------------------
+/*  La portada: "¿qué va a hacer?"
+/*
+/*  El menú de arriba es una tira de nombres sueltos y ya va por doce. Con
+/*  las compras encima se vuelve una lista de veinte palabras donde hay
+/*  que adivinar cuál sirve. Aquí las cosas están agrupadas por para-qué-
+/*  sirven y cada una dice qué hace, que es lo que el menú no puede decir.
+/* --------------------------------------------------------------------- */
+
+.grupo-inicio { margin-bottom: var(--e6); }
+
+.grupo-inicio-titulo {
+  border-left: 5px solid var(--marca);
+  padding-left: var(--e3);
+  margin-bottom: var(--e4);
+}
+.grupo-inicio-titulo h2 { margin: 0; }
+.grupo-inicio-titulo p {
+  margin: 2px 0 0;
+  font-size: var(--t-sm);
+  color: var(--tinta-media);
+}
+
+.grupo-inicio-botones {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: var(--e3);
+}
+
+/* Botones grandes y con su explicación: el nombre solo ("Cuadre") no dice
+   para qué sirve, y hasta ahora tocaba abrirlo a ver qué era. */
+.boton-inicio {
+  display: block;
+  background: var(--papel);
+  border: 1px solid var(--borde);
+  border-left: 4px solid var(--marca);
+  border-radius: var(--radio-g);
+  box-shadow: var(--sombra);
+  padding: var(--e4);
+  text-decoration: none;
+  color: inherit;
+}
+.boton-inicio:hover { border-color: var(--marca); background: var(--papel-hueso); }
+.boton-inicio strong {
+  display: block;
+  font-family: var(--display);
+  font-size: var(--t-lg);
+  color: var(--marca-hondo);
+  line-height: 1.2;
+}
+.boton-inicio span {
+  display: block;
+  margin-top: var(--e1);
+  font-size: var(--t-sm);
+  color: var(--tinta-media);
+  line-height: 1.3;
 }

@@ -81,6 +81,37 @@ marco.addEventListener("load", async () => {
       sinVersion.map((u) => u.split("/").slice(-2).join("/")).join(", ")
     : `OK   los ${modulos.length} módulos llegan con su versión`);
 
+  // --- 1b. La portada -----------------------------------------------------
+  //
+  //  Se prueba AQUI y no en ver-pantalla.html a proposito: la portada se arma
+  //  con el mapa de pantallas de app.js, asi que probarla aislada obligaria a
+  //  copiar ese mapa en la prueba -- y una copia se desactualiza sin avisar,
+  //  que es justo lo que hay que evitar. Aqui se mira el mapa de verdad.
+  ven.location.hash = "#inicio";
+  await esperar(400);
+  const botones = [...doc.querySelectorAll(".boton-inicio")];
+  const grupos = [...doc.querySelectorAll(".grupo-inicio")];
+  anotar(botones.length && grupos.length
+    ? `OK   la portada trae ${grupos.length} grupos y ${botones.length} botones`
+    : "MAL  la portada salió vacía");
+
+  // Ningún botón puede apuntar a una pantalla que no existe: seria un enlace
+  // que no lleva a ninguna parte, y ella no tiene como saber que le pasó.
+  const rotas = botones
+    .map((b) => b.getAttribute("href"))
+    .filter((h) => !h || h.length < 2);
+  if (rotas.length) anotar("MAL  hay botones sin destino: " + rotas.join(", "));
+
+  // Y que no se quede ninguna pantalla por fuera: si aparece "Lo demás" es que
+  // alguien agregó una pantalla y se le olvidó ponerla en un grupo.
+  const sobras = grupos.find((g) => /Lo dem.s/i.test(g.textContent));
+  anotar(sobras
+    ? "OJO  hay pantallas sin agrupar en la portada"
+    : "OK   todas las pantallas quedaron en un grupo");
+
+  ven.location.hash = "#registrar";
+  await esperar(400);
+
   // --- 2. Anotarle un plato a alguien que ya existe ------------------------
   const buscaPersona = await esperarA(() => buscadorDe(/Qui[eé]n comi[oó]/i));
   if (!buscaPersona) { anotar("MAL  la app nunca mostró el buscador de personas"); return mandar(); }

@@ -18,6 +18,7 @@ import * as almacen from "./datos/almacen.js";
 import { pintarRegistrar } from "./ui/registrar.js";
 import { pintarCocina, pintarResumenDia, pintarPorPersona, pintarCuadre } from "./ui/informes.js";
 import { pintarCobro } from "./ui/cobro.js";
+import { pintarInicio } from "./ui/inicio.js";
 import { pintarVentas } from "./ui/ventas.js";
 import { pintarCompartir } from "./ui/compartir.js";
 import { pintarEmpresas, pintarCatalogo, pintarPersonas } from "./ui/mantenimiento.js";
@@ -37,27 +38,82 @@ import { revisarTodo } from "./nucleo/calculos.js";
 //  que se usan una vez al mes.
 // ---------------------------------------------------------------------------
 
+//  "dice" es qué hace la pantalla, en una línea y en sus palabras. Sale en la
+//  portada. El menú de arriba solo tiene el nombre, y un nombre suelto
+//  ("Cuadre", "Compartir") no dice para qué sirve: hay que abrirlo a ver.
 const PANTALLAS = {
-  registrar: { titulo: "Registrar el día", pintar: pintarRegistrar, menu: true },
-  cocina:    { titulo: "Cocina",           pintar: pintarCocina,    menu: true },
-  resumen:   { titulo: "Resumen del día",  pintar: pintarResumenDia, menu: true },
-  persona:   { titulo: "Por persona",      pintar: pintarPorPersona, menu: true },
-  cobro:     { titulo: "Cuenta de cobro",  pintar: pintarCobro,     menu: true },
-  ventas:    { titulo: "Cuánto vendí",     pintar: pintarVentas,    menu: true },
-  cuadre:    { titulo: "Cuadre",           pintar: pintarCuadre,    menu: true },
-  compartir: { titulo: "Compartir",        pintar: pintarCompartir, menu: true },
+  inicio:    { titulo: "Inicio",           menu: true,
+               dice: "Todo lo que hace la app",
+               pintar: (raiz) => pintarInicio(raiz, GRUPOS, PANTALLAS) },
+  registrar: { titulo: "Registrar el día", pintar: pintarRegistrar, menu: true,
+               dice: "Anotar lo que pidió cada persona" },
+  cocina:    { titulo: "Cocina",           pintar: pintarCocina,    menu: true,
+               dice: "Cuánto hay que preparar hoy" },
+  resumen:   { titulo: "Resumen del día",  pintar: pintarResumenDia, menu: true,
+               dice: "Cómo fue el día y qué se le manda a cada empresa" },
+  persona:   { titulo: "Por persona",      pintar: pintarPorPersona, menu: true,
+               dice: "Cuánto lleva cada persona" },
+  cobro:     { titulo: "Cuenta de cobro",  pintar: pintarCobro,     menu: true,
+               dice: "La cuenta de la quincena para cada empresa" },
+  ventas:    { titulo: "Cuánto vendí",     pintar: pintarVentas,    menu: true,
+               dice: "Cuántos platos salieron y cuánta plata entró" },
+  cuadre:    { titulo: "Cuadre",           pintar: pintarCuadre,    menu: true,
+               dice: "Cuadrar las facturas del día con lo que le dicen" },
+  compartir: { titulo: "Compartir",        pintar: pintarCompartir, menu: true,
+               dice: "Mandarle a una empresa lo suyo" },
   revisar:   { titulo: "Revisar",          pintar: pintarErrores,   menu: true,
+               dice: "Lo que quedó raro y hay que arreglar",
                // El numerito rojo del menu: lo que esta esperando decision.
                contar: () => cuantosSueltos(estado.datos).total },
-  ajustes:   { titulo: "Ajustes",          pintar: pintarAjustes,   menu: true },
-  ayuda:     { titulo: "Cómo se usa",      pintar: pintarAyuda,     menu: true },
+  ajustes:   { titulo: "Ajustes",          pintar: pintarAjustes,   menu: true,
+               dice: "El mes que se está mirando y sus datos" },
+  ayuda:     { titulo: "Cómo se usa",      pintar: pintarAyuda,     menu: true,
+               dice: "El manual, por si se le olvida algo" },
 
-  personas:  { titulo: "Personas",         pintar: pintarPersonas },
-  nombres:   { titulo: "Revisar nombres",  pintar: pintarNombres },
-  catalogo:  { titulo: "Catálogo",         pintar: pintarCatalogo },
-  empresas:  { titulo: "Empresas",         pintar: pintarEmpresas },
-  datos:     { titulo: "Datos y respaldos", pintar: pintarDatos },
+  personas:  { titulo: "Personas",         pintar: pintarPersonas,
+               dice: "La gente de cada empresa" },
+  nombres:   { titulo: "Revisar nombres",  pintar: pintarNombres,
+               dice: "Nombres repetidos o mal escritos" },
+  catalogo:  { titulo: "Catálogo",         pintar: pintarCatalogo,
+               dice: "Los platos y cuánto vale cada uno" },
+  empresas:  { titulo: "Empresas",         pintar: pintarEmpresas,
+               dice: "A quiénes se les vende y cómo corta la quincena" },
+  datos:     { titulo: "Datos y respaldos", pintar: pintarDatos,
+               dice: "Respaldos, la carpeta y traer el Excel" },
 };
+
+/**
+ * Los grupos de la portada.
+ *
+ * Agrupados por PARA QUÉ SIRVEN y no por cómo está hecho el código. Es el
+ * marco donde van a entrar las compras a proveedores cuando existan: un grupo
+ * más, sin que el menú de arriba se vuelva una lista de veinte palabras.
+ *
+ * Si una pantalla no queda en ningún grupo, la portada la saca igual en "Lo
+ * demás": esconderla sería lo mismo que borrarla.
+ */
+const GRUPOS = [
+  {
+    nombre: "El día a día",
+    explica: "Lo de todas las mañanas",
+    pantallas: ["registrar", "cocina", "resumen"],
+  },
+  {
+    nombre: "La plata",
+    explica: "Lo que se cobra y lo que entra",
+    pantallas: ["cobro", "ventas", "persona", "cuadre"],
+  },
+  {
+    nombre: "Las listas",
+    explica: "La gente, los platos y las empresas",
+    pantallas: ["personas", "catalogo", "empresas", "revisar", "nombres"],
+  },
+  {
+    nombre: "La app",
+    explica: "Respaldos, ajustes y ayuda",
+    pantallas: ["compartir", "datos", "ajustes", "ayuda"],
+  },
+];
 
 const INICIO = "registrar";
 
