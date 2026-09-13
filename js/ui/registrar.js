@@ -16,10 +16,14 @@ import { el, vaciar, buscador, mensaje, pedirDatos, confirmar, ventana, tabla, c
 import { estado, cambio, empresas, asegurarEmpresa, empresaPorCodigo } from "./estado.js";
 import { pesos, fechaLarga, normalizar, hoyISO } from "../nucleo/formato.js";
 import {
-  delDia, subtotal, contarFacturas, personasDe, precioDe, clavePersona, comandasDelDia, A_CREDITO, DE_CONTADO, CORTESIA, formaDeCobro, esCortesia, yaLoPago, esLaCasa,
+  delDia, subtotal, contarFacturas, personasDe, precioDe, clavePersona, comandasDelDia,
+  A_CREDITO, DE_CONTADO, CORTESIA, formaDeCobro, esCortesia, yaLoPago, esLaCasa,
+  comoPagaLaPersona,
 } from "../nucleo/calculos.js";
 import { pdfComandasDelDia } from "../exportar/pdf.js";
-import { nuevoConsumo, agregarPersona, agregarProducto } from "../nucleo/modelo.js";
+import {
+  nuevoConsumo, agregarPersona, agregarProducto, ponerComoPagaLaPersona, ponerFormaDeCobro,
+} from "../nucleo/modelo.js";
 import {
   limpiarNombre, parecidasEnEmpresa, tocayosEnOtrasEmpresas,
 } from "../nucleo/nombres.js";
@@ -179,6 +183,99 @@ function cajaDeCaptura(raiz) {
   return caja;
 }
 
+/**
+ * El botón de la tarjeta: dice cómo paga esa persona y deja cambiarlo.
+ *
+ * Aquí sí se usa una ventana, al revés que en la comanda abierta: esto es una
+ * corrección de vez en cuando y no el paso de todos los días, y en la tarjeta
+ * no caben tres botones sin volverla un tablero.
+ */
+function botonDeComoPagaLaTarjeta(raiz, com, platos) {
+  const quien = { empresa: com.empresa, persona: com.persona, fecha: estado.fecha };
+  const puesta = comoPagaLaPersona(estado.datos.consumos, quien);
+  const cual = COMO_SE_PAGA.find((x) => x.forma === puesta);
+
+  return el("button", {
+    clase: "plano chico" + (puesta && puesta !== A_CREDITO ? " marcado-" + puesta : ""),
+    title: `Cambiar cómo paga ${com.persona}`,
+    alHacerClic: () => elegirComoPagaLaPersona(raiz, com, quien, puesta),
+    // El caso normal (a credito) no grita: el boton solo dice para que sirve.
+    // Los otros dos SI se nombran, que es lo que hay que ver de un vistazo en
+    // cuarenta y seis tarjetas.
+  }, !cual ? "Mezclado" : cual.forma === A_CREDITO ? "Cómo paga" : cual.titulo);
+}
+
+function elegirComoPagaLaPersona(raiz, com, quien, puesta) {
+  const opciones = COMO_SE_PAGA.map((x) =>
+    el("button", {
+      clase: "opcion-cobro" + (x.forma === puesta ? " puesta" : ""),
+      alHacerClic: () => {
+        const cambiados = ponerComoPagaLaPersona(estado.datos, quien, x.forma);
+        cambio();
+        cerrar();
+        pintarRegistrar(raiz);
+        mensaje(`${com.persona}: ${x.titulo.toLowerCase()} ` +
+                `(${cambiados} ${cambiados === 1 ? "plato" : "platos"}).`, "bien", 4);
+      },
+    },
+      el("strong", { texto: x.titulo }),
+      el("span", { texto: x.explica })
+    )
+  );
+
+  const { cerrar } = ventana({
+    titulo: `¿Cómo paga ${com.persona}?`,
+    cuerpo: el("div", {},
+      el("p", { clase: "nota", estilo: "margin:0 0 var(--e3)",
+        texto: "Esto cambia TODOS los platos que le anotó hoy." }),
+      el("div", { clase: "lista-cobro" }, ...opciones)),
+    botones: [{ texto: "Cancelar" }],
+  });
+}
+
+/**
+ * Los tres botones de "cómo paga", para toda la persona.
+ *
+ * Van a la vista y no dentro de una ventana: ella no explora, y una forma de
+ * cobro escondida detrás de un botón es una forma de cobro que nunca se usa.
+ * El que está puesto se ve marcado.
+ */
+function controlDeComoPaga(raiz, laEmpresa) {
+  const quien = { empresa: laEmpresa, persona: personaActiva, fecha: estado.fecha };
+  const puesta = comoPagaLaPersona(estado.datos.consumos, quien);
+  const cuantos = renglonesDe(personaActiva).length;
+
+  return el("div", { clase: "como-paga" },
+    el("span", { clase: "como-paga-rotulo", texto: "Cómo paga:" }),
+    ...COMO_SE_PAGA.map((x) =>
+      el("button", {
+        clase: "chico" + (x.forma === puesta ? " marcado-" + x.forma : ""),
+        title: x.explica,
+        alHacerClic: () => {
+          const cambiados = ponerComoPagaLaPersona(estado.datos, quien, x.forma);
+          cambio();
+          pintarRegistrar(raiz);
+          // Si todavía no ha pedido nada, no hay nada que cambiar: lo que pasa
+          // es que el PRÓXIMO plato va a nacer así. Hay que decirlo, si no
+          // parece que el botón no hizo nada.
+          mensaje(
+            cuantos === 0
+              ? `Listo: lo que le anote a ${personaActiva} entra como "${x.titulo.toLowerCase()}".`
+              : `${personaActiva}: ${x.titulo.toLowerCase()} ` +
+                `(${cambiados} ${cambiados === 1 ? "plato" : "platos"}).`,
+            "bien", 4);
+        },
+      }, x.titulo)
+    ),
+    // Mezclado es un caso de verdad, no un error. Se dice en vez de escoger
+    // una por su cuenta.
+    puesta === null && cuantos > 0
+      ? el("span", { clase: "como-paga-mezclado",
+          texto: "Ahora tiene platos de varias formas. Toque una para dejarlos todos igual." })
+      : null
+  );
+}
+
 /** La comanda de la persona activa, con su buscador de platos. */
 function comandaEnCurso(raiz) {
   const persona = estado.datos.personas.find(
@@ -230,6 +327,15 @@ function comandaEnCurso(raiz) {
         alHacerClic: () => { personaActiva = null; pintarRegistrar(raiz); },
       }, "Terminar con esta persona")
     ),
+
+    // Cómo paga ESTA persona, de una.
+    //
+    // El botón de cada plato sigue estando para el caso raro (el almuerzo lo
+    // paga la empresa y la gaseosa la paga él). Pero lo normal es que la
+    // persona entera pague de una forma, y hacerlo plato por plato son tres
+    // toques a las seis de la mañana -- y el tercero se olvida. Ese plato
+    // olvidado se le cobra a la empresa algo que la persona ya pagó.
+    controlDeComoPaga(raiz, laEmpresa),
     atajosDePedido(raiz, laEmpresa, mios.length),
     buscaPlato.nodo,
     mios.length ? tablaDePlatos(mios, raiz) : el("p", {
@@ -439,6 +545,13 @@ function listaDeComandas(raiz) {
         ? el("p", { estilo: "margin:0;padding:0 var(--e3) var(--e2);color:var(--rojo);font-size:var(--t-xs)", texto: "Hay un plato sin precio. Ábrala para arreglarlo." })
         : null,
       el("footer", { clase: "comanda-pie" },
+        // Cambiar cómo paga, desde la tarjeta.
+        //
+        // Antes, para corregirlo había que volver a abrir la persona: buscarla
+        // otra vez en el buscador, cambiarlo plato por plato y cerrarla. Ella
+        // ve el día en estas tarjetas, así que si aquí no se puede, en la
+        // práctica no se corrige.
+        botonDeComoPagaLaTarjeta(raiz, com, platos),
         el("button", {
           clase: "chico",
           alHacerClic: () => { personaActiva = nombre; pintarRegistrar(raiz); window.scrollTo({ top: 0, behavior: "smooth" }); },
@@ -721,6 +834,15 @@ function agregarPlato(plato, raiz, cuantos = 1) {
   // de marcar plato por plato a las seis de la mañana.
   const esCasa = esLaCasa(empresaPorCodigo(laEmpresa));
 
+  // El plato nuevo nace como los que esa persona YA tiene hoy.
+  //
+  // Sin esto, ella marcaba "pagó de una", agregaba la gaseosa, y la gaseosa
+  // entraba a crédito sin decir nada. A fin de quincena se le cobraba a la
+  // empresa una gaseosa que la persona ya había pagado: cobrada dos veces.
+  const comoViene = comoPagaLaPersona(estado.datos.consumos, {
+    empresa: laEmpresa, persona: personaActiva, fecha: estado.fecha,
+  });
+
   const renglon = nuevoConsumo({
     fecha: estado.fecha,
     empresa: laEmpresa,
@@ -728,7 +850,7 @@ function agregarPlato(plato, raiz, cuantos = 1) {
     producto: plato,
     cantidad,
     precioUnitario: precio === null ? 0 : precio,
-    cobro: esCasa ? DE_CONTADO : null,
+    cobro: comoViene || (esCasa ? DE_CONTADO : null),
   });
   estado.datos.consumos.push(renglon);
   cambio();
@@ -1025,7 +1147,6 @@ function elegirComoSePaga(renglon, raiz) {
       clase: "opcion-cobro" + (x.forma === actual ? " puesta" : ""),
       alHacerClic: () => {
         ponerFormaDeCobro(renglon, x.forma);
-        recalcularRevisar(renglon);
         cambio();
         cerrar();
         pintarRegistrar(raiz);
@@ -1054,7 +1175,4 @@ function elegirComoSePaga(renglon, raiz) {
  * mirando el viejo, va a leer algo coherente en vez de lo contrario. Es un
  * campo de más en el archivo; una cuenta equivocada cuesta bastante más.
  */
-function ponerFormaDeCobro(renglon, forma) {
-  renglon.cobro = forma;
-  renglon.facturable = forma !== CORTESIA;
-}
+

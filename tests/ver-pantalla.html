@@ -327,6 +327,44 @@ try {
           }
         }
 
+        // "&forzar=elegir-persona+efectivo": marca "Pagó de una" para TODA la
+        // persona y despues le anota otro plato.
+        //
+        // Es el caso que costaba plata: ella marcaba efectivo, agregaba la
+        // gaseosa, y la gaseosa entraba a credito sin decir nada. A fin de
+        // quincena se le cobraba a la empresa algo que la persona ya habia
+        // pagado. Eso no se ve mirando la pantalla: hay que anotar y revisar
+        // como quedo el renglon.
+        if (pidio && forzar.includes("efectivo")) {
+          const boton = [...raiz.querySelectorAll(".como-paga button")]
+            .find((b) => /Pag./i.test(b.textContent));
+          if (!boton) {
+            pasos.push("MAL: no esta el control de como paga");
+          } else {
+            boton.click();
+            await new Promise((r) => setTimeout(r, 80));
+
+            const otra = [...raiz.querySelectorAll("label")]
+              .find((l) => /Que pidio|Qu. pidi./i.test(l.textContent));
+            const casilla2 = otra && raiz.querySelector("#" + CSS.escape(otra.htmlFor));
+            if (casilla2) {
+              casilla2.focus();
+              casilla2.value = "coca";
+              casilla2.dispatchEvent(new Event("input", { bubbles: true }));
+              const ops = [...raiz.querySelectorAll('li[role="option"]')]
+                .filter((li) => !li.classList.contains("crear"));
+              if (ops.length) {
+                ops[0].click();
+                await new Promise((r) => setTimeout(r, 80));
+              }
+            }
+            const suyos = datos.consumos.filter(
+              (c) => c.persona === quien && c.fecha === estado.fecha);
+            pasos.push("sus platos ahora: " +
+              suyos.map((c) => c.producto + "=" + formaDeCobro(c)).join(", "));
+          }
+        }
+
         loQueSeTecleo = pasos.join(" · ");
       }
     }

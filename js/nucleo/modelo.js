@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { normalizar, aEntero } from "./formato.js";
-import { clavePrecio, clavePersona } from "./calculos.js";
+import { clavePrecio, clavePersona, formaDeCobro, CORTESIA } from "./calculos.js";
 import { limpiarNombre } from "./nombres.js";
 
 /** La versión del formato de los datos. Si algún día cambia, sirve para migrar. */
@@ -335,6 +335,42 @@ export function borrarProducto(datos, nombre) {
  * nuevoConsumo, para que un renglón arreglado quede marcado igual que uno
  * recién nacido y no se quede con un aviso viejo pegado.
  */
+/**
+ * Cómo se paga UN renglón.
+ *
+ * Se guardan los dos campos: "cobro" es el de ahora y "facturable" el viejo,
+ * que todavía leen los datos que vienen del Excel. Escribir solo uno los
+ * dejaría diciendo cosas distintas.
+ */
+export function ponerFormaDeCobro(consumo, forma) {
+  consumo.cobro = forma;
+  consumo.facturable = forma !== CORTESIA;
+  return recalcularRevisar(consumo);
+}
+
+/**
+ * Cómo paga TODA la persona ese día, de una sola vez.
+ *
+ * Antes había que tocarlo plato por plato. Si alguien pedía almuerzo, gaseosa
+ * y postre y pagaba en efectivo, eran tres toques -- y a las seis de la mañana
+ * el tercero se olvida. Ese plato olvidado se le cobra a la empresa en la
+ * quincena, cuando la persona ya lo pagó: cobrado dos veces, y en silencio.
+ *
+ * Devuelve cuántos renglones cambiaron, para poder decírselo.
+ */
+export function ponerComoPagaLaPersona(datos, { empresa, persona, fecha }, forma) {
+  const llave = clavePersona(empresa, persona);
+  let cambiados = 0;
+  for (const c of datos.consumos) {
+    if (c.fecha !== fecha) continue;
+    if (clavePersona(c.empresa, c.persona) !== llave) continue;
+    if (formaDeCobro(c) === forma) continue;
+    ponerFormaDeCobro(c, forma);
+    cambiados++;
+  }
+  return cambiados;
+}
+
 export function recalcularRevisar(consumo) {
   const revisar = [];
   const precio = Number(consumo.precioUnitario) || 0;

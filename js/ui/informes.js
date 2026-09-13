@@ -863,6 +863,7 @@ export function pintarPorPersona(raiz) {
   const quincenas = [...new Set(filas.map((f) => f.quincenaActual))];
   const mezcladas = quincenas.length > 1;
   const rotuloQuincena = mezcladas ? "Quincena en curso" : `Quincena ${quincenas[0]}`;
+  const hayContado = filas.some((f) => f.contado > 0);
 
   poner(raiz,
     el("dl", { clase: "cifras", estilo: "margin-bottom:var(--e5)" },
@@ -899,6 +900,14 @@ export function pintarPorPersona(raiz) {
         { titulo: hasta ? `${fechaCorta(estado.fecha)} – ${fechaCorta(hasta)}` : fechaCorta(estado.fecha), clase: "n" },
         { titulo: rotuloQuincena, clase: "n" },
         { titulo: "Mes", clase: "n" },
+        // Lo que la persona pagó de su bolsillo NO va en las otras columnas:
+        // esas son lo que se le cobra a la empresa, y meterlo ahí se lo
+        // descontaría dos veces. Pero si no sale en ninguna parte, alguien que
+        // pagó todo de una aparece en $ 0 -- como si no hubiera comido.
+        //
+        // La columna sale solo cuando hay: el resto del tiempo sería una
+        // columna de rayas que hay que leer todos los días para nada.
+        ...(hayContado ? [{ titulo: "Pagó de una", clase: "n" }] : []),
       ],
       filas.map((f) =>
         el("tr", {},
@@ -932,7 +941,13 @@ export function pintarPorPersona(raiz) {
               ? el("span", { clase: "marca-quincena", texto: "Q" + f.quincenaActual })
               : null
           ),
-          el("td", { clase: "n", estilo: "font-weight:700", texto: pesos(f.mes) })
+          el("td", { clase: "n", estilo: "font-weight:700", texto: pesos(f.mes) }),
+          ...(hayContado
+            ? [el("td", { clase: "n" },
+                f.contado
+                  ? el("span", { clase: "marca-cobro contado", texto: pesos(f.contado) })
+                  : "·")]
+            : [])
         )
       ),
       el("tr", {},
@@ -940,7 +955,10 @@ export function pintarPorPersona(raiz) {
         el("td", { clase: "n", texto: String(filas.reduce((a, f) => a + f.facturas, 0)) }),
         el("td", { clase: "n", texto: pesos(tDia) }),
         el("td", { clase: "n", texto: pesos(tEnCurso) }),
-        el("td", { clase: "n", texto: pesos(tMes) })
+        el("td", { clase: "n", texto: pesos(tMes) }),
+        ...(hayContado
+          ? [el("td", { clase: "n", texto: pesos(filas.reduce((a, f) => a + f.contado, 0)) })]
+          : [])
       )
     )
   );

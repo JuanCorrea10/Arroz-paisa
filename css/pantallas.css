@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20260911-1027";
+  --version: "20260913-1002";
 }
 
 /* ===========================================================================
@@ -1709,6 +1709,12 @@ html { scroll-behavior: smooth; }
 .marca-cobro.contado { background: #dcefe4; color: #145a3c; }
 .marca-cobro.cortesia { background: var(--beige); color: var(--tinta-suave); }
 
+/* El que esta puesto se ve puesto, tambien el normal.
+
+   Faltaba el de "a credito" -- el caso de todos los dias -- asi que en el
+   control de la persona no se marcaba ninguno y no habia forma de saber cual
+   estaba. Es discreto a proposito: es lo normal, no una excepcion. */
+button.marcado-empresa { background: var(--papel-hueso); border-color: var(--tinta-media); font-weight: 700; }
 button.marcado-contado { background: #dcefe4; border-color: #9ccbb2; color: #145a3c; }
 button.marcado-cortesia { background: var(--beige); color: var(--tinta-suave); }
 
@@ -1939,4 +1945,40 @@ td.plata-fila { font-weight: 600; }
   font-size: var(--t-xs);
   color: var(--tinta-suave);
   line-height: 1.25;
+}
+
+/* ---------------------------------------------------------------------
+/*  "Cómo paga" esta persona
+/*
+/*  Antes solo se podía marcar plato por plato. Si alguien pedía tres
+/*  cosas y pagaba de una, eran tres toques a las seis de la mañana -- y
+/*  el tercero se olvidaba. Ese plato olvidado se le cobraba a la empresa
+/*  algo que la persona ya había pagado: cobrado dos veces, en silencio.
+/*
+/*  Los tres botones van A LA VISTA y no dentro de una ventana: una forma
+/*  de cobro escondida detrás de un botón es una que nunca se usa.
+/* --------------------------------------------------------------------- */
+
+.como-paga {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--e2);
+  margin: var(--e3) 0 0;
+}
+
+.como-paga-rotulo {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: var(--t-sm);
+  color: var(--tinta-media);
+}
+
+/* Que estén mezclados es un caso de verdad -- el almuerzo lo paga la
+   empresa y la gaseosa la paga él --, así que se dice en vez de escoger
+   una por cuenta propia. */
+.como-paga-mezclado {
+  flex-basis: 100%;
+  font-size: var(--t-xs);
+  color: var(--amarillo);
 }

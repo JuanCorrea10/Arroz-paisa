@@ -160,6 +160,37 @@ export function formaDeCobro(consumo) {
   return consumo && consumo.facturable === false ? CORTESIA : A_CREDITO;
 }
 
+/**
+ * Cómo viene pagando esa persona ESE día.
+ *
+ * Devuelve la forma si todos sus platos del día coinciden, y null si están
+ * mezclados o si todavía no ha pedido nada.
+ *
+ * Sirve para dos cosas distintas y las dos importan:
+ *
+ *   1. La pantalla marca cuál está puesta, sin adivinar.
+ *   2. Un plato NUEVO nace con la misma forma que los otros de esa persona.
+ *      Sin eso, ella marcaba "pagó de una", agregaba la gaseosa y la gaseosa
+ *      entraba a crédito -- callada, y a fin de quincena se le cobraba a la
+ *      empresa algo que la persona ya había pagado. Cobrado dos veces.
+ *
+ * Que devuelva null cuando están mezclados NO es un descuido: es un caso de
+ * verdad (el almuerzo lo paga la empresa y la gaseosa la paga él). La pantalla
+ * lo tiene que decir en vez de escoger una por su cuenta.
+ */
+export function comoPagaLaPersona(consumos, { empresa, persona, fecha }) {
+  const llave = clavePersona(empresa, persona);
+  let forma = null;
+  for (const c of consumos) {
+    if (c.fecha !== fecha) continue;
+    if (clavePersona(c.empresa, c.persona) !== llave) continue;
+    const suya = formaDeCobro(c);
+    if (forma === null) forma = suya;
+    else if (forma !== suya) return null;
+  }
+  return forma;
+}
+
 /** ¿Esto entra en la cuenta de cobro de la empresa? */
 export function loPagaLaEmpresa(consumo) {
   return formaDeCobro(consumo) === A_CREDITO;
