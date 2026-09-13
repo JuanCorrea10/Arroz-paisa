@@ -14,6 +14,7 @@ import "./ventas.test.mjs";
 import "./casa.test.mjs";
 import "./como-paga.test.mjs";
 import "./compras.test.mjs";
+import "./importar-compras.test.mjs";
 import "./empresa-unica.test.mjs";
 import "./aceptacion.test.mjs";
 import { correrTodo } from "./probar.mjs";

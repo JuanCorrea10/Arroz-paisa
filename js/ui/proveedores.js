@@ -27,6 +27,8 @@ import {
   estaPagada, sinValor, proveedoresDe, sedesDe, proveedoresParecidos,
 } from "../nucleo/compras.js";
 import { nuevaCompra, ponerPagada } from "../nucleo/modelo.js";
+import { hojasDesdeArchivo } from "../datos/excel.js";
+import { importarCompras } from "../nucleo/importar-compras.js";
 
 // La semana y la sede que se están mirando. Viven aquí y no en estado.js
 // porque son de estas pantallas: cambiarlas no puede moverle el día a
@@ -227,7 +229,8 @@ export function pintarCompras(raiz) {
       el("div", {},
         el("h1", { texto: "Facturas de proveedores" }),
         el("p", { texto: "Anote la factura que acaba de traer el proveedor." })
-      )
+      ),
+      acciones(botonDeTraerElExcel(raiz))
     ),
     cajaDeFactura(raiz),
     mandoDeSemana(repintar)
@@ -397,4 +400,132 @@ function avisoDeParecidos() {
         : null
     )
   );
+}
+
+
+// ===========================================================================
+//  3. TRAER EL EXCEL
+//
+//  Sin esto, pasarse a la app cuesta teclear 141 facturas a mano -- y nadie
+//  hace eso: se queda en el Excel y el trabajo no sirvio de nada.
+// ===========================================================================
+
+function botonDeTraerElExcel(raiz) {
+  const entrada = el("input", {
+    type: "file",
+    accept: ".xlsx,.xls",
+    estilo: "display:none",
+    alCambiar: (ev) => {
+      const archivo = ev.target.files && ev.target.files[0];
+      ev.target.value = "";
+      if (archivo) traerElExcelDeFacturas(raiz, archivo);
+    },
+  });
+
+  return el("span", {},
+    el("button", {
+      clase: estado.datos.compras.length ? "plano chico" : "principal chico",
+      alHacerClic: () => entrada.click(),
+    }, "Traer el Excel de facturas"),
+    entrada
+  );
+}
+
+async function traerElExcelDeFacturas(raiz, archivo) {
+  let leido;
+  try {
+    const bytes = new Uint8Array(await archivo.arrayBuffer());
+    leido = importarCompras(await hojasDesdeArchivo(bytes));
+  } catch (e) {
+    mensaje("No se pudo leer ese archivo de Excel: " + e.message, "malo", 9);
+    return;
+  }
+
+  if (!leido.compras.length) {
+    mensaje(
+      "Ese archivo no trae facturas de proveedores. La hoja tiene que tener " +
+      "las columnas FECHA, No FACTURA, PROVEEDOR y VALOR TOTAL.", "ojo", 10);
+    return;
+  }
+
+  // Las que ya estan NO se vuelven a meter.
+  //
+  // Si ella importa dos veces -- y lo va a hacer, porque el Excel lo siguen
+  // llenando los supervisores mientras se pasa a la app -- sin esto quedaria
+  // todo duplicado y el pago semanal saldria por el doble. Con la misma
+  // fecha, proveedor y numero, es la misma factura.
+  const yaEstan = new Set(estado.datos.compras.map(
+    (c) => c.fecha + "|" + normalizar(c.proveedor) + "|" + normalizar(c.factura)));
+  const nuevas = leido.compras.filter(
+    (c) => !yaEstan.has(c.fecha + "|" + c.proveedor + "|" + normalizar(c.factura)));
+  const repetidasDeAntes = leido.compras.length - nuevas.length;
+
+  const { ventana } = await import("./componentes.js");
+  let acepto = false;
+
+  const { cerrar } = ventana({
+    titulo: "Esto es lo que trae el archivo",
+    cuerpo: el("div", {},
+      el("dl", { clase: "cifras" },
+        cifra("Facturas nuevas", String(nuevas.length), true),
+        cifraPlata("Suman", nuevas.reduce((a, c) => a + c.valor, 0), true),
+        cifra("Proveedores", String(leido.resumen.proveedores)),
+        cifra("Sedes", leido.resumen.sedes.join(", ") || "—")
+      ),
+
+      repetidasDeAntes
+        ? el("p", { clase: "nota" },
+            `${repetidasDeAntes} ya estaban anotadas y no se van a repetir.`)
+        : null,
+
+      // Lo que no se pudo leer se DICE, con el renglon y el motivo. Botarlo
+      // callado seria plata que nadie paga y nadie sabe que falta.
+      leido.avisos.length
+        ? el("div", { clase: "aviso-ojo" },
+            el("p", { estilo: "margin:0 0 var(--e2)" },
+              el("strong", { texto: `Ojo: ${leido.avisos.length} ` +
+                (leido.avisos.length === 1 ? "renglon no se pudo leer" : "renglones no se pudieron leer") + ". " }),
+              "Esos hay que anotarlos a mano, o arreglarlos en el Excel y volver a traerlo."),
+            el("ul", { clase: "avisos" },
+              ...leido.avisos.slice(0, 10).map((a) =>
+                el("li", {},
+                  el("strong", { texto: `${a.hoja}, fila ${a.fila}: ` }),
+                  a.motivo, a.dice ? ` ("${a.dice}")` : "",
+                  a.proveedor ? ` — ${a.proveedor}` : "")),
+              leido.avisos.length > 10
+                ? el("li", { clase: "nota", texto: `…y ${leido.avisos.length - 10} mas` })
+                : null))
+        : null,
+
+      leido.repetidas.length
+        ? el("p", { clase: "nota ojo" },
+            `${leido.repetidas.length} facturas aparecen dos veces con el mismo ` +
+            "numero y proveedor en el archivo. Entran las dos: puede ser doble " +
+            "registro, o pueden ser dos entregas del mismo dia. Revise: " +
+            leido.repetidas.map((r) => `${r.factura} de ${r.proveedor}`).join(", "))
+        : null,
+
+      leido.resumen.hojasSaltadas.length
+        ? el("p", { clase: "nota" },
+            "Hojas que no son de facturas y se dejaron por fuera: " +
+            leido.resumen.hojasSaltadas.join(", ") + ".")
+        : null
+    ),
+    botones: [
+      { texto: "No, cancelar" },
+      {
+        texto: `Traer las ${nuevas.length}`,
+        clase: "principal",
+        alHacerClic: () => { acepto = true; },
+      },
+    ],
+    alCerrar: () => {
+      if (!acepto || !nuevas.length) return;
+      for (const c of nuevas) estado.datos.compras.push(nuevaCompra(c));
+      cambio();
+      pintarCompras(raiz);
+      mensaje(`Entraron ${nuevas.length} facturas.`, "bien", 6);
+    },
+  });
+  void cerrar;
 }
