@@ -19,6 +19,7 @@ import { pintarRegistrar } from "./ui/registrar.js";
 import { pintarCocina, pintarResumenDia, pintarPorPersona, pintarCuadre } from "./ui/informes.js";
 import { pintarCobro } from "./ui/cobro.js";
 import { pintarInicio } from "./ui/inicio.js";
+import { FAMILIAS, familiaDe } from "./ui/familias.js";
 import { pintarCompras, pintarPagos } from "./ui/proveedores.js";
 import { pintarVentas } from "./ui/ventas.js";
 import { pintarCompartir } from "./ui/compartir.js";
@@ -242,9 +243,16 @@ function pantallaRota(donde, error) {
 
 function marcarMenu(cual) {
   let activa = null;
+  // Estando en cualquiera de "las listas", la que se marca es la familia: si
+  // no, entraría a Platos y el menú no señalaría nada.
+  const familia = familiaDe(cual);
+
   for (const a of document.querySelectorAll(".menu a")) {
     const suyo = a.getAttribute("href").replace("#", "");
-    if (suyo === cual) { a.setAttribute("aria-current", "page"); activa = a; }
+    const esLaSuya = familia
+      ? a.dataset.familia === familia.id
+      : suyo === cual;
+    if (esLaSuya) { a.setAttribute("aria-current", "page"); activa = a; }
     else a.removeAttribute("aria-current");
   }
   moverIndicador(activa);
@@ -295,14 +303,35 @@ function construirMenu(cual) {
   const suyas = mundo ? mundo.grupos.flatMap((g) => g.pantallas) : [];
   const visibles = ["inicio", ...suyas, ...DE_LOS_DOS.pantallas];
 
+  // Las familias van como UNA sola entrada.
+  //
+  // "Las listas" son cuatro pantallas -- Personas, Platos, Empresas y Nombres
+  // repetidos -- que de sueltas llenaban la barra, y mandadas a la portada
+  // quedaban incómodas: cambiarle el precio a un plato costaba salirse de lo
+  // que estaba haciendo. Una entrada, y adentro se pasa de una a otra.
+  const deFamilia = new Set(FAMILIAS.flatMap((f) => f.pantallas.map((p) => p.cual)));
+  const familiasPuestas = new Set();
+
   for (const nombre of visibles) {
     const p = PANTALLAS[nombre];
     if (!p) continue;
+
+    if (deFamilia.has(nombre)) {
+      const familia = familiaDe(nombre);
+      if (familiasPuestas.has(familia.id)) continue;
+      familiasPuestas.add(familia.id);
+      menu.append(el("a", {
+        href: "#" + familia.pantallas[0].cual,
+        datos: { familia: familia.id },
+      }, familia.nombre));
+      continue;
+    }
+
     // "barra" puede ser una función: así Revisar solo aparece cuando de
     // verdad hay algo que revisar.
     let vaEnLaBarra = typeof p.barra === "function" ? p.barra() : p.barra === true;
     // La pantalla en la que está parada SIEMPRE sale, aunque no sea de barra.
-    // Si no, al entrar a Personas desde la portada el menú no la marcaría por
+    // Si no, al entrar a Compartir desde la portada el menú no la marcaría por
     // ningún lado y ella no sabría dónde está.
     if (nombre === cual) vaEnLaBarra = true;
     if (!vaEnLaBarra) continue;

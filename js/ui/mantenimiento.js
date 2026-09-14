@@ -12,6 +12,7 @@ import {
   poner,
 } from "./componentes.js";
 import { estado, cambio, empresas } from "./estado.js";
+import { barraDeFamilia } from "./familias.js";
 import { pesos, normalizar, coincide, aEntero, nombreMes } from "../nucleo/formato.js";
 import { clavePrecio, precioDe, indicePorCodigo, clavePersona, precioDelPlato, precioSeVeRaro,
   rangoQuincena } from "../nucleo/calculos.js";
@@ -32,6 +33,7 @@ import {
 
 export function pintarEmpresas(raiz) {
   vaciar(raiz);
+  poner(raiz, barraDeFamilia("empresas"));
   const lista = estado.datos.empresas;
 
   poner(raiz,
@@ -227,6 +229,7 @@ const platosMarcados = new Set();
 
 export function pintarCatalogo(raiz) {
   vaciar(raiz);
+  poner(raiz, barraDeFamilia("catalogo"));
   const lista = empresas();
   const productos = [...estado.datos.productos].sort((a, b) =>
     a.nombre.localeCompare(b.nombre, "es"));
@@ -772,6 +775,7 @@ const marcadas = new Set();
 
 export function pintarPersonas(raiz) {
   vaciar(raiz);
+  poner(raiz, barraDeFamilia("personas"));
   const lista = empresas();
   // Ordenar por empresa NO es agrupar por empresa y ya: dentro de cada una la
   // gente sigue yendo por nombre. Si no, buscar a alguien dentro de MGP sería

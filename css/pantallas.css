@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20260914-0957";
+  --version: "20260914-1001";
 }
 
 /* ===========================================================================
@@ -2121,4 +2121,52 @@ td.plata-fila { font-weight: 600; }
 .boton-inicio .etiqueta.pendiente {
   display: inline-block;
   margin-top: var(--e2);
+}
+
+/* ---------------------------------------------------------------------
+/*  La tira de una familia: pasar de una lista a otra sin salirse
+/*
+/*  "Las listas" son cuatro pantallas -- Personas, Platos, Empresas y
+/*  Nombres repetidos -- que de sueltas llenaban la barra de arriba, y
+/*  mandadas a la portada quedaban incómodas: cambiarle el precio a un
+/*  plato costaba SALIRSE de lo que estaba haciendo, ir a la portada,
+/*  buscar y entrar. Una entrada en la barra, y aquí se pasa de una a
+/*  otra de un toque.
+/* --------------------------------------------------------------------- */
+
+.familia {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--e2);
+  margin-bottom: var(--e4);
+  padding-bottom: var(--e2);
+  border-bottom: 1px solid var(--borde);
+}
+
+.familia-rotulo {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: var(--t-sm);
+  color: var(--tinta-suave);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-right: var(--e2);
+}
+
+.familia-enlace {
+  padding: var(--e2) var(--e3);
+  border-radius: var(--r2);
+  text-decoration: none;
+  color: var(--tinta-media);
+  font-weight: 600;
+  font-size: var(--t-sm);
+}
+.familia-enlace:hover { background: var(--papel-hueso); color: var(--tinta); }
+
+/* La que está puesta se ve puesta, y no solo un poquito: si se parece a
+   las otras, ella no sabe cuál está mirando. */
+.familia-enlace.puesta {
+  background: var(--marca);
+  color: #fff;
 }

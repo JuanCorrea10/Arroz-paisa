@@ -17,6 +17,7 @@ import {
   poner,
 } from "./componentes.js";
 import { estado, cambio, empresas } from "./estado.js";
+import { barraDeFamilia } from "./familias.js";
 import { pesos, fechaCorta, normalizar } from "../nucleo/formato.js";
 import {
   gruposParaRevisar, nombresSucios, limpiarTodosLosNombres, simularUnion,
@@ -33,6 +34,7 @@ let mostrando = DE_A_CUANTOS;
 
 export function pintarNombres(raiz) {
   vaciar(raiz);
+  poner(raiz, barraDeFamilia("nombres"));
 
   const datos = estado.datos;
   const grupos = gruposParaRevisar(datos);
