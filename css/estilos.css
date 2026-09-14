@@ -1086,8 +1086,13 @@ tr[data-estado="cuadra"] .diferencia { color: var(--verde); }
   /* Cada empresa arranca en su propia hoja.
      Es la misma regla que ya cumple el PDF. Sin esto, al imprimir la pantalla
      con "Todas las empresas" los pedidos de MGP y el título de AGRO caían en
-     la misma hoja, y esa hoja no se le puede mandar a ninguna de las dos. */
-  .documento.aparte + .documento.aparte { break-before: page; page-break-before: always; }
+     la misma hoja, y esa hoja no se le puede mandar a ninguna de las dos.
+
+     Va con "~" y no con "+": en la cuenta de cobro entre un documento y el
+     siguiente hay cosas que no se imprimen -- el rótulo de la empresa, los
+     avisos de precios en $ 0 -- y con "+" la regla dejaba de valer por eso,
+     aunque en el papel los documentos quedaran seguidos. */
+  .documento.aparte ~ .documento.aparte { break-before: page; page-break-before: always; }
 
   /* La cinta de la empresa, en papel, con letra negra y recuadro.
 

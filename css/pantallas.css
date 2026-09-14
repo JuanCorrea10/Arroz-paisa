@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20260914-1038";
+  --version: "20260914-1521";
 }
 
 /* ===========================================================================
@@ -1190,6 +1190,27 @@ thead th {
 .mando .campo-rango > small {
   min-height: 0;
   margin-top: var(--e2);
+}
+
+/* ---------------------------------------------------------------------
+   De quien es cada cuenta, con "Todas las empresas"
+
+   Con las cuatro en pantalla son cuatro documentos seguidos, y sin un
+   rotulo no se sabe donde termina uno y empieza el otro. El rotulo no se
+   imprime: el papel ya lleva el nombre de la empresa en su franja roja.
+   --------------------------------------------------------------------- */
+
+.cobro-cual {
+  align-items: center;
+  gap: var(--e3);
+  margin: var(--e6) 0 var(--e2);
+  padding-bottom: var(--e2);
+  border-bottom: 2px solid var(--borde-fuerte);
+}
+
+.cobro-cual strong {
+  font-family: var(--display);
+  font-size: var(--t-md);
 }
 
 /* ===========================================================================

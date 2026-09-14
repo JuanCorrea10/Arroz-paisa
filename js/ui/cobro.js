@@ -31,6 +31,10 @@ import { exportarEmpresaAExcel } from "../exportar/excel-export.js";
 let quincena = 1;
 let empresaCobro = null;
 
+// "" quiere decir TODAS. Cadena vacia y no null porque es el value de la
+// opcion en el <select>, y un <select> solo sabe de texto.
+const TODAS = "";
+
 export function pintarCobro(raiz) {
   vaciar(raiz);
   const repintar = () => pintarCobro(raiz);
@@ -43,15 +47,28 @@ export function pintarCobro(raiz) {
     );
     return;
   }
-  if (!empresaCobro || !empresasClientes().some((e) => e.codigo === empresaCobro)) {
+  // "Todas" es una eleccion valida y no se pisa. Sin esto, cada repintada la
+  // devolvia a la primera empresa y el selector no se dejaba poner en Todas.
+  if (empresaCobro !== TODAS &&
+      (!empresaCobro || !empresasClientes().some((e) => e.codigo === empresaCobro))) {
     const puesta = asegurarEmpresa();
     const sirve = puesta && empresasClientes().some((e) => e.codigo === puesta.codigo);
     empresaCobro = (sirve ? puesta : empresasClientes()[0]).codigo;
   }
 
-  const empresa = empresaPorCodigo(empresaCobro);
+  // Con una empresa escogida, "las que estan en juego" es ella sola. Con
+  // Todas, son las cuatro, y todo lo de abajo -- la fecha, la quincena, los
+  // avisos, los documentos -- se hace para cada una.
+  const empresa = empresaCobro === TODAS ? null : empresaPorCodigo(empresaCobro);
+  const enJuego = empresa ? [empresa] : empresasClientes();
   const acreedor = estado.datos.config.acreedor || {};
-  const laFecha = fechaDeCobro(estado.datos, empresaCobro, estado.anio, estado.mes, quincena);
+
+  // La fecha que va escrita en el documento. Con Todas se muestra solo si las
+  // cuatro tienen la misma: si difieren, el campo sale vacio en vez de
+  // mostrar la de una y hacer creer que es la de todas.
+  const susFechas = enJuego.map(
+    (e) => fechaDeCobro(estado.datos, e.codigo, estado.anio, estado.mes, quincena) || "");
+  const laFecha = susFechas.every((f) => f === susFechas[0]) ? susFechas[0] : "";
 
   // El rango de ESTA cuenta. Si no hay ninguno escogido, manda la quincena de
   // la empresa; si lo hay, manda él y no se toca la empresa -- cambiarle los
@@ -60,9 +77,13 @@ export function pintarCobro(raiz) {
   // El rango va en FECHAS completas, no en días sueltos: una cuenta puede
   // cubrir "del 1 de enero al 31 de diciembre" cuando una fábrica se atrasa,
   // y dos números de día no dicen de qué mes son.
-  const propio = rangoDeCobro(estado.datos, empresaCobro, estado.anio, estado.mes, quincena);
-  const cubre = rangoEnFechas(estado.anio, estado.mes, propio
-    || rangoQuincena(estado.anio, estado.mes, quincena, empresa));
+  const propio = empresa
+    ? rangoDeCobro(estado.datos, empresaCobro, estado.anio, estado.mes, quincena)
+    : null;
+  const cubre = empresa
+    ? rangoEnFechas(estado.anio, estado.mes,
+        propio || rangoQuincena(estado.anio, estado.mes, quincena, empresa))
+    : null;
 
   const ponerElRango = (desde, hasta) => {
     if (!esFechaISO(desde) || !esFechaISO(hasta)) {
@@ -81,35 +102,35 @@ export function pintarCobro(raiz) {
     repintar();
   };
 
-  const cuenta = cuentaDeCobro(
-    estado.datos.consumos, estado.anio, estado.mes, quincena, empresa, laFecha, propio);
-
-  // Aviso importante: si en el periodo hay algo en $ 0, la cuenta sale corta.
-  // Se miran los renglones que ESTA cuenta cubre, no los de la quincena, que
-  // pueden ser otros si los días se escogieron a mano.
-  const delPeriodo = propio
-    ? deRango(estado.datos.consumos, estado.anio, estado.mes, propio, empresa)
-    : deQuincena(estado.datos.consumos, estado.anio, estado.mes, quincena, empresa);
-  const enCero = delPeriodo.filter((c) => !esCortesia(c) && !(c.precioUnitario > 0));
-
   poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Cuenta de cobro" }),
-        el("p", { texto: "Elija la empresa y las fechas que cubre. El documento sale listo para entregar." })
+        el("p", { texto: empresa
+          ? "Elija la empresa y las fechas que cubre. El documento sale listo para entregar."
+          : "Las cuentas de las cuatro empresas, una detras de otra. Imprimir las saca en hojas aparte." })
       ),
       acciones(
-        el("button", { clase: "chico", alHacerClic: () => window.print() }, "Imprimir"),
-        botonQueTrabaja("Bajar PDF", () => {
-            try { pdfCuentaDeCobro(cuenta, acreedor); mensaje("PDF descargado.", "bien"); }
-            catch (e) { mensaje(e.message, "malo", 8); }
-          })
+        el("button", { clase: "chico", alHacerClic: () => window.print() },
+           empresa ? "Imprimir" : `Imprimir las ${enJuego.length}`),
+        // El PDF va por empresa y no todo junto: una cuenta de cobro nombra a
+        // UN deudor, y un archivo con cuatro deudores adentro no se le puede
+        // entregar a ninguno. Con Todas, cada seccion trae su propio boton.
+        empresa
+          ? botonQueTrabaja("Bajar PDF", () => {
+              try { bajarElPdf(empresa, quincena, acreedor); }
+              catch (e) { mensaje(e.message, "malo", 8); }
+            })
+          : null
       )
     ),
     el("div", { clase: "mando" },
       el("div", { clase: "campo" },
         el("label", { for: "cobro-empresa", texto: "Empresa" }),
         el("select", { id: "cobro-empresa", alCambiar: (e) => { empresaCobro = e.target.value; repintar(); } },
+          // Va de primera, como en Resumen del dia y en Cuanto vendi: las tres
+          // pantallas se eligen igual, y asi no hay que aprenderse cada una.
+          el("option", { value: TODAS, selected: empresaCobro === TODAS }, "Todas las empresas"),
           ...empresasClientes().map((e) => el("option", { value: e.codigo, selected: e.codigo === empresaCobro }, `${e.codigo} — ${e.razonSocial}`)))
       ),
       el("div", { clase: "campo" },
@@ -119,20 +140,28 @@ export function pintarCobro(raiz) {
           id: "cobro-fecha",
           value: laFecha || "",
           alCambiar: (e) => {
-            ponerFechaDeCobro(estado.datos, empresaCobro, estado.anio, estado.mes,
-                              quincena, e.target.value);
+            for (const emp of enJuego) {
+              ponerFechaDeCobro(estado.datos, emp.codigo, estado.anio, estado.mes,
+                                quincena, e.target.value);
+            }
             cambio();
             repintar();
           },
         }),
         el("small", { estilo: "color:var(--tinta-suave)",
-          texto: laFecha ? fechaLarga(laFecha) : "Sin poner: no sale en el documento" })
+          texto: laFecha ? fechaLarga(laFecha)
+            : (empresa ? "Sin poner: no sale en el documento"
+                       : `Sin poner: no sale en el documento. Lo que ponga aqui va en las ${enJuego.length}.`) })
       ),
       el("div", { clase: "campo" },
         el("label", { for: "cobro-quincena", texto: "Quincena" }),
         el("select", { id: "cobro-quincena", alCambiar: (e) => { quincena = Number(e.target.value); repintar(); } },
-          el("option", { value: 1, selected: quincena === 1 }, `Quincena 1 (${diceElRango(empresa, 1)})`),
-          el("option", { value: 2, selected: quincena === 2 }, `Quincena 2 (${diceElRango(empresa, 2)})`))
+          // Con Todas no se dicen los dias porque cada empresa corta distinto
+          // (MGP el 13, las demas el 14): un solo rango seria falso para tres.
+          el("option", { value: 1, selected: quincena === 1 },
+             empresa ? `Quincena 1 (${diceElRango(empresa, 1)})` : "Quincena 1"),
+          el("option", { value: 2, selected: quincena === 2 },
+             empresa ? `Quincena 2 (${diceElRango(empresa, 2)})` : "Quincena 2"))
       ),
 
       el("div", { clase: "campo" },
@@ -155,7 +184,16 @@ export function pintarCobro(raiz) {
       // Va en su propio renglón y de último: dos calendarios no caben en una
       // columna de 210 px, se apilaban y dejaban un hueco al lado que hacía
       // ver la barra rota.
-      el("div", { clase: "campo campo-rango no-imprimir" },
+      !empresa
+        // Con Todas no hay un rango que valga para las cuatro: cada empresa
+        // corta la quincena en su dia. Se dice, y se dice como cambiarlo, en
+        // vez de dejar dos casillas que mentirian para tres de ellas.
+        ? el("div", { clase: "campo campo-rango no-imprimir" },
+            el("label", { texto: "Fechas que cubre" }),
+            el("small", { estilo: "color:var(--tinta-suave)",
+              texto: `Cada empresa va por su quincena ${quincena}. Para cambiarle las ` +
+                     `fechas a una, escojala aqui arriba.` }))
+        : el("div", { clase: "campo campo-rango no-imprimir" },
         el("label", { for: "cobro-desde", texto: "Fechas que cubre" }),
         el("div", { clase: "rango-fechas" },
           el("span", { clase: "rango-palabra", texto: "del" }),
@@ -202,6 +240,90 @@ export function pintarCobro(raiz) {
   // pantallas -- título, controles, contenido -- que es lo que hace que no haya
   // que aprenderse cada una por aparte.
   poner(raiz, tarjetaDeTodasLasEmpresas());
+
+  // Una seccion por empresa. Con una escogida es una sola; con Todas son las
+  // cuatro, cada una con sus avisos y su documento. El CSS ya las manda a
+  // hojas distintas al imprimir, que es como ella las entrega.
+  for (const emp of enJuego) {
+    seccionDeCobro(raiz, emp, quincena, acreedor, repintar, !empresa);
+  }
+
+  // Los archivos que se le mandan al cliente van por empresa. Con Todas no se
+  // repiten cuatro veces: para eso esta Compartir, que es donde ella los busca.
+  if (empresa) poner(raiz, paraElCliente(empresa));
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * Baja el PDF de la cuenta de UNA empresa.
+ *
+ * Una cuenta de cobro nombra a un solo deudor, asi que no hay "el PDF de las
+ * cuatro": son cuatro archivos, cada uno para su fabrica.
+ */
+function bajarElPdf(empresa, quincena, acreedor) {
+  const propio = rangoDeCobro(estado.datos, empresa.codigo, estado.anio, estado.mes, quincena);
+  const laFecha = fechaDeCobro(estado.datos, empresa.codigo, estado.anio, estado.mes, quincena);
+  const cuenta = cuentaDeCobro(estado.datos.consumos, estado.anio, estado.mes,
+                               quincena, empresa, laFecha, propio);
+  pdfCuentaDeCobro(cuenta, acreedor);
+  mensaje(`PDF de ${empresa.codigo} descargado.`, "bien");
+}
+
+/**
+ * Los avisos y el documento de UNA empresa.
+ *
+ * Esto vivia suelto dentro de pintarCobro. Salio de ahi el dia que se pudo
+ * escoger "Todas las empresas": es lo mismo pintado una vez o cuatro, y
+ * dejarlo adentro obligaba a copiarlo.
+ */
+function seccionDeCobro(raiz, empresa, quincena, acreedor, repintar, conTitulo) {
+  const empresaCobro = empresa.codigo;
+  const propio = rangoDeCobro(estado.datos, empresaCobro, estado.anio, estado.mes, quincena);
+  const cubre = rangoEnFechas(estado.anio, estado.mes,
+    propio || rangoQuincena(estado.anio, estado.mes, quincena, empresa));
+  const laFecha = fechaDeCobro(estado.datos, empresaCobro, estado.anio, estado.mes, quincena);
+  const cuenta = cuentaDeCobro(
+    estado.datos.consumos, estado.anio, estado.mes, quincena, empresa, laFecha, propio);
+
+  // Aviso importante: si en el periodo hay algo en $ 0, la cuenta sale corta.
+  // Se miran los renglones que ESTA cuenta cubre, no los de la quincena, que
+  // pueden ser otros si los dias se escogieron a mano.
+  const delPeriodo = propio
+    ? deRango(estado.datos.consumos, estado.anio, estado.mes, propio, empresa)
+    : deQuincena(estado.datos.consumos, estado.anio, estado.mes, quincena, empresa);
+  const enCero = delPeriodo.filter((c) => !esCortesia(c) && !(c.precioUnitario > 0));
+
+  // Ampliar el rango desde aqui: es el mismo gesto que arriba, pero para ESTA
+  // empresa, que con Todas en pantalla no es la que dice el selector.
+  const ponerElRango = (desde, hasta) => {
+    if (!esFechaISO(desde) || !esFechaISO(hasta) || desde > hasta) {
+      mensaje("Esas fechas no sirven.", "malo", 6);
+      return;
+    }
+    ponerRangoDeCobro(estado.datos, empresaCobro, estado.anio, estado.mes, quincena,
+                      { desde, hasta });
+    cambio();
+    repintar();
+  };
+
+  // Con las cuatro en pantalla hay que decir de cual es cada pedazo -- si no,
+  // son cuatro tablas seguidas y no se sabe cual es de quien -- y dejarle a la
+  // mano el PDF de esa, que es lo que le manda a esa fabrica.
+  if (conTitulo) {
+    poner(raiz,
+      el("div", { clase: "fila entre cobro-cual no-imprimir" },
+        el("div", { clase: "fila", estilo: "align-items:center;gap:var(--e2)" },
+          cinta(empresa.codigo),
+          el("strong", { texto: razonSocialDe(empresa) })
+        ),
+        botonQueTrabaja("Bajar PDF", () => {
+          try { bajarElPdf(empresa, quincena, acreedor); }
+          catch (e) { mensaje(e.message, "malo", 8); }
+        })
+      )
+    );
+  }
 
   if (enCero.length) {
     // Agrupados por PLATO, y no un renglón por renglón.
@@ -300,7 +422,6 @@ export function pintarCobro(raiz) {
     poner(raiz, documentoDeCobro(cuenta, acreedor));
   }
 
-  poner(raiz, paraElCliente(empresa));
 }
 
 // ---------------------------------------------------------------------------
@@ -423,9 +544,12 @@ async function arreglarElPrecio(empresa, plato, renglones, repintar) {
 }
 
 function documentoDeCobro(cuenta, acreedor) {
-  const { empresa, rango, mes, anio, personas, total, facturas, fechaCuenta } = cuenta;
+  const { empresa, rango, personas, total, facturas, fechaCuenta } = cuenta;
 
-  return el("div", { clase: "documento" },
+  // "aparte" = esta hoja no se junta con la anterior al imprimir. Con una sola
+  // empresa no cambia nada; con las cuatro es lo que evita que la cuenta de
+  // MGP y la de AGRO salgan en la misma hoja, que no se le puede dar a nadie.
+  return el("div", { clase: "documento aparte" },
 
     // El logo va AQUI y no en la barra de la app: este es el papel que se le
     // entrega al cliente, y aqui se ve grande y con el fondo blanco del
@@ -467,9 +591,12 @@ function documentoDeCobro(cuenta, acreedor) {
       )
     ),
 
+    // El mismo periodo que dice el PDF, y dicho igual. Se quedo escribiendo
+    // "del 2026-08-01 al 2026-08-13 de agosto de 2026" cuando el rango paso a
+    // ser fechas: la pantalla y el papel decian cosas distintas.
     el("p", {},
       el("strong", { texto: "Concepto: " }),
-      `Almuerzos y bebidas suministrados del ${rango.desde} al ${rango.hasta} de ${nombreMes(mes).toLowerCase()} de ${anio}.`
+      `Almuerzos y bebidas suministrados. ${rangoEnPalabras(rango.desde, rango.hasta)}.`
     ),
 
     el("dl", { clase: "cifras", estilo: "margin:var(--e4) 0" },

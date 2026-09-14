@@ -461,6 +461,16 @@ try {
     }
   }
 
+  // "&forzar=todas-las-empresas" pone el selector de la cuenta de cobro en
+  // Todas. Esa eleccion vive dentro de cobro.js y no se puede poner por URL.
+  if (forzar === "todas-las-empresas") {
+    const sel = raiz.querySelector("#cobro-empresa");
+    if (sel) {
+      sel.value = "";
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  }
+
   if (forzar === "ventana") {
     const abrir = [...raiz.querySelectorAll("button")]
       .find((b) => /editar|cambiar|agregar|póngale/i.test(b.textContent));
