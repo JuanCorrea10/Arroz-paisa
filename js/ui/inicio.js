@@ -64,17 +64,18 @@ export function pintarInicio(raiz, mundos, deLosDos, pantallas) {
 }
 
 /**
- * Un mundo: el botón grande y, debajo, lo que hay adentro.
+ * Un mundo: el botón grande y, debajo, lo que hay adentro POR GRUPOS.
  *
  * Se ve lo de adentro y no solo el nombre porque ella no explora: un botón que
  * dice "Proveedores" y nada más la obliga a entrar a ver qué hay, y si no le
  * suena, no entra.
+ *
+ * Y va por grupos y no de corrido: Almuerzos tiene trece pantallas, y trece
+ * botones uno debajo del otro son una pared -- hay que leerla entera para
+ * encontrar una. Partidas en "el día a día", "la plata" y "las listas", se
+ * salta directo al montón donde está lo que busca.
  */
 function tarjetaDeMundo(mundo, pantallas) {
-  const dentro = mundo.grupos.flatMap((g) => g.pantallas)
-    .map((cual) => pantallas[cual])
-    .filter(Boolean);
-
   const primera = mundo.grupos[0] && mundo.grupos[0].pantallas[0];
 
   return el("section", { clase: "mundo" },
@@ -83,19 +84,22 @@ function tarjetaDeMundo(mundo, pantallas) {
       el("p", { texto: mundo.dice })
     ),
     el("div", { clase: "mundo-dentro" },
-      ...dentro.map((p) =>
-        el("a", { clase: "boton-inicio", href: "#" + nombreDe(pantallas, p) },
-          el("strong", { texto: p.titulo }),
-          p.dice ? el("span", { texto: p.dice }) : null
+      ...mundo.grupos.map((g) =>
+        el("div", { clase: "mundo-grupo" },
+          // Con un solo grupo el rótulo sobra: sería un título para decir lo
+          // mismo que ya dice el nombre del mundo.
+          mundo.grupos.length > 1
+            ? el("h3", { clase: "mundo-grupo-titulo", texto: g.nombre })
+            : null,
+          el("div", { clase: "mundo-grupo-botones" },
+            ...g.pantallas
+              .filter((cual) => pantallas[cual])
+              .map((cual) => botonDePantalla(pantallas[cual], cual))
+          )
         )
       )
     )
   );
-}
-
-/** La llave de una pantalla dentro del mapa. */
-function nombreDe(pantallas, pantalla) {
-  return Object.keys(pantallas).find((k) => pantallas[k] === pantalla) || "inicio";
 }
 
 function tarjetaDeGrupo(grupo, pantallas) {
@@ -108,11 +112,37 @@ function tarjetaDeGrupo(grupo, pantallas) {
       ...grupo.pantallas.map((cual) => {
         const p = pantallas[cual];
         if (!p) return null;
-        return el("a", { clase: "boton-inicio", href: "#" + cual },
-          el("strong", { texto: p.titulo }),
-          p.dice ? el("span", { texto: p.dice }) : null
-        );
+        return botonDePantalla(p, cual);
       })
     )
+  );
+}
+
+/**
+ * Un botón de la portada, con lo que tiene pendiente.
+ *
+ * El numerito era lo único que valía la pena de la vieja pantalla de Ajustes
+ * -- que era otra portada, duplicada, con los mismos destinos que esta. Aquí
+ * sirve más: "Revisar nombres" y "Datos y respaldos" ya no están en la barra
+ * de arriba, así que sin esto no habría cómo enterarse de que tienen algo
+ * esperando.
+ *
+ * Un contador roto no puede tumbar la portada: si falla, se queda sin numerito.
+ */
+function botonDePantalla(pantalla, cual) {
+  let pendientes = 0;
+  if (typeof pantalla.contar === "function") {
+    try { pendientes = pantalla.contar(); } catch { pendientes = 0; }
+  }
+
+  return el("a", {
+    clase: "boton-inicio" + (pendientes ? " con-pendiente" : ""),
+    href: "#" + cual,
+  },
+    el("strong", { texto: pantalla.titulo }),
+    pantalla.dice ? el("span", { texto: pantalla.dice }) : null,
+    pendientes
+      ? el("span", { clase: "etiqueta pendiente", texto: pendientes + " por revisar" })
+      : null
   );
 }

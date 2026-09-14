@@ -33,59 +33,76 @@ import { revisarTodo } from "./nucleo/calculos.js";
 
 // ---------------------------------------------------------------------------
 //  Las pantallas
-//
-//  "menu: true" quiere decir que sale arriba, en la barra verde.
-//  Las demás viven dentro de Ajustes, para que la barra no se llene de cosas
-//  que se usan una vez al mes.
 // ---------------------------------------------------------------------------
 
 //  "dice" es qué hace la pantalla, en una línea y en sus palabras. Sale en la
 //  portada. El menú de arriba solo tiene el nombre, y un nombre suelto
 //  ("Cuadre", "Compartir") no dice para qué sirve: hay que abrirlo a ver.
+//  "barra" = sale en el menú de arriba. "dice" = qué hace, para la portada.
+//
+//  En la barra va SOLO lo que tiene ritmo: lo de todos los días y lo de cada
+//  quincena. Todo lo demás -- las listas, los respaldos, el manual -- vive en
+//  la portada, que para eso está.
+//
+//  Llegó a haber DIECISIETE pestañas. Una barra de diecisiete palabras, para
+//  alguien que no explora, es una barra donde no se encuentra nada: se lee de
+//  corrido buscando la que suene y se entra a la primera que se parezca.
 const PANTALLAS = {
-  inicio:    { titulo: "Inicio",           menu: true,
+  inicio:    { titulo: "Inicio",           barra: true,
                dice: "Todo lo que hace la app",
                pintar: (raiz) => pintarInicio(raiz, MUNDOS, DE_LOS_DOS, PANTALLAS) },
-  registrar: { titulo: "Registrar el día", pintar: pintarRegistrar, menu: true,
-               dice: "Anotar lo que pidió cada persona" },
-  cocina:    { titulo: "Cocina",           pintar: pintarCocina,    menu: true,
-               dice: "Cuánto hay que preparar hoy" },
-  resumen:   { titulo: "Resumen del día",  pintar: pintarResumenDia, menu: true,
-               dice: "Cómo fue el día y qué se le manda a cada empresa" },
-  persona:   { titulo: "Por persona",      pintar: pintarPorPersona, menu: true,
-               dice: "Cuánto lleva cada persona" },
-  cobro:     { titulo: "Cuenta de cobro",  pintar: pintarCobro,     menu: true,
-               dice: "La cuenta de la quincena para cada empresa" },
-  ventas:    { titulo: "Cuánto vendí",     pintar: pintarVentas,    menu: true,
-               dice: "Cuántos platos salieron y cuánta plata entró" },
-  cuadre:    { titulo: "Cuadre",           pintar: pintarCuadre,    menu: true,
-               dice: "Cuadrar las facturas del día con lo que le dicen" },
-  compartir: { titulo: "Compartir",        pintar: pintarCompartir, menu: true,
-               dice: "Mandarle a una empresa lo suyo" },
-  revisar:   { titulo: "Revisar",          pintar: pintarErrores,   menu: true,
-               dice: "Lo que quedó raro y hay que arreglar",
-               // El numerito rojo del menu: lo que esta esperando decision.
-               contar: () => cuantosSueltos(estado.datos).total },
-  ajustes:   { titulo: "Ajustes",          pintar: pintarAjustes,   menu: true,
-               dice: "El mes que se está mirando y sus datos" },
-  ayuda:     { titulo: "Cómo se usa",      pintar: pintarAyuda,     menu: true,
-               dice: "El manual, por si se le olvida algo" },
 
-  compras:   { titulo: "Facturas",         pintar: pintarCompras,   menu: true,
+  // --- Almuerzos -----------------------------------------------------------
+  registrar: { titulo: "Registrar el día", pintar: pintarRegistrar, barra: true,
+               dice: "Anotar lo que pidió cada persona" },
+  cocina:    { titulo: "Cocina",           pintar: pintarCocina,    barra: true,
+               dice: "Cuánto hay que preparar hoy" },
+  resumen:   { titulo: "Resumen del día",  pintar: pintarResumenDia, barra: true,
+               dice: "Cómo fue el día y qué se le manda a cada empresa" },
+  persona:   { titulo: "Por persona",      pintar: pintarPorPersona, barra: true,
+               dice: "Cuánto lleva cada persona" },
+  cobro:     { titulo: "Cuenta de cobro",  pintar: pintarCobro,     barra: true,
+               dice: "La cuenta de la quincena para cada empresa" },
+  ventas:    { titulo: "Cuánto vendí",     pintar: pintarVentas,    barra: true,
+               dice: "Cuántos platos salieron y cuánta plata entró" },
+
+  // Revisar sale en la barra SOLO cuando hay algo que revisar.
+  //
+  // Es una alerta, no una sección: una pestaña que dice "Revisar" y al entrar
+  // no hay nada es una pestaña que se aprende a ignorar -- y el día que sí
+  // haya algo, tampoco se mira. Cuando hay, aparece con su numerito rojo.
+  revisar:   { titulo: "Revisar",          pintar: pintarErrores,
+               barra: () => cuantosSueltos(estado.datos).total > 0,
+               dice: "Lo que quedó raro y hay que arreglar",
+               contar: () => cuantosSueltos(estado.datos).total },
+
+  cuadre:    { titulo: "Cuadre",           pintar: pintarCuadre,
+               dice: "Cuadrar las facturas del día con lo que le dicen" },
+  compartir: { titulo: "Compartir",        pintar: pintarCompartir,
+               dice: "Mandarle a una empresa lo suyo" },
+
+  // --- Proveedores ---------------------------------------------------------
+  compras:   { titulo: "Facturas",         pintar: pintarCompras,   barra: true,
                dice: "Anotar la factura que trajo el proveedor" },
-  pagos:     { titulo: "Pago semanal",     pintar: pintarPagos,     menu: true,
+  pagos:     { titulo: "Pago semanal",     pintar: pintarPagos,     barra: true,
                dice: "Cuánto hay que girarle a cada proveedor esta semana" },
 
+  // --- Las listas y la app: solo en la portada -----------------------------
   personas:  { titulo: "Personas",         pintar: pintarPersonas,
                dice: "La gente de cada empresa" },
   nombres:   { titulo: "Revisar nombres",  pintar: pintarNombres,
-               dice: "Nombres repetidos o mal escritos" },
+               dice: "Juntar al mismo empleado anotado de dos formas",
+               contar: () => gruposParaRevisar(estado.datos).length +
+                             nombresSucios(estado.datos).length },
   catalogo:  { titulo: "Catálogo",         pintar: pintarCatalogo,
                dice: "Los platos y cuánto vale cada uno" },
   empresas:  { titulo: "Empresas",         pintar: pintarEmpresas,
                dice: "A quiénes se les vende y cómo corta la quincena" },
   datos:     { titulo: "Datos y respaldos", pintar: pintarDatos,
-               dice: "Respaldos, la carpeta y traer el Excel" },
+               dice: "Respaldos, la carpeta y traer el Excel",
+               contar: () => revisarTodo(estado.datos).length },
+  ayuda:     { titulo: "Cómo se usa",      pintar: pintarAyuda,
+               dice: "El manual, por si se le olvida algo" },
 };
 
 /**
@@ -121,7 +138,7 @@ const MUNDOS = [
       {
         nombre: "La plata",
         explica: "Lo que se cobra y lo que entra",
-        pantallas: ["cobro", "ventas", "persona", "cuadre"],
+        pantallas: ["cobro", "ventas", "persona", "cuadre", "compartir"],
       },
       {
         nombre: "Las listas",
@@ -147,8 +164,8 @@ const MUNDOS = [
 // Lo que no es de ningún mundo: sirve para los dos y sale abajo en la portada.
 const DE_LOS_DOS = {
   nombre: "La app",
-  explica: "Respaldos, ajustes y ayuda",
-  pantallas: ["compartir", "datos", "ajustes", "ayuda"],
+  explica: "Respaldos y ayuda",
+  pantallas: ["datos", "ayuda"],
 };
 
 /** En qué mundo está una pantalla. El de almuerzos es el de siempre. */
@@ -256,71 +273,6 @@ function moverIndicador(enlace) {
 }
 
 // ---------------------------------------------------------------------------
-//  La pantalla de Ajustes: un centro con avisos de lo que hay pendiente
-// ---------------------------------------------------------------------------
-
-function pintarAjustes(donde) {
-  vaciar(donde);
-
-  const porRevisar = gruposParaRevisar(estado.datos).length;
-  const sucios = nombresSucios(estado.datos).length;
-  const problemas = revisarTodo(estado.datos).length;
-
-  const tarjetas = [
-    {
-      href: "#personas",
-      titulo: "Personas",
-      texto: "Quién come en cada empresa.",
-      pendiente: null,
-    },
-    {
-      href: "#nombres",
-      titulo: "Revisar nombres",
-      texto: "Juntar al mismo empleado que quedó anotado de dos formas.",
-      pendiente: porRevisar + sucios > 0
-        ? `${porRevisar + sucios} por revisar`
-        : null,
-    },
-    {
-      href: "#catalogo",
-      titulo: "Catálogo",
-      texto: "Los platos y cuánto vale cada uno en cada empresa.",
-      pendiente: null,
-    },
-    {
-      href: "#empresas",
-      titulo: "Empresas",
-      texto: "Los datos de cada empresa y hasta qué día va cada quincena.",
-      pendiente: null,
-    },
-    {
-      href: "#datos",
-      titulo: "Datos y respaldos",
-      texto: "Traer el Excel, bajar copias de seguridad y ver los renglones con problemas.",
-      pendiente: problemas > 0 ? `${problemas} renglones con problemas` : null,
-    },
-  ];
-
-  poner(donde,
-    el("div", { clase: "encabezado-pantalla" },
-      el("div", {},
-        el("h1", { texto: "Ajustes" }),
-        el("p", { texto: "Las cosas que se tocan de vez en cuando." })
-      )
-    ),
-    el("div", { clase: "rejilla rejilla-2 tarjetas-ajustes" },
-      ...tarjetas.map((t) =>
-        el("a", { clase: "tarjeta tarjeta-enlace", href: t.href },
-          el("h2", { texto: t.titulo }),
-          el("p", { texto: t.texto }),
-          t.pendiente ? el("span", { clase: "etiqueta pendiente", texto: t.pendiente }) : null
-        )
-      )
-    )
-  );
-}
-
-// ---------------------------------------------------------------------------
 //  La barra de arriba
 // ---------------------------------------------------------------------------
 
@@ -340,14 +292,20 @@ function construirMenu(cual) {
   vaciar(menu);
 
   const mundo = mundoDe(cual);
-  const suyas = mundo
-    ? mundo.grupos.flatMap((g) => g.pantallas)
-    : [];
+  const suyas = mundo ? mundo.grupos.flatMap((g) => g.pantallas) : [];
   const visibles = ["inicio", ...suyas, ...DE_LOS_DOS.pantallas];
 
   for (const nombre of visibles) {
     const p = PANTALLAS[nombre];
     if (!p) continue;
+    // "barra" puede ser una función: así Revisar solo aparece cuando de
+    // verdad hay algo que revisar.
+    let vaEnLaBarra = typeof p.barra === "function" ? p.barra() : p.barra === true;
+    // La pantalla en la que está parada SIEMPRE sale, aunque no sea de barra.
+    // Si no, al entrar a Personas desde la portada el menú no la marcaría por
+    // ningún lado y ella no sabría dónde está.
+    if (nombre === cual) vaEnLaBarra = true;
+    if (!vaEnLaBarra) continue;
     menu.append(
       el("a", { href: "#" + nombre },
         p.titulo,
@@ -371,7 +329,7 @@ function construirMenu(cual) {
  */
 function refrescarContadores() {
   for (const [nombre, p] of Object.entries(PANTALLAS)) {
-    if (!p.menu || !p.contar) continue;
+    if (!p.contar) continue;
     const enlace = document.querySelector(`.menu a[href="#${nombre}"]`);
     const globo = enlace && enlace.querySelector(".contador");
     if (!globo) continue;
@@ -603,8 +561,8 @@ async function arrancar() {
   } else if (vinoDeSemilla) {
     mensaje(
       `Listo: ${estado.datos.consumos.length} renglones de ` +
-      `${nombreMes(estado.mes)}. Si algo no cuadra, en Ajustes puede volver a ` +
-      "traer el Excel.",
+      `${nombreMes(estado.mes)}. Si algo no cuadra, en "Datos y respaldos" ` +
+      "puede volver a traer el Excel.",
       "bien", 8
     );
   }

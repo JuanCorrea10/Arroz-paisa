@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20260913-1107";
+  --version: "20260914-0957";
 }
 
 /* ===========================================================================
@@ -93,7 +93,6 @@
 /*  Ajustes: las tarjetas que llevan a las otras pantallas                 */
 /* --------------------------------------------------------------------- */
 
-.tarjetas-ajustes { align-items: stretch; }
 
 .tarjeta-enlace {
   display: block;
@@ -1070,15 +1069,9 @@ thead th {
 }
 
 /* Las tarjetas de Ajustes, en rejilla y con aire. */
-.tarjetas-ajustes { gap: var(--e4); }
-.tarjetas-ajustes .tarjeta-enlace { display: flex; flex-direction: column; }
-.tarjetas-ajustes .tarjeta-enlace p { flex: 1 1 auto; }
 
 /* Una etiqueta se ajusta a su texto. En una tarjeta flex, por defecto se
    estira de lado a lado y parece una barra de resaltado. */
-.tarjetas-ajustes .tarjeta-enlace { align-items: flex-start; }
-.tarjetas-ajustes .tarjeta-enlace p,
-.tarjetas-ajustes .tarjeta-enlace h2 { align-self: stretch; }
 .etiqueta { display: inline-block; }
 
 /* El aviso de "te llego una mezcla de versiones". Va arriba de todo, porque
@@ -2092,10 +2085,24 @@ td.plata-fila { font-weight: 600; }
   line-height: 1.35;
 }
 
-.mundo-dentro {
+.mundo-dentro { padding: var(--e3); }
+
+/* Los grupos de adentro: "el dia a dia", "la plata", "las listas".
+
+   Trece botones uno debajo del otro son una pared que hay que leer entera
+   para encontrar uno. Partidos en montones, se salta directo al que es. */
+.mundo-grupo + .mundo-grupo { margin-top: var(--e4); }
+.mundo-grupo-titulo {
+  margin: 0 0 var(--e2);
+  font-size: var(--t-xs);
+  color: var(--tinta-media);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.mundo-grupo-botones {
   display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: var(--e2);
-  padding: var(--e3);
 }
 .mundo-dentro .boton-inicio {
   border-left-width: 3px;
@@ -2103,3 +2110,15 @@ td.plata-fila { font-weight: 600; }
   box-shadow: none;
 }
 .mundo-dentro .boton-inicio strong { font-size: var(--t-base, 1rem); }
+
+/* Un botón de la portada que tiene algo esperando.
+
+   Sustituye al numerito que antes vivía en la pantalla de Ajustes -- que
+   era otra portada duplicada y ya no existe. Importa más ahora: "Revisar
+   nombres" y "Datos y respaldos" salieron de la barra de arriba, así que
+   este aviso es la única forma de enterarse. */
+.boton-inicio.con-pendiente { border-left-color: var(--amarillo); }
+.boton-inicio .etiqueta.pendiente {
+  display: inline-block;
+  margin-top: var(--e2);
+}

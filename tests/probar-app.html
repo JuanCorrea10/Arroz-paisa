@@ -118,6 +118,24 @@ marco.addEventListener("load", async () => {
     ? "OJO  hay pantallas sin agrupar en la portada"
     : "OK   todas las pantallas quedaron en un grupo");
 
+  // --- 1c. Cuántas pestañas hay ------------------------------------------
+  //
+  //  Llegó a haber DIECISIETE. Una barra de diecisiete palabras, para alguien
+  //  que no explora, es una barra donde no se encuentra nada: se lee de
+  //  corrido buscando la que suene y se entra a la primera que se parezca.
+  //
+  //  Se mide aquí para que no pueda volver a crecer sin que nadie se entere:
+  //  cada pantalla nueva quiere su pestaña, y una por una no se nota.
+  const TOPE = 9;
+  for (const [mundo, entrada] of [["Almuerzos", "#registrar"], ["Proveedores", "#compras"]]) {
+    ven.location.hash = entrada;
+    await esperar(400);
+    const pestanas = [...doc.querySelectorAll(".menu a")].map((a) => a.textContent.trim());
+    anotar(pestanas.length <= TOPE
+      ? `OK   ${mundo}: ${pestanas.length} pestañas — ${pestanas.join(" · ")}`
+      : `MAL  ${mundo} tiene ${pestanas.length} pestañas (el tope son ${TOPE}): ${pestanas.join(" · ")}`);
+  }
+
   ven.location.hash = "#registrar";
   await esperar(400);
 
