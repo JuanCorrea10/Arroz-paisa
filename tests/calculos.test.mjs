@@ -348,7 +348,10 @@ prueba("el consumo por persona separa a los dos Juanes", () => {
 prueba("la cuenta de cobro no mete lo que no se cobra", () => {
   const cuenta = cuentaDeCobro(D.consumos, 2026, 8, 2, E.MGP);
   igual(cuenta.total, 12000, "solo el almuerzo de Ana; el del 20 no se cobra");
-  igual(cuenta.rango, { desde: 14, hasta: 31 });
+  // El rango va en FECHAS y no en números de día: una cuenta puede cubrir
+  // "del 1 de enero al 31 de diciembre", y dos números sueltos no dicen de
+  // qué mes son.
+  igual(cuenta.rango, { desde: "2026-08-14", hasta: "2026-08-31" });
   cierto(cuenta.filas.every((f) => f.total > 0), "no salen renglones en cero en la cuenta");
 });
 

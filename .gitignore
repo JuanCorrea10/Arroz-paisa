@@ -42,6 +42,7 @@ docs/capturas/
 
 # --- Basura de las pruebas -------------------------------------------------
 tests/ultimo-diagnostico.txt
+tests/ultimo-veredicto.txt
 
 # Lo que escupen las paginas de prueba cuando generan un documento de verdad.
 # El PDF del informe lleva adentro los nombres de todas las personas de una

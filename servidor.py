@@ -62,6 +62,10 @@ class Manejador(http.server.SimpleHTTPRequestHandler):
             "/guardar-raros": "tests/salida/resumen-casos-raros.pdf",
             "/guardar-persona": "tests/salida/consumo-por-persona.pdf",
             "/guardar-cobro": "tests/salida/cuenta-de-cobro.pdf",
+            # El veredicto de tests/probar-app.html, que arranca la app entera
+            # y hace lo que ella hace cada manana. La pagina ya lo mandaba aqui
+            # y no habia buzon: el POST daba 404 y el resultado se perdia.
+            "/veredicto": "tests/ultimo-veredicto.txt",
         }
         destino = BUZONES.get(self.path)
         if destino is None:

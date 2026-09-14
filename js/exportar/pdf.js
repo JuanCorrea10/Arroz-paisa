@@ -5,9 +5,8 @@
 //  como un documento serio, no como una captura de pantalla.
 // ============================================================================
 
-import { pesos, fechaCorta, fechaLarga, nombreMes ,
-  sedeDeEmpresa, razonSocialDe,
-} from "../nucleo/formato.js";
+import { pesos, fechaCorta, fechaLarga, nombreMes, sedeDeEmpresa, razonSocialDe,
+  rangoEnPalabras, rangoParaArchivo } from "../nucleo/formato.js";
 
 // Los mismos colores del restaurante que usa la app. Cuando el supervisor
 // recibe el PDF tiene que reconocerlo como el mismo documento que le mostraron
@@ -163,11 +162,45 @@ function escribirAjustado(doc, texto, x, y, anchoMax, tamMax, tamMin, opciones) 
   return medida;
 }
 
-/** El encabezado rojo que llevan todos los documentos. */
+/**
+ * El encabezado rojo que llevan todos los documentos.
+ *
+ * La franja crece si el subtitulo no cabe en un renglon. Dejo de ser de 26 mm
+ * fijos el dia que una cuenta de cobro pudo cubrir cualquier periodo: con
+ * "Del 28 de diciembre de 2026 al 10 de enero de 2027 - INDUSTRIAS MGP" el
+ * subtitulo parte en dos, y el segundo renglon caia DEBAJO de la franja.
+ * Letra blanca sobre papel blanco: no se veia, y nada avisaba.
+ */
 function encabezado(doc, titulo, subtitulo, acreedor, conLogo = false) {
   const ancho = doc.internal.pageSize.getWidth();
+
+  // Se mide antes de pintar, porque el relleno tapa lo que ya este escrito y
+  // hay que saber de que alto va la franja. Si el logo no alcanza a cargar el
+  // subtitulo tendra MAS sitio del que se midio, nunca menos, asi que la
+  // franja puede sobrar de alto pero nunca quedar corta.
+  const izquierdaPrevista = conLogo && logoListo ? 34 : 14;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11.5);
+  let anchoDerecha = 0;
+  if (acreedor && acreedor.nombre) {
+    anchoDerecha = doc.getTextWidth(
+      medirAjustado(doc, acreedor.nombre, 76, 10.5, 7.5).renglones[0]);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    if (acreedor.nit) {
+      anchoDerecha = Math.max(anchoDerecha, doc.getTextWidth("NIT " + acreedor.nit));
+    }
+    if (acreedor.ciudad) {
+      anchoDerecha = Math.max(anchoDerecha, doc.getTextWidth(acreedor.ciudad));
+    }
+  }
+  doc.setFont("helvetica", "normal");
+  const medidaSub = medirAjustado(
+    doc, subtitulo, ancho - izquierdaPrevista - 20 - anchoDerecha, 11.5, 8);
+  const sobra = (medidaSub.renglones.length - 1) * medidaSub.tam * ALTO_RENGLON;
+
   doc.setFillColor(...MARCA);
-  doc.rect(0, 0, ancho, 26, "F");
+  doc.rect(0, 0, ancho, 26 + sobra, "F");
 
   // El logo va PRIMERO y en su propio pedazo de la franja, y las letras se
   // corren para dejarle el sitio.
@@ -213,7 +246,8 @@ function encabezado(doc, titulo, subtitulo, acreedor, conLogo = false) {
   escribirAjustado(doc, subtitulo, izquierda, 19.5, ancho - izquierda - 20 - ocupaDerecha, 11.5, 8);
 
   doc.setTextColor(0, 0, 0);
-  return 34;
+  // Lo que sigue arranca debajo de la franja, sea del alto que sea.
+  return 34 + sobra;
 }
 
 /** El pie con la fecha en que se generó y el número de página. */
@@ -262,15 +296,22 @@ function guardar(doc, nombre) {
 export function pdfCuentaDeCobro(cuenta, acreedor) {
   const doc = nuevoDocumento();
   const { empresa, anio, mes, quincena, rango, personas, total, facturas, fechaCuenta } = cuenta;
-  const periodo = `Del ${rango.desde} al ${rango.hasta} de ${nombreMes(mes).toLowerCase()} de ${anio}`;
+  // El periodo se dice completo, con mes y año, porque una cuenta ya no vive
+  // dentro de un mes: puede ir del 1 de enero al 31 de diciembre cuando una
+  // fábrica se atrasa. "Del 1 al 15" a secas sería ambiguo en el papel que
+  // archiva el contador de la fábrica.
+  const periodo = rangoEnPalabras(rango.desde, rango.hasta);
 
   // Con el logo del restaurante en la franja. Si no alcanzo a cargar, la
   // cuenta se entrega igual: sin logo se cobra, sin cuenta no.
   // Si los días se escogieron a mano, el rótulo NO puede decir "Quincena 2":
   // el papel diría una cosa y cubriría otra, y quien lo recibe archiva por ese
   // rótulo. Cuando es la quincena de verdad, se sigue llamando por su nombre.
+  // Cuando las fechas se escogieron a mano, el rótulo va SOLO con ellas: si
+  // llevara "Agosto 2026" delante y el rango fuera de enero a diciembre, el
+  // papel diría una cosa y cubriría otra, y quien lo recibe archiva por ahí.
   const rotulo = cuenta.rangoEscogido
-    ? `${nombreMes(mes)} ${anio} · Del ${rango.desde} al ${rango.hasta}`
+    ? periodo
     : `${nombreMes(mes)} ${anio} · Quincena ${quincena}`;
   let y = encabezado(doc, "CUENTA DE COBRO", rotulo, acreedor, true);
 
@@ -455,8 +496,11 @@ export function pdfCuentaDeCobro(cuenta, acreedor) {
   doc.text("Recibido / Aprobado", ancho - 90, fin + 5);
 
   pieDePagina(doc);
-  const cual = cuenta.rangoEscogido ? `${rango.desde}-al-${rango.hasta}` : `Q${quincena}`;
-  guardar(doc, `cuenta-de-cobro-${empresa.codigo}-${anio}-${String(mes).padStart(2, "0")}-${cual}.pdf`);
+  // Con fechas escogidas el nombre las lleva completas y no el mes que ella
+  // tenía en pantalla: dos cuentas distintas del mismo mes se pisarían.
+  guardar(doc, cuenta.rangoEscogido
+    ? `cuenta-de-cobro-${empresa.codigo}-${rangoParaArchivo(rango.desde, rango.hasta)}.pdf`
+    : `cuenta-de-cobro-${empresa.codigo}-${anio}-${String(mes).padStart(2, "0")}-Q${quincena}.pdf`);
 }
 
 // ---------------------------------------------------------------------------

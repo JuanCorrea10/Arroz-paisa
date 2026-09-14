@@ -46,6 +46,14 @@ async function esperarA(condicion, cuanto = 20000) {
 const marco = document.getElementById("app");
 
 marco.addEventListener("load", async () => {
+  try { await probar(); } catch (e) {
+    lineas.push("MAL  la prueba misma revento: " + (e && (e.stack || e.message)));
+    salida.textContent = lineas.join("\n");
+    try { await fetch("/veredicto", { method: "POST", body: lineas.join(" · ") }); } catch {}
+  }
+});
+
+async function probar() {
   const doc = marco.contentDocument;
   const ven = marco.contentWindow;
 
@@ -194,15 +202,19 @@ marco.addEventListener("load", async () => {
     ? "OK   la persona nueva quedó creada y con su apartado de pedidos"
     : "MAL  se creó la persona pero NO salió el apartado de pedidos");
 
-  mandar();
+  await mandar();
 
+  // El guion puede reventar a mitad -- una pantalla que cambio, un boton que
+  // ya no se llama igual -- y entonces nunca llegaba a mandar el veredicto:
+  // quedaba un silencio que se lee igual que "todo bien". Ahora el error es
+  // el veredicto.
   async function mandar() {
     if (reventones.length) anotar("MAL  la app reventó: " + reventones.join(" | "));
     const malas = lineas.filter((l) => l.startsWith("MAL")).length;
     anotar(malas ? `\n${malas} cosas MAL.` : "\nTodo bien.");
     try { await fetch("/veredicto", { method: "POST", body: lineas.join(" · ") }); } catch { /* sin servidor */ }
   }
-});
+}
 </script>
 </body>
 </html>

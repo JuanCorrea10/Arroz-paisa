@@ -13,13 +13,14 @@ import { el, vaciar, tabla, cifra, cifraPlata, acciones, vacio, mensaje, confirm
 import {
   estado, cambio, empresas, empresaPorCodigo, asegurarEmpresa, empresasClientes,
 } from "./estado.js";
-import { pesos, nombreMes, fechaCorta, fechaLarga, diaDe, diasDelMes, normalizar,
-  sedeDeEmpresa, razonSocialDe } from "../nucleo/formato.js";
+import { pesos, nombreMes, fechaCorta, fechaLarga, normalizar,
+  esFechaISO, rangoEnPalabras, diasDichos, sedeDeEmpresa,
+  razonSocialDe } from "../nucleo/formato.js";
 import {
   cuentaDeCobro, deQuincena, sumar, fechaDeCobro, ponerFechaDeCobro,
   esCortesia, sumarLoDeLaEmpresa, sumarLoDeContado, loPagaLaEmpresa,
   contarFacturas, fueraDelRango, deRango,
-  rangoQuincena, rangoDeCobro, ponerRangoDeCobro,
+  rangoQuincena, rangoDeCobro, ponerRangoDeCobro, rangoEnFechas,
 } from "../nucleo/calculos.js";
 import { ponerlePrecio } from "../nucleo/modelo.js";
 import { diceElRango } from "./mantenimiento.js";
@@ -56,19 +57,26 @@ export function pintarCobro(raiz) {
   // la empresa; si lo hay, manda él y no se toca la empresa -- cambiarle los
   // días a la empresa cambiaría todas las cuentas del año, las ya entregadas
   // incluidas.
-  const finDeMes = diasDelMes(estado.anio, estado.mes);
+  // El rango va en FECHAS completas, no en días sueltos: una cuenta puede
+  // cubrir "del 1 de enero al 31 de diciembre" cuando una fábrica se atrasa,
+  // y dos números de día no dicen de qué mes son.
   const propio = rangoDeCobro(estado.datos, empresaCobro, estado.anio, estado.mes, quincena);
-  const cubre = propio || rangoQuincena(estado.anio, estado.mes, quincena, empresa);
+  const cubre = rangoEnFechas(estado.anio, estado.mes, propio
+    || rangoQuincena(estado.anio, estado.mes, quincena, empresa));
 
   const ponerElRango = (desde, hasta) => {
-    const d = Math.max(1, Math.min(finDeMes, Number(desde) || 1));
-    const h = Math.max(1, Math.min(finDeMes, Number(hasta) || finDeMes));
-    if (d > h) {
-      mensaje("El primer día no puede ser mayor que el último.", "malo", 6);
+    if (!esFechaISO(desde) || !esFechaISO(hasta)) {
+      mensaje("Escoja las dos fechas en el calendario.", "malo", 6);
       repintar();
       return;
     }
-    ponerRangoDeCobro(estado.datos, empresaCobro, estado.anio, estado.mes, quincena, { desde: d, hasta: h });
+    if (desde > hasta) {
+      mensaje("La primera fecha no puede ser después de la última.", "malo", 6);
+      repintar();
+      return;
+    }
+    ponerRangoDeCobro(estado.datos, empresaCobro, estado.anio, estado.mes, quincena,
+      { desde, hasta });
     cambio();
     repintar();
   };
@@ -88,7 +96,7 @@ export function pintarCobro(raiz) {
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Cuenta de cobro" }),
-        el("p", { texto: "Elija la empresa, la quincena y los días que cubre. El documento sale listo para entregar." })
+        el("p", { texto: "Elija la empresa y las fechas que cubre. El documento sale listo para entregar." })
       ),
       acciones(
         el("button", { clase: "chico", alHacerClic: () => window.print() }, "Imprimir"),
@@ -127,44 +135,6 @@ export function pintarCobro(raiz) {
           el("option", { value: 2, selected: quincena === 2 }, `Quincena 2 (${diceElRango(empresa, 2)})`))
       ),
 
-      // De qué día a qué día va ESTA cuenta.
-      //
-      // Está aquí y no en Empresas a propósito: los días de la empresa son la
-      // regla ("cortamos el 14"), pero una cuenta suelta puede cubrir otra
-      // cosa, y el momento en que ella se da cuenta es este -- con la cuenta
-      // en pantalla y a punto de entregarla.
-      el("div", { clase: "campo no-imprimir" },
-        el("label", { for: "cobro-desde", texto: `Días que cubre (${nombreMes(estado.mes).toLowerCase()})` }),
-        el("div", { clase: "fila", estilo: "align-items:center;gap:var(--e2)" },
-          el("span", { texto: "del" }),
-          el("input", {
-            type: "number", id: "cobro-desde", min: 1, max: finDeMes, value: String(cubre.desde),
-            estilo: "width:5rem",
-            alCambiar: (e) => ponerElRango(e.target.value, cubre.hasta),
-          }),
-          el("span", { texto: "al" }),
-          el("input", {
-            type: "number", id: "cobro-hasta", min: 1, max: finDeMes, value: String(cubre.hasta),
-            estilo: "width:5rem",
-            alCambiar: (e) => ponerElRango(cubre.desde, e.target.value),
-          })
-        ),
-        propio
-          ? el("small", { estilo: "color:var(--tinta-suave)" },
-              `Escogidos solo para esta cuenta. La quincena ${quincena} va ${diceElRango(empresa, quincena)}. `,
-              el("button", {
-                clase: "plano chico",
-                alHacerClic: () => {
-                  ponerRangoDeCobro(estado.datos, empresaCobro, estado.anio, estado.mes, quincena, null);
-                  cambio();
-                  repintar();
-                },
-              }, "Volver a la quincena"))
-          : el("small", {
-              estilo: "color:var(--tinta-suave)",
-              texto: `Es la quincena ${quincena} completa. Si los cambia, aplica solo a esta cuenta.`,
-            })
-      ),
       el("div", { clase: "campo" },
         el("label", { for: "cobro-mes", texto: "Mes" }),
         el("select", { id: "cobro-mes", alCambiar: (e) => { estado.mes = Number(e.target.value); repintar(); } },
@@ -174,6 +144,52 @@ export function pintarCobro(raiz) {
         el("label", { for: "cobro-anio", texto: "Año" }),
         el("select", { id: "cobro-anio", alCambiar: (e) => { estado.anio = Number(e.target.value); repintar(); } },
           ...Array.from({ length: 5 }, (_, i) => estado.anio - 3 + i).map((a) => el("option", { value: a, selected: a === estado.anio }, String(a))))
+      ),
+      // De qué fecha a qué fecha va ESTA cuenta.
+      //
+      // Está aquí y no en Empresas a propósito: los días de la empresa son la
+      // regla ("cortamos el 14"), pero una cuenta suelta puede cubrir otra
+      // cosa, y el momento en que ella se da cuenta es este -- con la cuenta
+      // en pantalla y a punto de entregarla.
+      //
+      // Va en su propio renglón y de último: dos calendarios no caben en una
+      // columna de 210 px, se apilaban y dejaban un hueco al lado que hacía
+      // ver la barra rota.
+      el("div", { clase: "campo campo-rango no-imprimir" },
+        el("label", { for: "cobro-desde", texto: "Fechas que cubre" }),
+        el("div", { clase: "rango-fechas" },
+          el("span", { clase: "rango-palabra", texto: "del" }),
+          el("input", {
+            type: "date", id: "cobro-desde", value: cubre.desde,
+            alCambiar: (e) => ponerElRango(e.target.value, cubre.hasta),
+          }),
+          el("span", { clase: "rango-palabra", texto: "al" }),
+          el("input", {
+            type: "date", id: "cobro-hasta", value: cubre.hasta,
+            alCambiar: (e) => ponerElRango(cubre.desde, e.target.value),
+          }),
+          // En palabras al lado, porque el calendario muestra 01/01/2026 y a
+          // ella le cuesta leer eso de un vistazo. Es lo mismo que va a decir
+          // el papel, así que lo ve antes de imprimir.
+          el("strong", { clase: "rango-dice", texto: rangoEnPalabras(cubre.desde, cubre.hasta) }),
+          propio
+            ? el("button", {
+                clase: "plano chico",
+                alHacerClic: () => {
+                  ponerRangoDeCobro(estado.datos, empresaCobro, estado.anio, estado.mes, quincena, null);
+                  cambio();
+                  repintar();
+                },
+              }, "Volver a la quincena")
+            : null
+        ),
+        el("small", {
+          estilo: "color:var(--tinta-suave)",
+          texto: propio
+            ? `Escogidas solo para esta cuenta. La quincena ${quincena} va ${diceElRango(empresa, quincena)}.`
+            : `Es la quincena ${quincena} completa. Puede ampliarla hasta donde necesite ` +
+              `-- sirve para cobrar varios meses de una -- y solo cambia esta cuenta.`,
+        })
       )
     )
   );
@@ -212,14 +228,21 @@ export function pintarCobro(raiz) {
           el("ul", { clase: "lista-arreglable" },
             ...grupos.map(([plato, suyos]) => {
               const quienes = [...new Set(suyos.map((c) => c.persona))];
-              const dias = [...new Set(suyos.map((c) => diaDe(c.fecha)))].sort((a, b) => a - b);
+              // En fechas y no en días sueltos: una cuenta puede cubrir varios
+              // meses, y ahí "el 3" no dice de cuál. Se muestran los primeros y
+              // se cuentan los demás: la lista es para ubicarlos, no para
+              // llenar la pantalla con trescientas fechas.
+              const fechas = [...new Set(suyos.map((c) => c.fecha))].sort();
+              const dias = diasDichos(fechas).slice(0, 6);
+              const masDias = fechas.length - dias.length;
               return el("li", {},
                 el("div", { clase: "quien" },
                   el("strong", { texto: plato }),
                   el("div", { clase: "apunte" },
                     `${suyos.length} ${suyos.length === 1 ? "renglón" : "renglones"} · ` +
                     `${quienes.slice(0, 3).join(", ")}${quienes.length > 3 ? ` y ${quienes.length - 3} más` : ""} · ` +
-                    `${dias.length === 1 ? "día" : "días"} ${dias.join(", ")}`)
+                    `${fechas.length === 1 ? "día" : "días"} ${dias.join(", ")}` +
+                    `${masDias > 0 ? ` y ${masDias} más` : ""}`)
                 ),
                 el("button", {
                   clase: "chico",
@@ -240,13 +263,16 @@ export function pintarCobro(raiz) {
   // se le deja el botón para taparlo de un solo toque.
   const afuera = fueraDelRango(estado.datos.consumos, estado.anio, estado.mes, quincena, empresa, cubre);
   if (afuera.length) {
-    const dias = [...new Set(afuera.map((c) => diaDe(c.fecha)))].sort((a, b) => a - b);
+    // Por FECHA y no por día: con un rango que cruza meses, "el 3" no dice
+    // de qué mes es, y puede haber dos.
+    const fechas = [...new Set(afuera.map((c) => c.fecha))].sort();
+    const dias = diasDichos(fechas);
     poner(raiz,
       el("div", { clase: "nota malo no-imprimir" },
         el("div", {},
           el("strong", { texto: `${pesos(sumarLoDeLaEmpresa(afuera))} de esta quincena no entran en la cuenta` }),
           el("p", { texto:
-            `La cuenta cubre del ${cubre.desde} al ${cubre.hasta}, así que ` +
+            `La cuenta cubre ${rangoEnPalabras(cubre.desde, cubre.hasta).toLowerCase()}, así que ` +
             `${dias.length === 1 ? "el día" : "los días"} ${dias.join(", ")} ` +
             `${dias.length === 1 ? "se queda" : "se quedan"} por fuera. Si no es a propósito, ` +
             `amplíe los días; y si esos pedidos están anotados en la fecha equivocada, ` +
@@ -256,8 +282,9 @@ export function pintarCobro(raiz) {
           el("button", {
             clase: "boton chico",
             alHacerClic: () => ponerElRango(
-              Math.min(cubre.desde, dias[0]),
-              Math.max(cubre.hasta, dias[dias.length - 1])
+              cubre.desde < fechas[0] ? cubre.desde : fechas[0],
+              cubre.hasta > fechas[fechas.length - 1]
+                ? cubre.hasta : fechas[fechas.length - 1]
             ),
           }, "Cubrir esos días"))
       )

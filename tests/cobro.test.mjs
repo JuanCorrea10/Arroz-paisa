@@ -244,7 +244,7 @@ prueba("sin rango escogido, la cuenta es la quincena entera", () => {
   const cuenta = cuentaDeCobro(datos.consumos, 2026, 8, 1, datos.empresas[0]);
   igual(cuenta.total, PRECIO * 3);
   igual(cuenta.rangoEscogido, false);
-  igual(cuenta.rango, { desde: 1, hasta: 15 });
+  igual(cuenta.rango, { desde: "2026-08-01", hasta: "2026-08-15" });
 });
 
 prueba("con rango escogido, la cuenta lleva SOLO esos días", () => {
@@ -253,7 +253,7 @@ prueba("con rango escogido, la cuenta lleva SOLO esos días", () => {
                                { desde: 3, hasta: 6 });
   igual(cuenta.total, PRECIO, "solo el del 5");
   igual(cuenta.personas.map((p) => p.persona), ["ANA RUIZ"]);
-  igual(cuenta.rango, { desde: 3, hasta: 6 });
+  igual(cuenta.rango, { desde: "2026-08-03", hasta: "2026-08-06" });
   cierto(cuenta.rangoEscogido, "y se sabe que los días los escogió ella");
 });
 
@@ -280,7 +280,7 @@ prueba("se guarda y se lee por empresa, mes y quincena", () => {
   igual(rangoDeCobro(datos, "MGP", 2026, 8, 1), null, "sin nada guardado, manda la quincena");
 
   ponerRangoDeCobro(datos, "MGP", 2026, 8, 1, { desde: 3, hasta: 14 });
-  igual(rangoDeCobro(datos, "MGP", 2026, 8, 1), { desde: 3, hasta: 14 });
+  igual(rangoDeCobro(datos, "MGP", 2026, 8, 1), { desde: "2026-08-03", hasta: "2026-08-14" });
   igual(rangoDeCobro(datos, "MGP", 2026, 8, 2), null, "la otra quincena no se contagia");
   igual(rangoDeCobro(datos, "MGP", 2026, 9, 1), null, "ni el otro mes");
   igual(datos.empresas[0].ultimoDiaQ1, 15, "y a la empresa no se le tocó nada");
@@ -605,4 +605,84 @@ prueba("las tres tablas del informe siguen dando el mismo total", () => {
   igual(i.personas.reduce((a, p) => a + p.mes, 0), i.totales.mes);
   igual(i.dias.reduce((a, d) => a + d.total, 0), i.totales.mes);
   igual(i.totales.q1 + i.totales.q2, i.totales.mes);
+});
+
+// ---------------------------------------------------------------------------
+grupo("Una cuenta puede cubrir lo que ella diga, no solo un mes");
+
+prueba("del 1 de enero al 31 de diciembre: entra todo el año", () => {
+  // Es lo que pidió ella. Pasa cuando una fábrica se atrasa medio año y hay
+  // que pasarle una cuenta por todo lo que debe, no quincena por quincena.
+  const datos = negocio([
+    renglon(A_CREDITO, { fecha: "2026-01-15" }),
+    renglon(A_CREDITO, { fecha: "2026-06-30" }),
+    renglon(A_CREDITO, { fecha: "2026-12-24" }),
+  ]);
+  const cuenta = cuentaDeCobro(datos.consumos, 2026, 8, 1, datos.empresas[0], null,
+                               { desde: "2026-01-01", hasta: "2026-12-31" });
+  igual(cuenta.total, PRECIO * 3, "los tres, de meses distintos");
+  igual(cuenta.rango, { desde: "2026-01-01", hasta: "2026-12-31" });
+  cierto(cuenta.rangoEscogido, "y se sabe que los días los escogió ella");
+});
+
+prueba("el rango puede cruzar el cambio de año", () => {
+  const datos = negocio([
+    renglon(A_CREDITO, { fecha: "2026-12-28" }),
+    renglon(A_CREDITO, { fecha: "2027-01-03" }),
+    renglon(A_CREDITO, { fecha: "2027-02-01" }),
+  ]);
+  const cuenta = cuentaDeCobro(datos.consumos, 2026, 12, 2, datos.empresas[0], null,
+                               { desde: "2026-12-20", hasta: "2027-01-10" });
+  igual(cuenta.total, PRECIO * 2, "el de febrero queda por fuera");
+});
+
+prueba("los bordes del rango SÍ entran", () => {
+  const datos = negocio([
+    renglon(A_CREDITO, { fecha: "2026-01-01" }),
+    renglon(A_CREDITO, { fecha: "2026-12-31" }),
+  ]);
+  const cuenta = cuentaDeCobro(datos.consumos, 2026, 8, 1, datos.empresas[0], null,
+                               { desde: "2026-01-01", hasta: "2026-12-31" });
+  igual(cuenta.total, PRECIO * 2);
+});
+
+prueba("un rango largo tampoco se lleva lo de contado ni las cortesías", () => {
+  // La regla que no cambia: lo que la persona ya pagó no se le puede cobrar a
+  // la empresa, dure lo que dure el periodo.
+  const datos = negocio([
+    renglon(A_CREDITO, { fecha: "2026-03-10" }),
+    renglon(DE_CONTADO, { fecha: "2026-04-10" }),
+    renglon(CORTESIA, { fecha: "2026-05-10" }),
+  ]);
+  const cuenta = cuentaDeCobro(datos.consumos, 2026, 8, 1, datos.empresas[0], null,
+                               { desde: "2026-01-01", hasta: "2026-12-31" });
+  igual(cuenta.total, PRECIO);
+});
+
+prueba("los días guardados de antes siguen queriendo decir lo mismo", () => {
+  // Los rangos que ya estaban guardados son dos NÚMEROS de día. Se leen como
+  // días del mes que se está mirando, que es lo que significaban.
+  const datos = negocio([renglon(A_CREDITO, { fecha: "2026-08-05" })]);
+  datos.rangosDeCobro = { "MGP|2026|8|1": { desde: 3, hasta: 9 } };
+  igual(rangoDeCobro(datos, "MGP", 2026, 8, 1), { desde: "2026-08-03", hasta: "2026-08-09" });
+});
+
+prueba("se puede guardar un rango de un año entero", () => {
+  const datos = negocio([]);
+  ponerRangoDeCobro(datos, "MGP", 2026, 8, 1, { desde: "2026-01-01", hasta: "2026-12-31" });
+  igual(rangoDeCobro(datos, "MGP", 2026, 8, 1), { desde: "2026-01-01", hasta: "2026-12-31" });
+});
+
+prueba("un rango al revés no se guarda", () => {
+  // Un rango al revés no cubre nada: la cuenta saldría en cero sin decir por
+  // qué, y ella la mandaría creyendo que la fábrica no consumió.
+  const datos = negocio([]);
+  ponerRangoDeCobro(datos, "MGP", 2026, 8, 1, { desde: "2026-12-31", hasta: "2026-01-01" });
+  igual(rangoDeCobro(datos, "MGP", 2026, 8, 1), null);
+});
+
+prueba("una fecha que no es fecha tampoco se guarda", () => {
+  const datos = negocio([]);
+  ponerRangoDeCobro(datos, "MGP", 2026, 8, 1, { desde: "el lunes", hasta: "2026-12-31" });
+  igual(rangoDeCobro(datos, "MGP", 2026, 8, 1), null);
 });

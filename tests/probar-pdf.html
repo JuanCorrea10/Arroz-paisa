@@ -529,17 +529,43 @@ if (revento) {
   }
 
   // Y con los días escogidos a mano.
-  const escogida = armar({ desde: 3, hasta: 9 });
+  const dos = String(mes).padStart(2, "0");
+  const escogida = armar({ desde: `${anio}-${dos}-03`, hasta: `${anio}-${dos}-09` });
   if (escogida.malo) {
     anotar("MAL  con días escogidos reventó: " + escogida.malo.message);
   } else if (capturado) {
     const crudo = capturado.doc.output();
-    anotar(capturado.nombre.includes("3-al-9")
+    anotar(capturado.nombre.includes(`${anio}-${dos}-03_al_${anio}-${dos}-09`)
       ? `OK   con días escogidos el archivo se llama distinto: ${capturado.nombre}`
       : `OJO  el archivo se llama ${capturado.nombre}`);
     anotar(!crudo.includes("Quincena 1")
       ? "OK   el rótulo ya no dice \"Quincena 1\": dice los días que cubre"
       : "MAL  el rótulo sigue diciendo \"Quincena 1\" con otros días adentro");
+  }
+
+  // Un rango que CRUZA el mes. Es lo que ella pidió -- poder cobrar del 1 de
+  // enero al 31 de diciembre -- y es donde el papel se puede volver mentiroso:
+  // mientras una cuenta vivía dentro de un mes bastaba decir "Del 20 al 5 de
+  // agosto", y ahora eso sería falso.
+  const otroMes = mes === 12 ? 1 : mes + 1;
+  const otroAnio = mes === 12 ? anio + 1 : anio;
+  const dosB = String(otroMes).padStart(2, "0");
+  const cruzada = armar({ desde: `${anio}-${dos}-20`, hasta: `${otroAnio}-${dosB}-05` });
+  if (cruzada.malo) {
+    anotar("MAL  con un rango que cruza el mes reventó: " + cruzada.malo.message);
+  } else if (capturado) {
+    const crudo = capturado.doc.output();
+    const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
+      "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+    const debeDecir = anio === otroAnio
+      ? `Del 20 de ${MESES[mes - 1]} al 5 de ${MESES[otroMes - 1]} de ${otroAnio}`
+      : `Del 20 de ${MESES[mes - 1]} de ${anio} al 5 de ${MESES[otroMes - 1]} de ${otroAnio}`;
+    anotar(crudo.includes(debeDecir)
+      ? `OK   el papel dice los dos meses: "${debeDecir}"`
+      : `MAL  el papel no dice "${debeDecir}" -- un rango que cruza el mes sale mintiendo`);
+    anotar(capturado.nombre.includes(`${anio}-${dos}-20_al_${otroAnio}-${dosB}-05`)
+      ? `OK   el archivo lleva las dos fechas: ${capturado.nombre}`
+      : `MAL  el archivo se llama ${capturado.nombre} y pisa el de otra cuenta`);
   }
 }
 

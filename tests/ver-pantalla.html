@@ -112,6 +112,28 @@ try {
                       { desde: 5, hasta: 9 });
   }
 
+  // Una cuenta que cubre TODO el anio. Es lo que pidio ella: una fabrica que
+  // se atrasa medio anio y hay que pasarle una sola cuenta por todo. No se
+  // puede probar con los datos tal como vienen porque ninguno pasa de un mes.
+  if (forzar === "rango-anio" && datos.empresas.length) {
+    const { ponerRangoDeCobro } = await import("../js/nucleo/calculos.js");
+    ponerRangoDeCobro(datos, datos.empresas[0].codigo, estado.anio, estado.mes, 1,
+                      { desde: `${estado.anio}-01-01`, hasta: `${estado.anio}-12-31` });
+  }
+
+  // Un rango que cruza el mes: del 20 de este mes al 5 del que sigue. Es donde
+  // se ve si el papel dice los dos meses o se queda diciendo uno solo.
+  if (forzar === "rango-cruzado" && datos.empresas.length) {
+    const { ponerRangoDeCobro } = await import("../js/nucleo/calculos.js");
+    const dos = (n) => String(n).padStart(2, "0");
+    const otroMes = estado.mes === 12 ? 1 : estado.mes + 1;
+    const otroAnio = estado.mes === 12 ? estado.anio + 1 : estado.anio;
+    ponerRangoDeCobro(datos, datos.empresas[0].codigo, estado.anio, estado.mes, 1, {
+      desde: `${estado.anio}-${dos(estado.mes)}-20`,
+      hasta: `${otroAnio}-${dos(otroMes)}-05`,
+    });
+  }
+
   // Un plato que SI esta en el catalogo pero con renglones sin precio. En los
   // datos de verdad no hay ninguno, y es justo el caso que la tarjeta de
   // Revisar contaba al reves.

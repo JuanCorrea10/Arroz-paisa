@@ -141,14 +141,36 @@ if (-not $Mensaje) {
 
 # --- 6. Subir ---------------------------------------------------------------
 
+# Cada paso se revisa antes de cantar victoria.
+#
+# Este script una vez dijo "Guardado" y "Listo" con el commit REVENTADO: el
+# mensaje llevaba comillas dobles, git se atraganto y nadie se entero. El
+# cambio no subio y aqui se veia todo verde. Un script que miente es peor que
+# uno que no existe, porque uno confia en el.
+
 if ($sinSubir) {
     git commit -q -m $Mensaje
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "  NO SE GUARDO. git commit fallo (codigo $LASTEXITCODE)." -ForegroundColor Red
+        Write-Host "  Nada se subio. Mire el error de arriba y vuelva a intentar." -ForegroundColor Red
+        Write-Host ""
+        exit 1
+    }
     Write-Host ""
     Write-Host "  Guardado: $Mensaje" -ForegroundColor Green
 }
 
 Titulo "Subiendo a GitHub"
 git push origin main
+if ($LASTEXITCODE -ne 0) {
+    Write-Host ""
+    Write-Host "  NO SE SUBIO. git push fallo (codigo $LASTEXITCODE)." -ForegroundColor Red
+    Write-Host "  El cambio esta guardado aqui pero NO en GitHub: la pagina" -ForegroundColor Red
+    Write-Host "  sigue con lo de antes." -ForegroundColor Red
+    Write-Host ""
+    exit 1
+}
 
 Write-Host ""
 Write-Host "  Listo. En un minuto se ve el cambio en:" -ForegroundColor Green

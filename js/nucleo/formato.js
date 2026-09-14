@@ -61,6 +61,61 @@ export function fechaCorta(fechaISO) {
   return `${d}/${m}/${a}`;
 }
 
+/**
+ * Un rango de fechas dicho como lo diría una persona.
+ *
+ *   mismo mes   -> "Del 1 al 15 de agosto de 2026"
+ *   otro mes    -> "Del 1 de agosto al 15 de septiembre de 2026"
+ *   otro año    -> "Del 28 de diciembre de 2026 al 10 de enero de 2027"
+ *
+ * Existe porque una cuenta de cobro ya no vive dentro de un mes: puede ir del
+ * 1 de enero al 31 de diciembre. Repetir "de agosto de 2026" cuando el rango
+ * no sale de agosto sobra y estorba; callarlo cuando SÍ sale es mentir en el
+ * papel que recibe el cliente.
+ */
+export function rangoEnPalabras(desdeISO, hastaISO) {
+  if (!esFechaISO(desdeISO) || !esFechaISO(hastaISO)) return "";
+  const [a1, m1, d1] = desdeISO.split("-").map(Number);
+  const [a2, m2, d2] = hastaISO.split("-").map(Number);
+  const dice = (d, m, a) => `${d} de ${MESES[m - 1]} de ${a}`;
+
+  if (a1 !== a2) return `Del ${dice(d1, m1, a1)} al ${dice(d2, m2, a2)}`;
+  if (m1 !== m2) return `Del ${d1} de ${MESES[m1 - 1]} al ${dice(d2, m2, a2)}`;
+  return `Del ${d1} al ${dice(d2, m2, a2)}`;
+}
+
+/**
+ * Una lista de fechas dicha lo más corto posible sin volverse ambigua.
+ *
+ *   todas del mismo mes -> ["6", "10", "11"]
+ *   de meses distintos  -> ["6 ago", "3 sep"]
+ *
+ * Nace de la lista de renglones en $ 0. Mientras una cuenta vivía dentro de
+ * un mes bastaba el número del día. Ahora puede cubrir medio año, y ahí "el
+ * 3" no dice de cuál mes es -- pueden ser dos. Pero escribir "06/08/2026"
+ * catorce veces seguidas tampoco se lee: se paga el mes solo cuando hace
+ * falta.
+ */
+export function diasDichos(fechasISO) {
+  const buenas = (fechasISO || []).filter(esFechaISO);
+  const mismoMes = buenas.every(
+    (f) => f.slice(0, 7) === (buenas[0] || "").slice(0, 7));
+  return buenas.map((f) => {
+    const [, m, d] = f.split("-").map(Number);
+    return mismoMes ? String(d) : `${d} ${MESES[m - 1].slice(0, 3)}`;
+  });
+}
+
+/**
+ * El mismo rango, pero para el NOMBRE de un archivo.
+ *
+ * Va en fechas completas y en ese orden a propósito: así los PDF de una misma
+ * empresa quedan ordenados solos en la carpeta, que es como ella los busca.
+ */
+export function rangoParaArchivo(desdeISO, hastaISO) {
+  return `${desdeISO}_al_${hastaISO}`;
+}
+
 /** 8 -> "Agosto" */
 export function nombreMes(mes) {
   const n = MESES[mes - 1] || "";

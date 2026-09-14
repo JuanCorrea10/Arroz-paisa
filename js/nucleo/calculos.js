@@ -272,20 +272,53 @@ export function deQuincena(consumos, anio, mes, quincena, empresa) {
 }
 
 /**
- * Los renglones de una empresa que caen entre dos días del mes.
+ * Un rango de cobro, siempre en FECHAS de verdad.
  *
- * Es el hermano de deQuincena, pero preguntando por días y no por quincena.
+ * Nació como dos números de día dentro de un mes -- {desde: 3, hasta: 9} -- y
+ * así quedaron guardados los que ya existen. Pero una cuenta puede cubrir lo
+ * que ella diga: "del 1 de enero al 31 de diciembre" si una fábrica se atrasó
+ * medio año. Eso no cabe en dos números sueltos, que no dicen de qué mes son.
+ *
+ * Aquí se traduce lo viejo -- un número es un día DEL MES que se está mirando
+ * -- y se deja pasar lo nuevo tal cual. Así los rangos guardados antes siguen
+ * significando lo mismo y no hay que convertir nada en el archivo de datos:
+ * convertir mil renglones es una oportunidad de dañarlos, leerlos bien no.
+ */
+export function rangoEnFechas(anio, mes, rango) {
+  const dos = (n) => String(n).padStart(2, "0");
+  const finDeMes = diasDelMes(anio, mes);
+
+  const comoFecha = (valor, porDefecto) => {
+    if (esFechaISO(valor)) return valor;
+    const n = Math.round(Number(valor));
+    const dia = Number.isFinite(n) && n >= 1 ? Math.min(n, finDeMes) : porDefecto;
+    return `${anio}-${dos(mes)}-${dos(dia)}`;
+  };
+
+  return {
+    desde: comoFecha(rango && rango.desde, 1),
+    hasta: comoFecha(rango && rango.hasta, finDeMes),
+  };
+}
+
+/**
+ * Los renglones de una empresa dentro de un rango.
+ *
+ * Es el hermano de deQuincena, pero preguntando por fechas y no por quincena.
  * Hace falta porque la cuenta de cobro puede cubrir un pedazo escogido a mano
  * ("del 3 al 20"), que no tiene por qué coincidir con ninguna de las dos.
+ *
+ * Ya NO se queda dentro del mes: mira todos los consumos y compara por fecha.
+ * Las fechas ISO se comparan como texto y sale bien ("2026-08-09" es menor que
+ * "2026-08-10"), que es lo que deja que un rango cruce meses y años.
  */
 export function deRango(consumos, anio, mes, rango, empresa) {
   const codigo = normalizar(empresa.codigo);
-  const desde = Number(rango && rango.desde) || 1;
-  const hasta = Number(rango && rango.hasta) || diasDelMes(anio, mes);
-  return delMes(consumos, anio, mes).filter((c) => {
+  const { desde, hasta } = rangoEnFechas(anio, mes, rango);
+  return consumos.filter((c) => {
     if (normalizar(c.empresa) !== codigo) return false;
-    const dia = diaDe(c.fecha);
-    return dia !== null && dia >= desde && dia <= hasta;
+    if (!esFechaISO(c.fecha)) return false;
+    return c.fecha >= desde && c.fecha <= hasta;
   });
 }
 
@@ -299,16 +332,18 @@ export function deRango(consumos, anio, mes, rango, empresa) {
  * que empieza el 3. Eso no se puede arreglar solo -- ni quitando la plata (se
  * cobraría de menos) ni corriendo el rango (ella lo escribió a propósito) --
  * así que se devuelve para poder avisarle y que decida.
+ *
+ * Compara por fecha y no por número de día, porque el rango escogido ya puede
+ * cruzar meses. Con un rango grande no sale ninguno, y está bien: un rango que
+ * cubre la quincena entera no deja nada por fuera.
  */
 export function fueraDelRango(consumos, anio, mes, quincena, empresa, rangoEscogido = null) {
   if (!empresa) return [];
-  const rango = rangoEscogido || rangoQuincena(anio, mes, quincena, empresa);
+  const { desde, hasta } = rangoEnFechas(
+    anio, mes, rangoEscogido || rangoQuincena(anio, mes, quincena, empresa));
   return deQuincena(consumos, anio, mes, quincena, empresa)
     .filter(loPagaLaEmpresa)
-    .filter((c) => {
-      const dia = diaDe(c.fecha);
-      return dia !== null && (dia < rango.desde || dia > rango.hasta);
-    });
+    .filter((c) => esFechaISO(c.fecha) && (c.fecha < desde || c.fecha > hasta));
 }
 
 // ---------------------------------------------------------------------------
@@ -715,7 +750,7 @@ export function cuentaDeCobro(consumos, anio, mes, quincena, empresa, fechaCuent
   // cuenta lleva esos días y no los que le tocarían a la quincena: es ella la
   // que sabe qué periodo le está pasando a la fábrica. Sin rango escogido,
   // todo sigue como venía: la quincena completa.
-  const cubre = rango || rangoQuincena(anio, mes, quincena, empresa);
+  const cubre = rangoEnFechas(anio, mes, rango || rangoQuincena(anio, mes, quincena, empresa));
   const lista = (rango
     ? deRango(consumos, anio, mes, rango, empresa)
     : deQuincena(consumos, anio, mes, quincena, empresa)
@@ -855,21 +890,45 @@ export function rangoDeCobro(datos, codigoEmpresa, anio, mes, quincena) {
   const guardados = datos.rangosDeCobro || {};
   const v = guardados[llaveDeCobro(codigoEmpresa, anio, mes, quincena)];
   if (!v) return null;
-  const desde = Number(v.desde);
-  const hasta = Number(v.hasta);
-  if (!Number.isFinite(desde) || !Number.isFinite(hasta)) return null;
-  return { desde, hasta };
+  // Lo guardado puede ser de antes (dos números de día) o de ahora (dos
+  // fechas). rangoEnFechas entiende los dos y devuelve siempre fechas.
+  const r = rangoEnFechas(anio, mes, v);
+  if (!esFechaISO(r.desde) || !esFechaISO(r.hasta) || r.desde > r.hasta) return null;
+  return r;
 }
 
+/**
+ * Guarda de qué día a qué día va ESTA cuenta.
+ *
+ * Ya NO tiene tope de mes. Una fábrica se puede atrasar medio año, y entonces
+ * la cuenta va "del 1 de enero al 31 de diciembre" -- eso es cosa de ella, no
+ * de la app. Lo único que se sigue exigiendo es que el desde no sea después
+ * del hasta: un rango al revés no cubre nada y saldría una cuenta en cero sin
+ * decir por qué.
+ *
+ * Un rango que no sirve BORRA el guardado, y la cuenta vuelve a su quincena.
+ */
 export function ponerRangoDeCobro(datos, codigoEmpresa, anio, mes, quincena, rango) {
   if (!datos.rangosDeCobro) datos.rangosDeCobro = {};
   const llave = llaveDeCobro(codigoEmpresa, anio, mes, quincena);
-  const desde = Number(rango && rango.desde);
-  const hasta = Number(rango && rango.hasta);
+
+  // Un valor sirve si es una fecha de verdad, o un día que EXISTE en ese mes.
+  //
+  // El día que no existe se rechaza, no se recorta. Recortarlo convertiría un
+  // error de dedo -- "40" por "14" -- en un rango válido, y la cuenta saldría
+  // cubriendo un periodo que ella nunca escribió, sin decir nada.
   const finDeMes = diasDelMes(anio, mes);
-  const sirve = Number.isFinite(desde) && Number.isFinite(hasta) &&
-    desde >= 1 && hasta <= finDeMes && desde <= hasta;
-  if (sirve) datos.rangosDeCobro[llave] = { desde, hasta };
+  const sirveElValor = (v) => {
+    if (esFechaISO(v)) return true;
+    const n = Number(v);
+    return Number.isFinite(n) && Number.isInteger(n) && n >= 1 && n <= finDeMes;
+  };
+
+  const hayAlgo = rango && sirveElValor(rango.desde) && sirveElValor(rango.hasta);
+  const r = hayAlgo ? rangoEnFechas(anio, mes, rango) : null;
+  const sirve = r && esFechaISO(r.desde) && esFechaISO(r.hasta) && r.desde <= r.hasta;
+
+  if (sirve) datos.rangosDeCobro[llave] = { desde: r.desde, hasta: r.hasta };
   else delete datos.rangosDeCobro[llave];
   return datos;
 }

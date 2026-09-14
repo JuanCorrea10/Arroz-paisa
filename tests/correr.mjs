@@ -9,6 +9,7 @@ import "./cantidad.test.mjs";
 import "./precios.test.mjs";
 import "./catalogo-sano.test.mjs";
 import "./cobro.test.mjs";
+import "./decir-rango.test.mjs";
 import "./informe.test.mjs";
 import "./ventas.test.mjs";
 import "./casa.test.mjs";
