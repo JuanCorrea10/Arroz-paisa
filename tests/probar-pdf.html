@@ -569,6 +569,67 @@ if (revento) {
   }
 }
 
+// ---------------------------------------------------------------------------
+//  VENTAS DEL MES
+//
+//  Es la tabla que reemplazó al Cuadre de facturas. Mueve plata, así que
+//  aquí se revisa lo único que la dañaría sin que se note: que el total
+//  del papel sea el mismo que sacó el núcleo, y que un plato sin precio
+//  salga dicho. Un total corto y callado es el bug del Excel viejo.
+// ---------------------------------------------------------------------------
+{
+  const { ventasDelMes } = await import("../js/nucleo/calculos.js");
+  const ventas = ventasDelMes(datos.consumos, anio, mes);
+
+  capturado = null;
+  window.jspdf.jsPDF.API.save = function (nombre) { capturado = { doc: this, nombre }; return this; };
+  let malo = null;
+  try {
+    pdf.pdfVentasDelMes(ventas, "", "Todas las empresas", datos.config.acreedor || {});
+  } catch (e) { malo = e; }
+  window.jspdf.jsPDF.API.save = guardarDeVerdad;
+
+  anotar("");
+  if (malo) {
+    anotar("MAL  ventas del mes reventó: " + (malo.stack || malo.message));
+  } else if (!capturado) {
+    anotar("MAL  ventas del mes no se generó");
+  } else {
+    const crudo = capturado.doc.output();
+    const t = ventas.total;
+    anotar(`ventas de ${mes}/${anio}: ${t.almuerzos.platos} almuerzos, ${t.plata}`);
+
+    // El total va con puntos de miles, igual que en pantalla.
+    const conPuntos = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    anotar(crudo.includes(conPuntos(t.plata))
+      ? `OK   el total del mes está en el papel (${conPuntos(t.plata)})`
+      : `MAL  el total del mes NO está en el papel (${conPuntos(t.plata)})`);
+
+    anotar(crudo.includes(conPuntos(t.almuerzos.plata))
+      ? "OK   la venta de almuerzos también"
+      : "MAL  falta la venta de almuerzos");
+
+    // Los días en blanco no van en papel: media hoja en renglones que dicen
+    // cero es papel botado, y ella imprime esto.
+    const enBlanco = ventas.filas.filter(
+      (f) => !f.plata && !f.almuerzos.platos && !f.varios.platos &&
+             !f.almuerzos.cortesias && !f.varios.cortesias);
+    const colados = enBlanco.filter((f) => crudo.includes(
+      f.fecha.slice(8, 10) + "/" + f.fecha.slice(5, 7) + "/" + f.fecha.slice(0, 4)));
+    anotar(colados.length === 0
+      ? `OK   los ${enBlanco.length} días sin venta no gastan renglón`
+      : `MAL  se colaron ${colados.length} días sin venta`);
+
+    anotar(t.sinPrecio === 0 || crudo.includes("sin precio")
+      ? "OK   los platos sin precio salen dichos en el papel"
+      : "MAL  hay platos sin precio y el papel no lo dice: el total sale corto y callado");
+
+    anotar(capturado.nombre === `ventas-${anio}-${String(mes).padStart(2, "0")}.pdf`
+      ? `OK   se llama ${capturado.nombre}`
+      : `OJO  se llama ${capturado.nombre}`);
+  }
+}
+
 try { await fetch("/diagnostico", { method: "POST", body: lineas.join("\n") }); } catch {}
 </script>
 </body>

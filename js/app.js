@@ -16,7 +16,7 @@ import { nombreMes } from "./nucleo/formato.js";
 import * as almacen from "./datos/almacen.js";
 
 import { pintarRegistrar } from "./ui/registrar.js";
-import { pintarCocina, pintarResumenDia, pintarPorPersona, pintarCuadre } from "./ui/informes.js";
+import { pintarCocina, pintarResumenDia, pintarPorPersona, pintarVentasDelMes } from "./ui/informes.js";
 import { pintarCobro } from "./ui/cobro.js";
 import { pintarInicio } from "./ui/inicio.js";
 import { FAMILIAS, familiaDe } from "./ui/familias.js";
@@ -77,8 +77,8 @@ const PANTALLAS = {
                dice: "Lo que quedó raro y hay que arreglar",
                contar: () => cuantosSueltos(estado.datos).total },
 
-  cuadre:    { titulo: "Cuadre",           pintar: pintarCuadre,
-               dice: "Cuadrar las facturas del día con lo que le dicen" },
+  ventasmes: { titulo: "Ventas del mes",   pintar: pintarVentasDelMes,
+               dice: "Lo que entró cada día del mes, en una tabla" },
   compartir: { titulo: "Compartir",        pintar: pintarCompartir,
                dice: "Mandarle a una empresa lo suyo" },
 
@@ -139,7 +139,7 @@ const MUNDOS = [
       {
         nombre: "La plata",
         explica: "Lo que se cobra y lo que entra",
-        pantallas: ["cobro", "ventas", "persona", "cuadre", "compartir"],
+        pantallas: ["cobro", "ventas", "ventasmes", "persona", "compartir"],
       },
       {
         nombre: "Las listas",

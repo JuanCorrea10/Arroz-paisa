@@ -35,6 +35,14 @@ import {
 /** La persona cuya comanda se está llenando ahora mismo. */
 let personaActiva = null;
 
+// Por cómo se paga, cuáles tarjetas se están mirando. "" es todas.
+//
+// Estas tarjetas son las que ella fotografía y le manda a los chefs, y el
+// PDF del resumen es el que le manda a la supervisora: son dos papeles
+// distintos para dos personas distintas, y a veces necesita mandar solo las
+// de una forma de pago.
+let filtroDePago = "";
+
 export function pintarRegistrar(raiz) {
   vaciar(raiz);
   asegurarEmpresa();
@@ -461,12 +469,28 @@ function resumenEnVivo() {
  * a las tres. La razón social y el día van debajo, chiquitos, para que el
  * pantallazo se entienda solo y no le toque contestar "es de hoy" cada vez.
  */
-function tituloDeLaLista(cuantas, totalDia) {
+function tituloDeLaLista(cuantas, totalDia, deCuantas = null) {
   const emp = empresaPorCodigo(estado.empresa) || {};
   // "hoy" solo cuando de verdad es hoy. Con la fecha ahí abajo, decir "hoy"
   // mirando el lunes pasado se ve como un error de la app.
-  const arriba = estado.fecha === hoyISO() ? "Comandas de hoy" : "Comandas del día";
-  const abajo = [emp.razonSocial, fechaLarga(estado.fecha)].filter(Boolean).join(" · ");
+  const base = estado.fecha === hoyISO() ? "Comandas de hoy" : "Comandas del día";
+
+  // Con un filtro puesto hay que decirlo AQUÍ, en el título, porque esta
+  // parte es la que ella fotografía. Una foto a la que le falta gente y no
+  // dice que le falta es un papel que engaña a quien lo recibe.
+  const cual = COMO_SE_PAGA.find((x) => x.forma === filtroDePago);
+  const comoSeLlama = filtroDePago === DE_CONTADO ? "efectivo"
+    : cual ? cual.titulo.toLowerCase() : "";
+  const arriba = filtroDePago
+    ? `${base} · solo ${comoSeLlama}`
+    : base;
+
+  const faltan = deCuantas !== null && deCuantas > cuantas ? deCuantas - cuantas : 0;
+  const abajo = [
+    emp.razonSocial,
+    fechaLarga(estado.fecha),
+    faltan ? `no salen ${faltan} de ${deCuantas}` : null,
+  ].filter(Boolean).join(" · ");
 
   return el("div", { clase: "titulo-lista", estilo: `--cinta:${colorDeEmpresa(estado.empresa)}` },
     el("div", { clase: "titulo-lista-quien" },
@@ -494,7 +518,15 @@ function listaDeComandas(raiz) {
   // La agrupación por persona la hace el núcleo, para que el papel que se
   // manda y lo que se ve en la pantalla salgan del MISMO sitio. Cuando se
   // agrupa dos veces, tarde o temprano una de las dos cuenta distinto.
-  const orden = comandasDelDia(estado.datos.consumos, estado.fecha, estado.empresa);
+  const todas = comandasDelDia(estado.datos.consumos, estado.fecha, estado.empresa);
+
+  // Una comanda entra si TIENE algo de esa forma de pago, no si toda ella es
+  // de esa forma: la mezclada (almuerzo a crédito, gaseosa pagada) le
+  // interesa a los dos lados, y esconderla de uno sería mandar una foto
+  // incompleta.
+  const orden = filtroDePago
+    ? todas.filter((com) => formasDe(com).has(filtroDePago))
+    : todas;
 
   const tarjetas = orden.map((com, i) => {
     const nombre = com.persona;
@@ -528,10 +560,16 @@ function listaDeComandas(raiz) {
                 ? el("span", { clase: "nota-en-comanda", texto: c.observacion })
                 : null
             ),
-            el("span", { clase: "comanda-valor",
-              texto: esCortesia(c) ? "cortesía"
-                   : yaLoPago(c) ? "pagó · " + pesos(subtotal(c))
-                   : pesos(subtotal(c)) }),
+            // La plata va en su propia casilla para que NO se parta: "$ 12.000"
+            // repartido en dos renglones se lee como dos cifras, y esta
+            // tarjeta es la que leen los cocineros.
+            el("span", { clase: "comanda-valor" },
+              esCortesia(c)
+                ? el("span", { clase: "comanda-plata", texto: "cortesía" })
+                : el("span", {},
+                    yaLoPago(c) ? el("span", { texto: "pagó · " }) : null,
+                    el("span", { clase: "comanda-plata", texto: pesos(subtotal(c)) }))
+            ),
             el("button", {
               clase: "plano chico",
               "aria-label": `Borrar ${c.producto} de ${nombre}`,
@@ -561,10 +599,66 @@ function listaDeComandas(raiz) {
     );
   });
 
-  const totalDia = renglones.reduce((a, c) => a + subtotal(c), 0);
+  // El total es el de lo que se está mirando, no el del día entero: con un
+  // filtro puesto, un total del día completo encima de nueve tarjetas se lee
+  // como si esas nueve sumaran eso.
+  const totalDia = orden.reduce((a, com) => a + com.total, 0);
+
   return el("div", {},
-    tituloDeLaLista(orden.length, totalDia),
-    el("div", { clase: "comandas" }, ...tarjetas)
+    tituloDeLaLista(orden.length, totalDia, todas.length),
+    filtrosDePago(todas, raiz),
+    orden.length
+      ? el("div", { clase: "comandas" }, ...tarjetas)
+      : vacio("Ninguna comanda de hoy es de esa forma de pago",
+              "Toque “Todas” aquí arriba para verlas todas.")
+  );
+}
+
+/**
+ * ¿Cuáles formas de pago tiene esta comanda?
+ *
+ * Una sola comanda puede tener dos: el almuerzo lo paga la empresa y la
+ * gaseosa la paga él. Por eso devuelve un conjunto y no una forma: si
+ * devolviera una sola, la tarjeta mezclada desaparecería de los dos filtros
+ * y ella mandaría una foto sin esa persona, sin que nada lo dijera.
+ */
+function formasDe(com) {
+  return new Set(com.platos.map(formaDeCobro));
+}
+
+/**
+ * La tira para filtrar las tarjetas por cómo se paga.
+ *
+ * Con el número al lado de cada una: así ella sabe cuántas va a mandar
+ * antes de tocar nada, y si una queda en cero se ve que está vacía en vez
+ * de tocarla y encontrarse la lista en blanco.
+ *
+ * La cortesía solo sale cuando de verdad hay alguna: casi nunca hay, y un
+ * botón que siempre dice cero es un botón que estorba.
+ */
+function filtrosDePago(comandas, raiz) {
+  const cuantas = (forma) => comandas.filter((c) => formasDe(c).has(forma)).length;
+  const opciones = [
+    { forma: "", titulo: "Todas", cuantas: comandas.length },
+    { forma: A_CREDITO, titulo: "A crédito", cuantas: cuantas(A_CREDITO) },
+    { forma: DE_CONTADO, titulo: "Efectivo", cuantas: cuantas(DE_CONTADO) },
+  ];
+  const cortesias = cuantas(CORTESIA);
+  if (cortesias) opciones.push({ forma: CORTESIA, titulo: "Cortesía", cuantas: cortesias });
+
+  return el("div", { clase: "filtro-pago no-imprimir" },
+    el("span", { clase: "filtro-pago-rotulo", texto: "Mostrar:" }),
+    ...opciones.map((o) =>
+      el("button", {
+        clase: "filtro-pago-boton" + (filtroDePago === o.forma ? " puesta" : ""),
+        "aria-pressed": filtroDePago === o.forma ? "true" : "false",
+        alHacerClic: () => { filtroDePago = o.forma; pintarRegistrar(raiz); },
+      }, `${o.titulo} (${o.cuantas})`)
+    ),
+    // "Efectivo" es la palabra de ella; el botón de la tarjeta dice "Pagó
+    // de una". Se dice aquí una vez para que no queden dos nombres sueltos.
+    el("small", { clase: "filtro-pago-nota",
+      texto: "Efectivo es lo que en las tarjetas dice “Pagó de una”." })
   );
 }
 

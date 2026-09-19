@@ -12,6 +12,7 @@ import "./cobro.test.mjs";
 import "./decir-rango.test.mjs";
 import "./informe.test.mjs";
 import "./ventas.test.mjs";
+import "./ventas-del-mes.test.mjs";
 import "./casa.test.mjs";
 import "./como-paga.test.mjs";
 import "./compras.test.mjs";

@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20260914-1521";
+  --version: "20260918-1958";
 }
 
 /* ===========================================================================
@@ -1211,6 +1211,77 @@ thead th {
 .cobro-cual strong {
   font-family: var(--display);
   font-size: var(--t-md);
+}
+
+/* ---------------------------------------------------------------------
+   Ventas del mes: los dias sin venta
+
+   Los dias en blanco SI salen -- un hueco en la mitad del mes es un dia que
+   no se anoto, y eso hay que poder verlo -- pero apagados. A todo color,
+   catorce renglones en cero le quitan la vista a los que si vendieron.
+   --------------------------------------------------------------------- */
+
+tr[data-vacio="si"] td {
+  color: var(--tinta-suave);
+}
+
+tr[data-vacio="si"] td strong {
+  font-weight: 400;
+  opacity: 0.55;
+}
+
+/* El renglon del total del mes: es la respuesta de toda la tabla. */
+tfoot tr.total-del-mes td {
+  font-size: var(--t-md);
+}
+
+/* ---------------------------------------------------------------------
+   Filtrar las comandas por como se paga
+
+   Va A LA VISTA y no dentro de un menu: ella no destapa nada, asi que un
+   filtro escondido no existe. Con el numero al lado de cada boton sabe
+   cuantas va a mandar antes de tocar.
+   --------------------------------------------------------------------- */
+
+.filtro-pago {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--e2);
+  margin: var(--e3) 0 var(--e2);
+}
+
+.filtro-pago-rotulo {
+  color: var(--tinta-suave);
+  font-size: var(--t-sm);
+}
+
+.filtro-pago-boton {
+  padding: 6px 14px;
+  min-height: 40px;      /* se toca con el dedo, no con el raton */
+  border: 1px solid var(--borde-fuerte);
+  border-radius: 999px;
+  background: var(--papel);
+  color: var(--tinta);
+  font-size: var(--t-sm);
+  cursor: pointer;
+}
+
+.filtro-pago-boton:hover { background: var(--beige-claro); }
+
+/* La puesta se ve puesta de lejos: relleno oscuro, no solo un borde.
+   Con la vista cansada, un borde de 1 px no distingue nada. */
+.filtro-pago-boton.puesta {
+  background: var(--tinta);
+  border-color: var(--tinta);
+  color: #fff;
+  font-weight: 700;
+}
+
+.filtro-pago-nota {
+  flex: 1 0 100%;
+  color: var(--tinta-suave);
+  font-size: var(--t-xs);
 }
 
 /* ===========================================================================

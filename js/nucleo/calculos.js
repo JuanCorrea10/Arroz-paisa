@@ -1,5 +1,5 @@
 // ============================================================================
-//  calculos.js  -  El cerebro. Quincenas, totales, facturas, cuadre y avisos.
+//  calculos.js  -  El cerebro. Quincenas, totales, facturas, ventas y avisos.
 //
 //  TODO en este archivo es PURO: recibe datos, devuelve datos. No toca la
 //  pantalla ni guarda nada. Gracias a eso lo podemos probar automáticamente
@@ -995,37 +995,102 @@ export function historialDePersona(consumos, codigoEmpresa, nombrePersona) {
 }
 
 /**
- * CUADRE DE FACTURAS: una fila por día del mes.
- * Ella escribe cuántas facturas dice el trabajador que hizo, y la app le
- * dice cuántas hay registradas y de a cuántas está la diferencia.
+ * Que cuenta como ALMUERZO y que como "varios".
+ *
+ * Es el plato que se llama ALMUERZO y nada mas. El catalogo no tiene
+ * categorias -- cada producto es solo un nombre y un precio -- asi que la
+ * linea hay que trazarla en algun lado, y se traza donde ella la trazo al
+ * pedirlo: "el almuerzo cuesta 12 mil".
+ *
+ * Ojo si algun dia cambia: OFERTA es el segundo plato que mas sale y hoy
+ * queda en "varios". Si ella lo cuenta como almuerzo, se cambia AQUI y las
+ * dos columnas se mueven solas.
  */
-export function informeCuadre(consumos, anio, mes, declarados) {
-  const dichos = declarados || {};
-  const total = diasDelMes(anio, mes);
-  const delMesActual = delMes(consumos, anio, mes);
+export function esAlmuerzo(producto) {
+  return normalizar(producto) === "ALMUERZO";
+}
+
+/**
+ * VENTAS DEL MES, dia por dia.
+ *
+ * Una fila por dia con lo que entro por almuerzos, lo que entro por todo lo
+ * demas, y el total del dia. Abajo, el total del mes.
+ *
+ * No lo contestaba ninguna pantalla: "Cuanto vendi" es entre dos fechas y
+ * parte por PLATO, y el Resumen del dia es de un solo dia. Para ver como va
+ * el mes dia por dia habia que abrir el resumen treinta veces y sumar a mano,
+ * que es justo lo que hacia el Excel viejo.
+ *
+ * Los dias sin nada tambien salen: un dia en blanco en la mitad del mes es un
+ * dia que no se anoto, y eso hay que poder verlo. Los que todavia no han
+ * llegado no salen, que serian renglones en cero de algo que no ha pasado.
+ *
+ * La cortesia no suma plata (vale cero a proposito) pero si se cuenta aparte:
+ * el plato salio de la cocina y alguien se lo comio.
+ */
+export function ventasDelMes(consumos, anio, mes, codigoEmpresa = null, hastaISO = null) {
+  const cod = codigoEmpresa ? normalizar(codigoEmpresa) : null;
+  const dosDigitos = (n) => String(n).padStart(2, "0");
+  const finDeMes = diasDelMes(anio, mes);
+
+  const delMesActual = delMes(consumos, anio, mes)
+    .filter((c) => !cod || normalizar(c.empresa) === cod);
+
   const porDia = new Map();
   for (const c of delMesActual) {
-    if (!porDia.has(c.fecha)) porDia.set(c.fecha, new Set());
-    porDia.get(c.fecha).add(claveFactura(c));
+    if (!porDia.has(c.fecha)) porDia.set(c.fecha, []);
+    porDia.get(c.fecha).push(c);
   }
+
+  // Hasta donde llega la tabla. Sin tope, hasta el fin de mes.
+  let ultimo = finDeMes;
+  if (esFechaISO(hastaISO)) {
+    const suyo = `${anio}-${dosDigitos(mes)}`;
+    if (hastaISO.slice(0, 7) === suyo) ultimo = Number(hastaISO.slice(8, 10));
+    else if (hastaISO < suyo) ultimo = 0;
+  }
+
+  const vacio = () => ({ platos: 0, plata: 0, cortesias: 0 });
+  const total = { almuerzos: vacio(), varios: vacio(), plata: 0, sinPrecio: 0, diasConVenta: 0 };
   const filas = [];
-  for (let d = 1; d <= total; d++) {
-    const fecha = anio + "-" + String(mes).padStart(2, "0") + "-" + String(d).padStart(2, "0");
-    const registradas = porDia.has(fecha) ? porDia.get(fecha).size : 0;
-    const bruto = dichos[fecha];
-    const vacio = bruto === "" || bruto === null || bruto === undefined;
-    const declarado = vacio ? null : Number(bruto);
-    const tieneDato = declarado !== null && Number.isFinite(declarado);
-    filas.push({
-      fecha,
-      dia: d,
-      registradas,
-      declarado: tieneDato ? declarado : null,
-      diferencia: tieneDato ? registradas - declarado : null,
-      estado: !tieneDato ? "sin-dato" : registradas === declarado ? "cuadra" : "no-cuadra",
-    });
+
+  for (let d = 1; d <= ultimo; d++) {
+    const fecha = `${anio}-${dosDigitos(mes)}-${dosDigitos(d)}`;
+    const fila = { fecha, dia: d, almuerzos: vacio(), varios: vacio(), plata: 0, sinPrecio: 0 };
+
+    for (const c of porDia.get(fecha) || []) {
+      const donde = esAlmuerzo(c.producto) ? fila.almuerzos : fila.varios;
+      const suyoEnElMes = esAlmuerzo(c.producto) ? total.almuerzos : total.varios;
+      const cuantos = Number(c.cantidad) || 0;
+      const plata = subtotal(c);
+
+      if (esCortesia(c)) {
+        donde.cortesias += cuantos;
+        suyoEnElMes.cortesias += cuantos;
+      } else {
+        donde.platos += cuantos;
+        suyoEnElMes.platos += cuantos;
+        donde.plata += plata;
+        suyoEnElMes.plata += plata;
+        fila.plata += plata;
+        total.plata += plata;
+        // Un plato sin precio se vendio y no sumo: sin decirlo, el total
+        // saldria corto y nadie sabria por que.
+        if (!(Number(c.precioUnitario) > 0)) {
+          fila.sinPrecio += cuantos;
+          total.sinPrecio += cuantos;
+        }
+      }
+    }
+
+    if (fila.plata > 0 || fila.almuerzos.platos || fila.varios.platos ||
+        fila.almuerzos.cortesias || fila.varios.cortesias) {
+      total.diasConVenta += 1;
+    }
+    filas.push(fila);
   }
-  return filas;
+
+  return { anio, mes, filas, total };
 }
 
 // ---------------------------------------------------------------------------

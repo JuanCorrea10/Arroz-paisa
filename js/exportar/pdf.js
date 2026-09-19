@@ -1261,38 +1261,76 @@ export function pdfPorPersona(filas, anio, mes, nombreEmpresa, acreedor, fechaDi
 }
 
 // ---------------------------------------------------------------------------
-//  Cuadre de facturas
+//  Ventas del mes, día por día
 // ---------------------------------------------------------------------------
 
-export function pdfCuadre(filas, anio, mes, acreedor) {
+/**
+ * La tabla del mes en papel.
+ *
+ * Solo salen los días que tuvieron algo. En pantalla los días en blanco
+ * sí se muestran -- un hueco en la mitad del mes es un día que no se
+ * anotó, y eso hay que poder verlo -- pero en papel treinta renglones de los
+ * cuales doce dicen cero es gastar media hoja en nada.
+ */
+export function pdfVentasDelMes(ventas, codigoEmpresa, acreedor) {
   const doc = nuevoDocumento();
-  const y = encabezado(doc, "CUADRE DE FACTURAS", `${nombreMes(mes)} ${anio}`, acreedor);
-  const conDato = filas.filter((f) => f.declarado !== null);
+  const { anio, mes, total } = ventas;
+  const quien = codigoEmpresa ? nombreCortoDeEmpresa(codigoEmpresa) : "Todas las empresas";
+  const y = encabezado(doc, "VENTAS DEL MES", `${nombreMes(mes)} ${anio} · ${quien}`, acreedor);
+
+  const conVenta = ventas.filas.filter(
+    (f) => f.plata > 0 || f.almuerzos.platos || f.varios.platos ||
+           f.almuerzos.cortesias || f.varios.cortesias);
+
   doc.autoTable({
     ...estiloTabla,
     startY: y,
-    head: [["Día", "Dijo el trabajador", "Hay registradas", "Diferencia", "Estado"]],
-    body: conDato.map((f) => [
-      fechaCorta(f.fecha), String(f.declarado), String(f.registradas),
-      f.diferencia > 0 ? "+" + f.diferencia : String(f.diferencia),
-      f.estado === "cuadra" ? "Cuadra" : "NO cuadra",
+    head: [["Día", "Almuerzos", "Venta almuerzos", "Venta varios", "Total del día"]],
+    body: conVenta.map((f) => [
+      fechaCorta(f.fecha),
+      String(f.almuerzos.platos) + (f.almuerzos.cortesias ? ` +${f.almuerzos.cortesias} cort.` : ""),
+      f.almuerzos.plata ? pesos(f.almuerzos.plata) : "",
+      f.varios.plata ? pesos(f.varios.plata) : "",
+      f.plata ? pesos(f.plata) : "",
     ]),
+    foot: [[
+      `Total de ${nombreMes(mes).toLowerCase()}`,
+      String(total.almuerzos.platos),
+      pesos(total.almuerzos.plata),
+      pesos(total.varios.plata),
+      pesos(total.plata),
+    ]],
     columnStyles: {
-      0: { cellWidth: 30 },
-      1: { halign: "right", cellWidth: 38 },
-      2: { halign: "right", cellWidth: 38 },
-      3: { halign: "right", cellWidth: 28 },
-      4: { cellWidth: "auto" },
-    },
-    didParseCell: (d) => {
-      if (d.section === "body" && conDato[d.row.index] && conDato[d.row.index].estado === "no-cuadra") {
-        d.cell.styles.textColor = ACHIOTE;
-        if (d.column.index >= 3) d.cell.styles.fontStyle = "bold";
-      }
+      0: { cellWidth: 32 },
+      1: { halign: "right", cellWidth: 32 },
+      2: { halign: "right", cellWidth: 40 },
+      3: { halign: "right", cellWidth: 40 },
+      4: { halign: "right", cellWidth: "auto", fontStyle: "bold" },
     },
   });
+
+  let fin = doc.lastAutoTable.finalY + 8;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(...GRIS);
+  doc.text(
+    `${total.diasConVenta} ${total.diasConVenta === 1 ? "día" : "días"} con venta. ` +
+    `"Almuerzos" es el plato ALMUERZO; todo lo demás va en "varios".`, 14, fin);
+
+  // Un plato sin precio no sumó. Callarlo aquí es entregar un total corto
+  // sin decir por qué, que es justo lo que hacía el Excel viejo.
+  if (total.sinPrecio > 0) {
+    fin += 6;
+    doc.setTextColor(...ACHIOTE);
+    doc.setFont("helvetica", "bold");
+    doc.text(
+      `Ojo: ${total.sinPrecio} ${total.sinPrecio === 1 ? "plato salió" : "platos salieron"} ` +
+      `sin precio. Lo vendido es más de lo que dice esta tabla.`, 14, fin);
+  }
+
   pieDePagina(doc);
-  guardar(doc, `cuadre-${anio}-${String(mes).padStart(2, "0")}.pdf`);
+  const sufijo = codigoEmpresa ? "-" + codigoEmpresa : "";
+  guardar(doc, `ventas-${anio}-${String(mes).padStart(2, "0")}${sufijo}.pdf`);
 }
 
 // ---------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 // ============================================================================
-//  informes.js  -  Cocina, Resumen del día, Consumo por persona y Cuadre.
+//  informes.js  -  Cocina, Resumen del día, Consumo por persona y Ventas del mes.
 //
 //  Todas siguen el mismo molde: unos controles arriba, unos números grandes,
 //  una tabla, y botones para imprimir o bajar el PDF.
@@ -13,11 +13,11 @@ import {
 } from "./estado.js";
 import { pesos, fechaLarga, fechaCorta, nombreMes, diasDelMes, hoyISO, coincide, diaDe } from "../nucleo/formato.js";
 import {
-  informeCocina, informeDia, informePorPersona, informeCuadre, notasDelDia,
+  informeCocina, informeDia, informePorPersona, ventasDelMes, notasDelDia,
   indicePorCodigo, delDia, contarFacturas, comandasDelDia,
   historialDePersona, esCortesia, yaLoPago, DE_CONTADO, CORTESIA,
 } from "../nucleo/calculos.js";
-import { pdfCocina, pdfResumenDia, pdfPorPersona, pdfCuadre } from "../exportar/pdf.js";
+import { pdfCocina, pdfResumenDia, pdfPorPersona, pdfVentasDelMes } from "../exportar/pdf.js";
 
 /**
  * Cómo se llama una empresa en un papel que se entrega.
@@ -185,6 +185,11 @@ export function pintarCocina(raiz) {
 // ===========================================================================
 
 let empresaResumen = "";
+
+// La empresa que se está mirando en Ventas del mes. "" es todas. Vive aquí
+// como las otras de este archivo: es de esa pantalla y cambiarla no puede
+// moverle nada a Registrar.
+let empresaVentasMes = "";
 
 /**
  * Arma el PDF del día: una sección por empresa.
@@ -968,92 +973,124 @@ export function pintarPorPersona(raiz) {
 //  4. CUADRE DE FACTURAS
 // ===========================================================================
 
-export function pintarCuadre(raiz) {
+/**
+ * VENTAS DEL MES: cuánto entró cada día, en una tabla.
+ *
+ * Está donde estaba el "Cuadre de facturas", que ella dejó de necesitar: ese
+ * servía para comparar las facturas de la app con las que decía el
+ * trabajador, y hace rato que no las compara.
+ *
+ * Lo que sí necesita es esto: el mes día por día, con los almuerzos
+ * aparte del resto. El almuerzo es el negocio -- la mitad de los platos que
+ * salen -- y mezclarlo con las gaseosas en un solo total esconde si el día
+ * estuvo bueno o malo. Hasta ahora eso tocaba sacarlo abriendo el Resumen del
+ * día treinta veces y sumando a mano.
+ */
+export function pintarVentasDelMes(raiz) {
   vaciar(raiz);
-  const repintar = () => pintarCuadre(raiz);
-  const filas = informeCuadre(estado.datos.consumos, estado.anio, estado.mes, estado.datos.cuadres);
-  const conDato = filas.filter((f) => f.declarado !== null);
-  const malos = conDato.filter((f) => f.estado === "no-cuadra");
+  const repintar = () => pintarVentasDelMes(raiz);
+  // El mes que va corriendo se corta en hoy: un renglón que diga "30 de
+  // septiembre, $ 0" estando a 18 no es un día sin ventas, es un día que
+  // no ha pasado, y hace ver el mes peor de lo que va.
+  const r = ventasDelMes(estado.datos.consumos, estado.anio, estado.mes,
+                         empresaVentasMes, hoyISO());
+  const t = r.total;
+  const platosDelMes = t.almuerzos.platos + t.varios.platos;
 
   poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
-        el("h1", { texto: "Cuadre de facturas" }),
-        el("p", { texto: "Escriba cuántas facturas dice el trabajador que hizo cada día, y la app le dice si cuadra." })
+        el("h1", { texto: "Ventas del mes" }),
+        el("p", { texto: "Lo que entró cada día: los almuerzos aparte, todo lo demás aparte, y el total." })
       ),
       acciones(
         botonImprimir(),
         botonQueTrabaja("Bajar PDF", () => {
-            try { pdfCuadre(filas, estado.anio, estado.mes, estado.datos.config.acreedor); }
-            catch (e) { mensaje(e.message, "malo", 8); }
+            try {
+              pdfVentasDelMes(r, empresaVentasMes, nombreDeEmpresa(empresaVentasMes),
+                              estado.datos.config.acreedor);
+              mensaje("PDF descargado.", "bien");
+            } catch (e) { mensaje(e.message, "malo", 8); }
           })
       )
     ),
-    el("div", { clase: "mando" }, ...selectorDeMes(repintar))
-  );
-
-  poner(raiz,
-    malos.length
-      ? el("div", { clase: "nota malo" },
-          el("div", {},
-            el("strong", { texto: `${malos.length} ${malos.length === 1 ? "día no cuadra" : "días no cuadran"}` }),
-            el("p", { texto: "Son los días en rojo. Revise si falta anotar alguna comanda o si el trabajador contó de más." })
-          ))
-      : conDato.length
-        ? el("div", { clase: "nota bien" },
-            el("div", {},
-              el("strong", { texto: "Todo cuadra" }),
-              el("p", { texto: `Los ${conDato.length} días que ha revisado dan exacto.` })))
-        : el("div", { clase: "nota dato" },
-            el("div", {},
-              el("strong", { texto: "Todavía no ha escrito ningún dato" }),
-              el("p", { texto: "En la columna del medio escriba cuántas facturas le dijo el trabajador. Los días vacíos no se revisan." })))
-  );
-
-  const cuerpo = filas.map((f) =>
-    el("tr", { datos: { estado: f.estado } },
-      el("td", { texto: fechaCorta(f.fecha) }),
-      el("td", {},
-        el("input", {
-          type: "number", min: 0, step: 1,
-          value: f.declarado === null ? "" : String(f.declarado),
-          "aria-label": `Facturas que dijo el trabajador el ${fechaCorta(f.fecha)}`,
-          estilo: "max-width:9rem;min-height:40px",
-          alCambiar: (e) => {
-            const v = e.target.value.trim();
-            if (v === "") delete estado.datos.cuadres[f.fecha];
-            else estado.datos.cuadres[f.fecha] = Number(v);
-            cambio();
-            repintar();
-          },
-        })
-      ),
-      el("td", { clase: "n", texto: String(f.registradas) }),
-      el("td", { clase: "n diferencia", texto: f.diferencia === null ? "" : f.diferencia > 0 ? "+" + f.diferencia : String(f.diferencia) }),
-      el("td", {
-        texto: f.estado === "sin-dato" ? "" : f.estado === "cuadra" ? "Cuadra" : "NO cuadra",
-        estilo: f.estado === "no-cuadra" ? "color:var(--rojo);font-weight:700" : "color:var(--verde)",
-      })
+    el("div", { clase: "mando" },
+      ...selectorDeMes(repintar),
+      selectorDeEmpresa(empresaVentasMes, (v) => { empresaVentasMes = v; repintar(); })
     )
   );
+
+  // Los cuatro números arriba, sin tocar nada y sin bajar treinta renglones.
+  poner(raiz,
+    el("dl", { clase: "cifras" },
+      cifra("Almuerzos", String(t.almuerzos.platos)),
+      cifraPlata("Venta de almuerzos", t.almuerzos.plata),
+      cifraPlata("Venta de varios", t.varios.plata),
+      cifraPlata(`Total de ${nombreMes(estado.mes).toLowerCase()}`, t.plata, true)
+    )
+  );
+
+  // Un plato sin precio se vendió y no sumó. Sin decirlo, el total sale
+  // corto y nada explica por qué: ese es el bug del Excel viejo.
+  if (t.sinPrecio > 0) {
+    poner(raiz,
+      el("div", { clase: "nota ojo no-imprimir" },
+        el("div", {},
+          el("strong", { texto: `${t.sinPrecio} ${t.sinPrecio === 1 ? "plato salió" : "platos salieron"} sin precio` }),
+          el("p", {},
+            "No están sumando, así que lo vendido es más de lo que dice esta tabla. ",
+            el("a", { href: "#revisar", texto: "Póngales precio en Revisar" }), "."))
+      )
+    );
+  }
+
+  if (!r.filas.length) {
+    poner(raiz, vacio(
+      `${nombreMes(estado.mes)} de ${estado.anio} todavía no ha empezado`,
+      "Escoja un mes que ya haya pasado."));
+    return;
+  }
+
+  const cuerpo = r.filas.map((f) => {
+    const vendioAlgo = f.plata > 0 || f.almuerzos.platos || f.varios.platos ||
+                       f.almuerzos.cortesias || f.varios.cortesias;
+    return el("tr", { datos: { vacio: vendioAlgo ? "no" : "si" } },
+      el("td", { texto: fechaCorta(f.fecha) }),
+      el("td", { clase: "n" },
+        el("strong", { texto: String(f.almuerzos.platos) }),
+        // Las cortesías van al lado y no sumadas: salieron de la cocina pero
+        // no le entró plata a nadie por ellas.
+        f.almuerzos.cortesias
+          ? el("span", { clase: "apunte", texto: ` +${f.almuerzos.cortesias} cortesía` })
+          : null
+      ),
+      el("td", { clase: "n plata", texto: f.almuerzos.plata ? pesos(f.almuerzos.plata) : "" }),
+      el("td", { clase: "n plata", texto: f.varios.plata ? pesos(f.varios.plata) : "" }),
+      el("td", { clase: "n plata total-dia", texto: f.plata ? pesos(f.plata) : "" })
+    );
+  });
 
   poner(raiz,
     tabla(
       [
-        { titulo: "Día" }, { titulo: "Dijo el trabajador" }, { titulo: "Hay registradas", clase: "n" },
-        { titulo: "Diferencia", clase: "n" }, { titulo: "" },
+        { titulo: "Día" },
+        { titulo: "Almuerzos", clase: "n" },
+        { titulo: "Venta almuerzos", clase: "n" },
+        { titulo: "Venta varios", clase: "n" },
+        { titulo: "Total del día", clase: "n" },
       ],
       cuerpo,
-      el("tr", {},
-        el("td", { texto: `${nombreMes(estado.mes)} ${estado.anio}` }),
-        el("td", { clase: "n", texto: String(conDato.reduce((a, f) => a + f.declarado, 0)) }),
-        el("td", { clase: "n", texto: String(filas.reduce((a, f) => a + f.registradas, 0)) }),
-        el("td", {}), el("td", {})
+      el("tr", { clase: "total-del-mes" },
+        el("td", { texto: `Total de ${nombreMes(estado.mes)} ${estado.anio}` }),
+        el("td", { clase: "n", texto: String(t.almuerzos.platos) }),
+        el("td", { clase: "n plata", texto: pesos(t.almuerzos.plata) }),
+        el("td", { clase: "n plata", texto: pesos(t.varios.plata) }),
+        el("td", { clase: "n plata", texto: pesos(t.plata) })
       )
     ),
     el("p", { estilo: "color:var(--tinta-suave);font-size:var(--t-sm);margin-top:var(--e3)" },
-      `${nombreMes(estado.mes)} tiene ${diasDelMes(estado.anio, estado.mes)} días. ` +
-      "Diferencia positiva = la app tiene más facturas de las que dijo el trabajador."
-    )
+      `${t.diasConVenta} ${t.diasConVenta === 1 ? "día" : "días"} con venta, ` +
+      `${platosDelMes} platos en total. "Almuerzos" es el plato ALMUERZO; ` +
+      `todo lo demás -- OFERTA, bebidas, porciones -- va en "varios".`)
   );
 }

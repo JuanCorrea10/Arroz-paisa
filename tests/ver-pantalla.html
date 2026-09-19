@@ -56,7 +56,7 @@ const PANTALLAS = {
   compras:   ["../js/ui/proveedores.js", "pintarCompras"],
   pagos:     ["../js/ui/proveedores.js", "pintarPagos"],
   ventas:    ["../js/ui/ventas.js", "pintarVentas"],
-  cuadre:    ["../js/ui/informes.js", "pintarCuadre"],
+  ventasmes: ["../js/ui/informes.js", "pintarVentasDelMes"],
   compartir: ["../js/ui/compartir.js", "pintarCompartir"],
   revisar:   ["../js/ui/errores.js", "pintarErrores"],
   nombres:   ["../js/ui/nombres.js", "pintarNombres"],
@@ -132,6 +132,21 @@ try {
       desde: `${estado.anio}-${dos(estado.mes)}-20`,
       hasta: `${otroAnio}-${dos(otroMes)}-05`,
     });
+  }
+
+  // Pagos mezclados en el dia que se esta mirando: unas comandas a credito,
+  // otras pagadas de una y una de cortesia. Los datos de verdad son casi
+  // todos a credito, asi que sin esto los botones de filtrar saldrian todos
+  // diciendo lo mismo y no se veria si de verdad filtran.
+  if (forzar.includes("pagos-mezclados")) {
+    const delDia = datos.consumos.filter((c) => c.fecha === estado.fecha &&
+                                                c.empresa === estado.empresa);
+    const quienes = [...new Set(delDia.map((c) => c.persona))];
+    for (const c of delDia) {
+      const cual = quienes.indexOf(c.persona);
+      if (cual % 3 === 1) c.cobro = "contado";
+      else if (cual % 7 === 3) c.cobro = "cortesia";
+    }
   }
 
   // Un plato que SI esta en el catalogo pero con renglones sin precio. En los
@@ -469,6 +484,18 @@ try {
       sel.value = "";
       sel.dispatchEvent(new Event("change", { bubbles: true }));
     }
+  }
+
+  // "&forzar=pagos-mezclados+filtro:contado" toca el boton de filtrar. Esa
+  // eleccion vive dentro de registrar.js y no se puede poner por URL.
+  if (forzar.includes("filtro:")) {
+    const cual = forzar.split("filtro:")[1].split("+")[0];
+    const comoSeLlama = { contado: /efectivo/i, empresa: /cr.dito/i,
+                          cortesia: /cortes/i, todas: /todas/i }[cual];
+    const boton = [...raiz.querySelectorAll(".filtro-pago-boton")]
+      .find((b) => comoSeLlama && comoSeLlama.test(b.textContent));
+    if (boton) boton.click();
+    else loQueSeTecleo = "no encontre el boton de filtrar: " + cual;
   }
 
   if (forzar === "ventana") {

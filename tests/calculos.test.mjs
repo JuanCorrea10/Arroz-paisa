@@ -17,7 +17,7 @@ import {
 import {
   clavePersona, claveFactura, quincenaDe, rangoQuincena, subtotal, sumar,
   delMes, deQuincena, contarFacturas, facturasPorEmpresa, informeDia,
-  informeCocina, informePorPersona, cuentaDeCobro, informeCuadre,
+  informeCocina, informePorPersona, cuentaDeCobro,
   revisarConsumo, indicePorCodigo, precioDe, personasDe, clavePrecio,
   fechaDeCobro, ponerFechaDeCobro, fueraDelRango,
 } from "../js/nucleo/calculos.js";
@@ -359,28 +359,6 @@ prueba("la cuenta de cobro suma exactamente lo que dicen sus renglones", () => {
   const cuenta = cuentaDeCobro(D.consumos, 2026, 8, 1, E.AGRO);
   igual(cuenta.total, cuenta.filas.reduce((a, f) => a + f.total, 0));
   igual(cuenta.total, cuenta.filas.reduce((a, f) => a + f.cantidad * f.precioUnitario, 0));
-});
-
-prueba("el cuadre saca una fila por día del mes y marca verde o rojo", () => {
-  const filas = informeCuadre(D.consumos, 2026, 8, { "2026-08-10": 2, "2026-08-14": 5 });
-  igual(filas.length, 31, "agosto tiene 31 días");
-  const d10 = filas.find((f) => f.dia === 10);
-  igual(d10.registradas, 2);
-  igual(d10.declarado, 2);
-  igual(d10.diferencia, 0);
-  igual(d10.estado, "cuadra");
-  const d14 = filas.find((f) => f.dia === 14);
-  igual(d14.registradas, 2);
-  igual(d14.diferencia, -3, "el trabajador dijo 5 y solo hay 2 registradas");
-  igual(d14.estado, "no-cuadra");
-  igual(filas.find((f) => f.dia === 1).estado, "sin-dato", "los días sin dato no salen en rojo");
-});
-
-prueba("el cuadre aguanta un 0 declarado sin confundirlo con vacío", () => {
-  const filas = informeCuadre(D.consumos, 2026, 8, { "2026-08-05": 0 });
-  const d5 = filas.find((f) => f.dia === 5);
-  igual(d5.declarado, 0);
-  igual(d5.estado, "cuadra", "dijo 0 y hay 0: cuadra");
 });
 
 // ---------------------------------------------------------------------------
