@@ -29,7 +29,7 @@ const renglon = (extra) => ({
 /** La fila de un día, para no andar buscándola en cada prueba. */
 const dia = (r, fechaISO) => r.filas.find((f) => f.fecha === fechaISO);
 
-grupo("Qué es un almuerzo y qué es 'varios'");
+grupo("Qué es un almuerzo y qué es 'otros'");
 
 prueba("almuerzo es el plato ALMUERZO, escrito como sea", () => {
   cierto(esAlmuerzo("ALMUERZO"));
@@ -48,7 +48,7 @@ prueba("lo demás no es almuerzo, ni siquiera la OFERTA", () => {
 
 grupo("Las ventas del mes, día por día");
 
-prueba("parte el día en almuerzos y varios", () => {
+prueba("parte el día en almuerzos y otros", () => {
   const r = ventasDelMes([
     renglon({ cantidad: 3 }),
     renglon({ producto: "COCA COLA 1.5", cantidad: 2, precioUnitario: 7000 }),
@@ -56,7 +56,7 @@ prueba("parte el día en almuerzos y varios", () => {
 
   const d = dia(r, "2026-08-03");
   igual(d.almuerzos, { platos: 3, plata: 36000, cortesias: 0 }, "3 almuerzos, $ 36.000");
-  igual(d.varios, { platos: 2, plata: 14000, cortesias: 0 });
+  igual(d.otros, { platos: 2, plata: 14000, cortesias: 0 });
   igual(d.plata, 50000, "el total del día es la suma de los dos");
 });
 
@@ -68,7 +68,7 @@ prueba("el total del mes suma todos los días", () => {
   ], 2026, 8);
 
   igual(r.total.almuerzos, { platos: 3, plata: 36000, cortesias: 0 });
-  igual(r.total.varios, { platos: 1, plata: 5000, cortesias: 0 });
+  igual(r.total.otros, { platos: 1, plata: 5000, cortesias: 0 });
   igual(r.total.plata, 41000);
   igual(r.total.diasConVenta, 2, "solo los dos días que tuvieron algo");
 });
@@ -121,8 +121,8 @@ prueba("un plato sin precio se cuenta y se avisa", () => {
   ], 2026, 8);
 
   const d = dia(r, "2026-08-03");
-  igual(d.varios.platos, 2, "salieron dos, aunque no hayan sumado");
-  igual(d.varios.plata, 0);
+  igual(d.otros.platos, 2, "salieron dos, aunque no hayan sumado");
+  igual(d.otros.plata, 0);
   igual(d.sinPrecio, 2, "y el día lo dice, para que el total corto se explique");
   igual(r.total.sinPrecio, 2);
 });

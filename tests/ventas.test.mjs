@@ -339,3 +339,46 @@ prueba("los platos sin precio se cuentan en su grupo", () => {
   igual(g.otros.sinPrecio, 1);
   igual(g.almuerzos.sinPrecio, 0);
 });
+
+prueba("cada día trae sus dos grupos, y suman el día", () => {
+  // Es lo que pide la tabla "Día por día": cuántos almuerzos y cuántos otros
+  // salieron ESE día, no solo el montón junto.
+  const v = ventasEnRango([
+    renglon("2026-08-03"),
+    renglon("2026-08-03"),
+    renglon("2026-08-03", "COCA COLA 1.5", { precioUnitario: 7000 }),
+    renglon("2026-08-04", "OFERTA", { precioUnitario: 10000 }),
+  ], "2026-08-01", "2026-08-31");
+
+  const d3 = v.dias.find((d) => d.fecha === "2026-08-03");
+  igual(d3.almuerzos.vendidos, 2);
+  igual(d3.almuerzos.plata, 24000);
+  igual(d3.otros.vendidos, 1);
+  igual(d3.otros.plata, 7000);
+  igual(d3.almuerzos.vendidos + d3.otros.vendidos, d3.vendidos);
+  igual(d3.almuerzos.plata + d3.otros.plata, d3.plata);
+
+  const d4 = v.dias.find((d) => d.fecha === "2026-08-04");
+  igual(d4.almuerzos.vendidos, 0, "ese día no salió ningún almuerzo");
+  igual(d4.otros.vendidos, 1);
+});
+
+prueba("los días sumados dan lo mismo que los grupos del rango", () => {
+  // Dos caminos para el mismo número: por día y por grupo. Si alguno se
+  // quedara sin sumar un renglón, la pantalla mostraría dos totales que no
+  // coinciden y nadie sabría a cuál creerle.
+  const v = ventasEnRango([
+    renglon("2026-08-03"),
+    renglon("2026-08-03", "JUGO EN LECHE", { precioUnitario: 5000 }),
+    renglon("2026-08-04", "OFERTA", { precioUnitario: 10000, cobro: DE_CONTADO }),
+    renglon("2026-08-05", "ALMUERZO", { cobro: CORTESIA }),
+  ], "2026-08-01", "2026-08-31");
+
+  const porDia = (cual, campo) => v.dias.reduce((a, d) => a + d[cual][campo], 0);
+  const delGrupo = (cual, campo) => v.grupos.find((g) => g.grupo === cual)[campo];
+
+  for (const campo of ["vendidos", "cortesias", "plata", "aCredito", "deContado"]) {
+    igual(porDia("almuerzos", campo), delGrupo("almuerzos", campo), "almuerzos · " + campo);
+    igual(porDia("otros", campo), delGrupo("otros", campo), "otros · " + campo);
+  }
+});

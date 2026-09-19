@@ -461,36 +461,44 @@ export function ventasEnRango(consumos, desdeISO, hastaISO, codigoEmpresa = null
   for (const c of dentro) {
     const plato = normalizar(c.producto);
     if (!porPlato.has(plato)) porPlato.set(plato, { producto: plato, ...vacio() });
-    if (!porDia.has(c.fecha)) porDia.set(c.fecha, { fecha: c.fecha, ...vacio(), consumos: [] });
+    if (!porDia.has(c.fecha)) {
+      // Cada día lleva sus dos grupos adentro: "el martes salieron 26
+      // almuerzos y 14 cosas más" es una pregunta de todos los días, y
+      // sacarla después obligaría a recorrer los renglones otra vez.
+      porDia.set(c.fecha, {
+        fecha: c.fecha, ...vacio(),
+        almuerzos: vacio(), otros: vacio(), consumos: [],
+      });
+    }
 
     const fila = porPlato.get(plato);
     const dia = porDia.get(c.fecha);
-    const grupo = esAlmuerzo(c.producto) ? porGrupo.almuerzos : porGrupo.otros;
+    const esAlm = esAlmuerzo(c.producto);
     dia.consumos.push(c);
+
+    // Las cinco cuentas que este renglón alimenta. Van en una lista y no
+    // sumadas una por una: eran cuatro líneas repetidas por cada campo, y
+    // agregar la quinta era agregar otras cuatro. Así, olvidar una es
+    // imposible -- y una cuenta que se queda sin sumar no da error, solo da
+    // un número más chico.
+    const cajas = [
+      fila,                                              // ese plato
+      dia,                                               // ese día
+      total,                                             // todo el rango
+      esAlm ? porGrupo.almuerzos : porGrupo.otros,       // su grupo, en el rango
+      esAlm ? dia.almuerzos : dia.otros,                 // su grupo, ese día
+    ];
 
     const cuantos = Number(c.cantidad) || 0;
     const donde = esCortesia(c) ? "cortesias" : "vendidos";
-    fila[donde] += cuantos;
-    dia[donde] += cuantos;
-    total[donde] += cuantos;
-    grupo[donde] += cuantos;
+    const sinPrecio = donde === "vendidos" && !(Number(c.precioUnitario) > 0);
 
-    if (donde === "vendidos" && !(Number(c.precioUnitario) > 0)) {
-      fila.sinPrecio += cuantos;
-      dia.sinPrecio += cuantos;
-      total.sinPrecio += cuantos;
-      grupo.sinPrecio += cuantos;
-    }
-
-    for (const [campo, cuanto] of [
-      ["plata", subtotal(c)],
-      ["aCredito", subtotalAcreditoDeEmpresa(c)],
-      ["deContado", subtotalDeContado(c)],
-    ]) {
-      fila[campo] += cuanto;
-      dia[campo] += cuanto;
-      total[campo] += cuanto;
-      grupo[campo] += cuanto;
+    for (const caja of cajas) {
+      caja[donde] += cuantos;
+      if (sinPrecio) caja.sinPrecio += cuantos;
+      caja.plata += subtotal(c);
+      caja.aCredito += subtotalAcreditoDeEmpresa(c);
+      caja.deContado += subtotalDeContado(c);
     }
   }
 
@@ -1015,7 +1023,7 @@ export function historialDePersona(consumos, codigoEmpresa, nombrePersona) {
 }
 
 /**
- * Que cuenta como ALMUERZO y que como "varios".
+ * Que cuenta como ALMUERZO y que como "otros".
  *
  * Es el plato que se llama ALMUERZO y nada mas. El catalogo no tiene
  * categorias -- cada producto es solo un nombre y un precio -- asi que la
@@ -1023,7 +1031,7 @@ export function historialDePersona(consumos, codigoEmpresa, nombrePersona) {
  * pedirlo: "el almuerzo cuesta 12 mil".
  *
  * Ojo si algun dia cambia: OFERTA es el segundo plato que mas sale y hoy
- * queda en "varios". Si ella lo cuenta como almuerzo, se cambia AQUI y las
+ * queda en "otros". Si ella lo cuenta como almuerzo, se cambia AQUI y las
  * dos columnas se mueven solas.
  */
 export function esAlmuerzo(producto) {
@@ -1071,16 +1079,16 @@ export function ventasDelMes(consumos, anio, mes, codigoEmpresa = null, hastaISO
   }
 
   const vacio = () => ({ platos: 0, plata: 0, cortesias: 0 });
-  const total = { almuerzos: vacio(), varios: vacio(), plata: 0, sinPrecio: 0, diasConVenta: 0 };
+  const total = { almuerzos: vacio(), otros: vacio(), plata: 0, sinPrecio: 0, diasConVenta: 0 };
   const filas = [];
 
   for (let d = 1; d <= ultimo; d++) {
     const fecha = `${anio}-${dosDigitos(mes)}-${dosDigitos(d)}`;
-    const fila = { fecha, dia: d, almuerzos: vacio(), varios: vacio(), plata: 0, sinPrecio: 0 };
+    const fila = { fecha, dia: d, almuerzos: vacio(), otros: vacio(), plata: 0, sinPrecio: 0 };
 
     for (const c of porDia.get(fecha) || []) {
-      const donde = esAlmuerzo(c.producto) ? fila.almuerzos : fila.varios;
-      const suyoEnElMes = esAlmuerzo(c.producto) ? total.almuerzos : total.varios;
+      const donde = esAlmuerzo(c.producto) ? fila.almuerzos : fila.otros;
+      const suyoEnElMes = esAlmuerzo(c.producto) ? total.almuerzos : total.otros;
       const cuantos = Number(c.cantidad) || 0;
       const plata = subtotal(c);
 
@@ -1103,8 +1111,8 @@ export function ventasDelMes(consumos, anio, mes, codigoEmpresa = null, hastaISO
       }
     }
 
-    if (fila.plata > 0 || fila.almuerzos.platos || fila.varios.platos ||
-        fila.almuerzos.cortesias || fila.varios.cortesias) {
+    if (fila.plata > 0 || fila.almuerzos.platos || fila.otros.platos ||
+        fila.almuerzos.cortesias || fila.otros.cortesias) {
       total.diasConVenta += 1;
     }
     filas.push(fila);

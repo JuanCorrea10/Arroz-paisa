@@ -297,21 +297,35 @@ function tablaDeGrupos(venta) {
   );
 }
 
+/**
+ * Día por día, partido en los mismos dos grupos que la tabla de arriba.
+ *
+ * Decía "Platos: 40" y ya. Ese 40 no contesta nada: cuarenta platos pueden
+ * ser treinta almuerzos y diez gaseosas, o al revés, y son dos días muy
+ * distintos para la cocina y para la caja.
+ */
 function tablaDeDias(venta) {
+  const deLosDos = (cual) => venta.grupos.find((g) => g.grupo === cual);
+
   return tabla(
-    [{ titulo: "Día" }, { titulo: "Platos", clase: "n" },
-     { titulo: "Facturas", clase: "n" }, { titulo: "Plata", clase: "n" }],
+    [{ titulo: "Día" },
+     { titulo: "Almuerzos", clase: "n" },
+     { titulo: "Otros", clase: "n" },
+     { titulo: "Facturas", clase: "n" },
+     { titulo: "Plata", clase: "n" }],
     venta.dias.map((d) =>
       el("tr", {},
         el("td", { texto: fechaLarga(d.fecha) }),
-        el("td", { clase: "n cant", estilo: "font-size:1.15em", texto: String(d.vendidos) }),
+        el("td", { clase: "n cant", estilo: "font-size:1.15em", texto: String(d.almuerzos.vendidos) }),
+        el("td", { clase: "n cant", texto: String(d.otros.vendidos) }),
         el("td", { clase: "n", texto: String(d.facturas) }),
         el("td", { clase: "n", texto: pesos(d.plata) })
       )
     ),
     el("tr", {},
       el("td", { texto: `TOTAL · ${venta.total.diasConVenta} días` }),
-      el("td", { clase: "n cant", texto: String(venta.total.vendidos) }),
+      el("td", { clase: "n cant", texto: String(deLosDos("almuerzos").vendidos) }),
+      el("td", { clase: "n cant", texto: String(deLosDos("otros").vendidos) }),
       el("td", { clase: "n", texto: String(venta.total.facturas) }),
       el("td", { clase: "n", texto: pesos(venta.total.plata) })
     )

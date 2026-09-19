@@ -25,6 +25,21 @@
 
 <script type="module">
 const lineas = [];
+
+// Si esta página revienta a mitad -- un campo que se renombró, un PDF que
+// cambió de forma -- las comprobaciones que faltaban simplemente no salían,
+// y la lista terminaba en la última que alcanzó a correr. Eso se lee igual
+// que "no había más que revisar". Ahora el error ES el resultado.
+//
+// Pasó de verdad: al renombrar "varios" a "otros" se quedaron tres
+// comprobaciones sin correr y la salida decía 0 MAL.
+window.addEventListener("error", (e) => {
+  const linea = "MAL  la prueba misma reventó: " + (e.message || e.error);
+  lineas.push(linea);
+  const caja = document.getElementById("salida");
+  if (caja) caja.textContent = lineas.join("\n");
+  fetch("/diagnostico", { method: "POST", body: lineas.join("\n") }).catch(() => {});
+});
 const anotar = (t) => {
   lineas.push(t);
   document.getElementById("salida").textContent = lineas.join("\n");
@@ -612,8 +627,8 @@ if (revento) {
     // Los días en blanco no van en papel: media hoja en renglones que dicen
     // cero es papel botado, y ella imprime esto.
     const enBlanco = ventas.filas.filter(
-      (f) => !f.plata && !f.almuerzos.platos && !f.varios.platos &&
-             !f.almuerzos.cortesias && !f.varios.cortesias);
+      (f) => !f.plata && !f.almuerzos.platos && !f.otros.platos &&
+             !f.almuerzos.cortesias && !f.otros.cortesias);
     const colados = enBlanco.filter((f) => crudo.includes(
       f.fecha.slice(8, 10) + "/" + f.fecha.slice(5, 7) + "/" + f.fecha.slice(0, 4)));
     anotar(colados.length === 0

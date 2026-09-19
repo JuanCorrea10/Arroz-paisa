@@ -1279,25 +1279,25 @@ export function pdfVentasDelMes(ventas, codigoEmpresa, acreedor) {
   const y = encabezado(doc, "VENTAS DEL MES", `${nombreMes(mes)} ${anio} · ${quien}`, acreedor);
 
   const conVenta = ventas.filas.filter(
-    (f) => f.plata > 0 || f.almuerzos.platos || f.varios.platos ||
-           f.almuerzos.cortesias || f.varios.cortesias);
+    (f) => f.plata > 0 || f.almuerzos.platos || f.otros.platos ||
+           f.almuerzos.cortesias || f.otros.cortesias);
 
   doc.autoTable({
     ...estiloTabla,
     startY: y,
-    head: [["Día", "Almuerzos", "Venta almuerzos", "Venta varios", "Total del día"]],
+    head: [["Día", "Almuerzos", "Venta almuerzos", "Venta otros", "Total del día"]],
     body: conVenta.map((f) => [
       fechaCorta(f.fecha),
       String(f.almuerzos.platos) + (f.almuerzos.cortesias ? ` +${f.almuerzos.cortesias} cort.` : ""),
       f.almuerzos.plata ? pesos(f.almuerzos.plata) : "",
-      f.varios.plata ? pesos(f.varios.plata) : "",
+      f.otros.plata ? pesos(f.otros.plata) : "",
       f.plata ? pesos(f.plata) : "",
     ]),
     foot: [[
       `Total de ${nombreMes(mes).toLowerCase()}`,
       String(total.almuerzos.platos),
       pesos(total.almuerzos.plata),
-      pesos(total.varios.plata),
+      pesos(total.otros.plata),
       pesos(total.plata),
     ]],
     columnStyles: {
@@ -1315,7 +1315,7 @@ export function pdfVentasDelMes(ventas, codigoEmpresa, acreedor) {
   doc.setTextColor(...GRIS);
   doc.text(
     `${total.diasConVenta} ${total.diasConVenta === 1 ? "día" : "días"} con venta. ` +
-    `"Almuerzos" es el plato ALMUERZO; todo lo demás va en "varios".`, 14, fin);
+    `"Almuerzos" es el plato ALMUERZO; todo lo demás va en "otros".`, 14, fin);
 
   // Un plato sin precio no sumó. Callarlo aquí es entregar un total corto
   // sin decir por qué, que es justo lo que hacía el Excel viejo.

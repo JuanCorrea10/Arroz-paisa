@@ -995,7 +995,7 @@ export function pintarVentasDelMes(raiz) {
   const r = ventasDelMes(estado.datos.consumos, estado.anio, estado.mes,
                          empresaVentasMes, hoyISO());
   const t = r.total;
-  const platosDelMes = t.almuerzos.platos + t.varios.platos;
+  const platosDelMes = t.almuerzos.platos + t.otros.platos;
 
   poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
@@ -1025,7 +1025,7 @@ export function pintarVentasDelMes(raiz) {
     el("dl", { clase: "cifras" },
       cifra("Almuerzos", String(t.almuerzos.platos)),
       cifraPlata("Venta de almuerzos", t.almuerzos.plata),
-      cifraPlata("Venta de varios", t.varios.plata),
+      cifraPlata("Venta de otros platos", t.otros.plata),
       cifraPlata(`Total de ${nombreMes(estado.mes).toLowerCase()}`, t.plata, true)
     )
   );
@@ -1052,8 +1052,8 @@ export function pintarVentasDelMes(raiz) {
   }
 
   const cuerpo = r.filas.map((f) => {
-    const vendioAlgo = f.plata > 0 || f.almuerzos.platos || f.varios.platos ||
-                       f.almuerzos.cortesias || f.varios.cortesias;
+    const vendioAlgo = f.plata > 0 || f.almuerzos.platos || f.otros.platos ||
+                       f.almuerzos.cortesias || f.otros.cortesias;
     return el("tr", { datos: { vacio: vendioAlgo ? "no" : "si" } },
       el("td", { texto: fechaCorta(f.fecha) }),
       el("td", { clase: "n" },
@@ -1065,7 +1065,7 @@ export function pintarVentasDelMes(raiz) {
           : null
       ),
       el("td", { clase: "n plata", texto: f.almuerzos.plata ? pesos(f.almuerzos.plata) : "" }),
-      el("td", { clase: "n plata", texto: f.varios.plata ? pesos(f.varios.plata) : "" }),
+      el("td", { clase: "n plata", texto: f.otros.plata ? pesos(f.otros.plata) : "" }),
       el("td", { clase: "n plata total-dia", texto: f.plata ? pesos(f.plata) : "" })
     );
   });
@@ -1076,7 +1076,7 @@ export function pintarVentasDelMes(raiz) {
         { titulo: "Día" },
         { titulo: "Almuerzos", clase: "n" },
         { titulo: "Venta almuerzos", clase: "n" },
-        { titulo: "Venta varios", clase: "n" },
+        { titulo: "Venta otros", clase: "n" },
         { titulo: "Total del día", clase: "n" },
       ],
       cuerpo,
@@ -1084,13 +1084,13 @@ export function pintarVentasDelMes(raiz) {
         el("td", { texto: `Total de ${nombreMes(estado.mes)} ${estado.anio}` }),
         el("td", { clase: "n", texto: String(t.almuerzos.platos) }),
         el("td", { clase: "n plata", texto: pesos(t.almuerzos.plata) }),
-        el("td", { clase: "n plata", texto: pesos(t.varios.plata) }),
+        el("td", { clase: "n plata", texto: pesos(t.otros.plata) }),
         el("td", { clase: "n plata", texto: pesos(t.plata) })
       )
     ),
     el("p", { estilo: "color:var(--tinta-suave);font-size:var(--t-sm);margin-top:var(--e3)" },
       `${t.diasConVenta} ${t.diasConVenta === 1 ? "día" : "días"} con venta, ` +
       `${platosDelMes} platos en total. "Almuerzos" es el plato ALMUERZO; ` +
-      `todo lo demás -- OFERTA, bebidas, porciones -- va en "varios".`)
+      `todo lo demás -- OFERTA, bebidas, porciones -- va en "otros".`)
   );
 }
