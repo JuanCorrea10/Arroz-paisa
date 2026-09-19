@@ -450,6 +450,14 @@ export function ventasEnRango(consumos, desdeISO, hastaISO, codigoEmpresa = null
   const porDia = new Map();
   const total = vacio();
 
+  // Los dos grupos: los almuerzos y todo lo demás.
+  //
+  // Se parten AQUÍ, en el núcleo, y no en cada pantalla. Son dos las que lo
+  // preguntan -- "Cuánto vendí" y "Ventas del mes" -- y si cada una hiciera
+  // su propia cuenta, el día que la raya se mueva una quedaría diciendo una
+  // cosa y la otra otra, sin que nada avise.
+  const porGrupo = { almuerzos: vacio(), otros: vacio() };
+
   for (const c of dentro) {
     const plato = normalizar(c.producto);
     if (!porPlato.has(plato)) porPlato.set(plato, { producto: plato, ...vacio() });
@@ -457,6 +465,7 @@ export function ventasEnRango(consumos, desdeISO, hastaISO, codigoEmpresa = null
 
     const fila = porPlato.get(plato);
     const dia = porDia.get(c.fecha);
+    const grupo = esAlmuerzo(c.producto) ? porGrupo.almuerzos : porGrupo.otros;
     dia.consumos.push(c);
 
     const cuantos = Number(c.cantidad) || 0;
@@ -464,11 +473,13 @@ export function ventasEnRango(consumos, desdeISO, hastaISO, codigoEmpresa = null
     fila[donde] += cuantos;
     dia[donde] += cuantos;
     total[donde] += cuantos;
+    grupo[donde] += cuantos;
 
     if (donde === "vendidos" && !(Number(c.precioUnitario) > 0)) {
       fila.sinPrecio += cuantos;
       dia.sinPrecio += cuantos;
       total.sinPrecio += cuantos;
+      grupo.sinPrecio += cuantos;
     }
 
     for (const [campo, cuanto] of [
@@ -479,6 +490,7 @@ export function ventasEnRango(consumos, desdeISO, hastaISO, codigoEmpresa = null
       fila[campo] += cuanto;
       dia[campo] += cuanto;
       total[campo] += cuanto;
+      grupo[campo] += cuanto;
     }
   }
 
@@ -498,6 +510,14 @@ export function ventasEnRango(consumos, desdeISO, hastaISO, codigoEmpresa = null
     desde, hasta,
     filas,
     dias,
+    // "cuantosPlatos" es cuántos platos DISTINTOS hay en ese grupo. Sirve para
+    // decir "otros platos (23 clases)" sin tener que listarlos.
+    grupos: [
+      { ...porGrupo.almuerzos, grupo: "almuerzos", titulo: "Almuerzos",
+        cuantosPlatos: filas.filter((f) => esAlmuerzo(f.producto)).length },
+      { ...porGrupo.otros, grupo: "otros", titulo: "Otros platos",
+        cuantosPlatos: filas.filter((f) => !esAlmuerzo(f.producto)).length },
+    ],
     total: { ...total, facturas: contarFacturas(dentro), diasConVenta: dias.length },
   };
 }

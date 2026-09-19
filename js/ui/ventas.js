@@ -153,7 +153,7 @@ export function pintarVentas(raiz) {
       venta.filas.length
         ? el("div", {},
             el("h3", { estilo: "margin:var(--e5) 0 var(--e3)", texto: "Qué se vendió" }),
-            tablaDePlatos(venta),
+            tablaDeGrupos(venta),
             el("h3", { estilo: "margin:var(--e6) 0 var(--e3)", texto: "Día por día" }),
             tablaDeDias(venta))
         : vacio(
@@ -249,27 +249,47 @@ function mando(repintar, hoy) {
   );
 }
 
-function tablaDePlatos(venta) {
-  const hayCortesias = venta.filas.some((f) => f.cortesias);
+/**
+ * Qué se vendió: dos renglones, no setenta y siete.
+ *
+ * Antes era un renglón por plato. Con setenta y siete platos en el catálogo
+ * eso es una lista que hay que leerse entera para contestar la única
+ * pregunta que ella se hace: cuánto dieron los almuerzos y cuánto todo lo
+ * demás. La lista larga no contestaba eso, había que sumarla con el dedo.
+ *
+ * La raya entre los dos grupos la traza el núcleo, no esta pantalla: así
+ * "Cuánto vendí" y "Ventas del mes" no pueden terminar partiendo distinto.
+ */
+function tablaDeGrupos(venta) {
+  const hayCortesias = venta.grupos.some((g) => g.cortesias);
+
   return tabla(
     [
-      { titulo: "Plato" },
+      { titulo: "" },
       { titulo: "Vendidos", clase: "n" },
       ...(hayCortesias ? [{ titulo: "Regalados", clase: "n" }] : []),
       { titulo: "Plata", clase: "n" },
     ],
-    venta.filas.map((f) =>
+    venta.grupos.map((g) =>
       el("tr", {},
-        el("td", { texto: f.producto }),
-        el("td", { clase: "n cant", estilo: "font-size:1.15em", texto: String(f.vendidos) }),
+        el("td", {},
+          el("strong", { texto: g.titulo }),
+          // Cuántas clases de plato hay ahí dentro, para que "otros platos"
+          // no se lea como una caja negra. Es el dato, no la lista.
+          g.grupo === "otros" && g.cuantosPlatos
+            ? el("div", { clase: "apunte",
+                texto: `${g.cuantosPlatos} ${g.cuantosPlatos === 1 ? "clase" : "clases"} de plato` })
+            : null
+        ),
+        el("td", { clase: "n cant", estilo: "font-size:1.15em", texto: String(g.vendidos) }),
         ...(hayCortesias
-          ? [el("td", { clase: "n cant", texto: f.cortesias ? String(f.cortesias) : "·" })]
+          ? [el("td", { clase: "n cant", texto: g.cortesias ? String(g.cortesias) : "·" })]
           : []),
-        el("td", { clase: "n", texto: pesos(f.plata) })
+        el("td", { clase: "n", texto: pesos(g.plata) })
       )
     ),
     el("tr", {},
-      el("td", { texto: `TOTAL · ${venta.filas.length} platos distintos` }),
+      el("td", { texto: "TOTAL" }),
       el("td", { clase: "n cant", texto: String(venta.total.vendidos) }),
       ...(hayCortesias ? [el("td", { clase: "n cant", texto: String(venta.total.cortesias) })] : []),
       el("td", { clase: "n", texto: pesos(venta.total.plata) })

@@ -237,3 +237,105 @@ prueba("se sabe cuál plato y qué día fue", () => {
   igual(v.dias.find((d) => d.fecha === "2026-08-03").sinPrecio, 1);
   igual(v.dias.find((d) => d.fecha === "2026-08-04").sinPrecio, 0);
 });
+
+// ---------------------------------------------------------------------------
+grupo("Los dos grupos: almuerzos y otros platos");
+
+// Ella no quiere la lista de los 77 platos: quiere dos renglones. "Cuánto me
+// dieron los almuerzos y cuánto todo lo demás." La raya la traza el núcleo
+// (esAlmuerzo) y no cada pantalla, para que las dos que lo preguntan no
+// puedan terminar diciendo cosas distintas.
+
+const deLosGrupos = (v) => Object.fromEntries(v.grupos.map((g) => [g.grupo, g]));
+
+prueba("parte la plata en almuerzos y otros platos", () => {
+  const v = ventasEnRango([
+    renglon("2026-08-03"),
+    renglon("2026-08-03"),
+    renglon("2026-08-03", "COCA COLA 1.5", { precioUnitario: 7000 }),
+    renglon("2026-08-04", "OFERTA", { precioUnitario: 10000 }),
+  ], "2026-08-01", "2026-08-31");
+
+  const g = deLosGrupos(v);
+  igual(g.almuerzos.vendidos, 2);
+  igual(g.almuerzos.plata, 24000);
+  igual(g.otros.vendidos, 2, "la gaseosa y la oferta");
+  igual(g.otros.plata, 17000);
+});
+
+prueba("los dos grupos suman exactamente el total", () => {
+  // Si no cuadraran, la pantalla mostraría dos renglones que no dan el número
+  // grande de arriba, y ella no sabría a cuál creerle.
+  const v = ventasEnRango([
+    renglon("2026-08-03"),
+    renglon("2026-08-03", "JUGO EN LECHE", { precioUnitario: 5000 }),
+    renglon("2026-08-04", "OFERTA", { precioUnitario: 10000 }),
+    renglon("2026-08-04", "PORCION DE PAPAS", { precioUnitario: 4000 }),
+  ], "2026-08-01", "2026-08-31");
+
+  const suma = (campo) => v.grupos.reduce((a, g) => a + g[campo], 0);
+  igual(suma("plata"), v.total.plata);
+  igual(suma("vendidos"), v.total.vendidos);
+  igual(suma("aCredito"), v.total.aCredito);
+  igual(suma("deContado"), v.total.deContado);
+});
+
+prueba("la cortesía cae en su grupo y no le mete plata", () => {
+  const v = ventasEnRango([
+    renglon("2026-08-03"),
+    renglon("2026-08-03", "ALMUERZO", { cobro: CORTESIA }),
+    renglon("2026-08-03", "COCA COLA 1.5", { precioUnitario: 7000, cobro: CORTESIA }),
+  ], "2026-08-01", "2026-08-31");
+
+  const g = deLosGrupos(v);
+  igual(g.almuerzos.cortesias, 1);
+  igual(g.almuerzos.plata, 12000);
+  igual(g.otros.cortesias, 1);
+  igual(g.otros.plata, 0);
+  igual(v.grupos.reduce((a, x) => a + x.cortesias, 0), v.total.cortesias);
+});
+
+prueba("lo de contado también se parte por grupo", () => {
+  const v = ventasEnRango([
+    renglon("2026-08-03", "ALMUERZO", { cobro: DE_CONTADO }),
+    renglon("2026-08-03", "COCA COLA 1.5", { precioUnitario: 7000 }),
+  ], "2026-08-01", "2026-08-31");
+
+  const g = deLosGrupos(v);
+  igual(g.almuerzos.deContado, 12000);
+  igual(g.almuerzos.aCredito, 0);
+  igual(g.otros.deContado, 0);
+  igual(g.otros.aCredito, 7000);
+});
+
+prueba("dice cuántas clases de plato hay en cada grupo", () => {
+  // Sirve para poder decir "otros platos (3 clases)" sin listarlos, que es
+  // justo lo que ella no quiere ver.
+  const v = ventasEnRango([
+    renglon("2026-08-03"),
+    renglon("2026-08-03", "COCA COLA 1.5", { precioUnitario: 7000 }),
+    renglon("2026-08-03", "OFERTA", { precioUnitario: 10000 }),
+    renglon("2026-08-04", "OFERTA", { precioUnitario: 10000 }),
+  ], "2026-08-01", "2026-08-31");
+
+  const g = deLosGrupos(v);
+  igual(g.almuerzos.cuantosPlatos, 1);
+  igual(g.otros.cuantosPlatos, 2, "coca cola y oferta, aunque la oferta salga dos veces");
+});
+
+prueba("sin ventas los dos grupos salen en cero, no faltan", () => {
+  // Que el renglón exista aunque esté vacío importa: una tabla que a veces
+  // tiene dos filas y a veces una se lee distinto cada día.
+  const v = ventasEnRango([], "2026-08-01", "2026-08-31");
+  igual(v.grupos.length, 2);
+  igual(v.grupos.map((g) => g.plata), [0, 0]);
+});
+
+prueba("los platos sin precio se cuentan en su grupo", () => {
+  const v = ventasEnRango([
+    renglon("2026-08-03", "COMBO ALITAS", { precioUnitario: 0 }),
+  ], "2026-08-01", "2026-08-31");
+  const g = deLosGrupos(v);
+  igual(g.otros.sinPrecio, 1);
+  igual(g.almuerzos.sinPrecio, 0);
+});
