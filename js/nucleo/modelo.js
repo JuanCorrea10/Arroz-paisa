@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { normalizar, aEntero, esFechaISO } from "./formato.js";
-import { clavePrecio, clavePersona, formaDeCobro, CORTESIA } from "./calculos.js";
+import { clavePrecio, clavePersona, formaDeCobro, CORTESIA, esLaCasa } from "./calculos.js";
 import { limpiarNombre } from "./nombres.js";
 
 /** La versión del formato de los datos. Si algún día cambia, sirve para migrar. */
@@ -203,6 +203,66 @@ export function revisarQuincenas(r) {
   return { primerDiaQ1: iQ1, ultimoDiaQ1: fQ1, primerDiaQ2: iQ2, ultimoDiaQ2: fQ2 };
 }
 
+/**
+ * Los platos que en ESTA empresa no tienen precio, y con cuál se llenarían.
+ *
+ * El precio se guarda por plato Y POR EMPRESA. Eso quiere decir que una
+ * empresa recién creada nace con los 77 platos en blanco: ella la crea, va a
+ * anotar el primer pedido y TODO le dice "sin precio". Pasó de verdad.
+ *
+ * El valor que se hereda es el que tienen las demás, y solo si todas las que
+ * lo tienen coinciden. Si dos empresas dicen precios distintos, no se inventa
+ * un ganador: se deja sin precio, que es visible, en vez de escoger uno, que
+ * no lo es.
+ *
+ * La casa no sirve de fuente: es el restaurante comiéndose lo suyo, y si
+ * algún día le ponen los platos en cero, heredar de ahí metría ceros --
+ * y un cero cobra $ 0 calladito, que es lo único que no se puede permitir.
+ */
+export function preciosQueLeFaltan(datos, codigoEmpresa) {
+  const cod = normalizar(codigoEmpresa);
+  const fuentes = (datos.empresas || [])
+    .filter((e) => !esLaCasa(e) && normalizar(e.codigo) !== cod)
+    .map((e) => normalizar(e.codigo));
+
+  const sePueden = [];
+  const noSePueden = [];
+
+  for (const p of datos.productos || []) {
+    if (p.activo === false) continue;          // un plato apagado no se pide
+    const nombre = p.nombre;
+    if (datos.precios[clavePrecio(nombre, cod)] !== undefined) continue;
+
+    const valores = new Set();
+    for (const otra of fuentes) {
+      const v = datos.precios[clavePrecio(nombre, otra)];
+      if (Number.isFinite(v)) valores.add(v);
+    }
+
+    if (valores.size === 1) sePueden.push({ plato: nombre, valor: [...valores][0] });
+    else if (valores.size === 0) noSePueden.push({ plato: nombre, porque: "ninguna otra empresa lo tiene" });
+    else noSePueden.push({ plato: nombre, porque: "las otras empresas dicen precios distintos" });
+  }
+
+  return { sePueden, noSePueden };
+}
+
+/**
+ * Copia a esta empresa los precios que las demás ya tienen.
+ *
+ * No pisa nada: solo llena lo que está en blanco. Devuelve cuántos copió y
+ * cuáles quedaron sin precio, para poder DECIRLO -- llenar 74 y callar los 3
+ * que faltan sería dejar tres platos cobrando $ 0 sin que nadie se entere.
+ */
+export function heredarPrecios(datos, codigoEmpresa) {
+  const cod = normalizar(codigoEmpresa);
+  const { sePueden, noSePueden } = preciosQueLeFaltan(datos, cod);
+  for (const { plato, valor } of sePueden) {
+    datos.precios[clavePrecio(plato, cod)] = valor;
+  }
+  return { copiados: sePueden.length, quedanSinPrecio: noSePueden };
+}
+
 export function agregarEmpresa(datos, empresa) {
   const codigo = normalizar(empresa.codigo);
   if (!codigo) throw new Error("La empresa necesita un código (por ejemplo MGP).");
@@ -225,6 +285,20 @@ export function agregarEmpresa(datos, empresa) {
     // gente. No se le cobra ni cuenta como venta. Ver esLaCasa() en calculos.
     esCasa: empresa.esCasa === true,
   });
+
+  // Nace con los precios que ya tienen las demás.
+  //
+  // Sin esto, una empresa nueva llegaba con los 77 platos "sin precio" y no
+  // se podía anotar un solo pedido hasta escribirlos uno por uno. El código
+  // ya sabía que ningún plato cuesta distinto según la fábrica; lo que
+  // faltaba era que la app lo usara.
+  //
+  // El resultado NO se guarda dentro de datos: sería un campo fantasma en
+  // el archivo. La pantalla que crea la empresa vuelve a preguntar con
+  // preciosQueLeFaltan y es ella la que se lo dice a la usuaria. Una app
+  // que llena 77 precios en silencio es una app en la que después nadie
+  // sabe de dónde salieron esos números.
+  heredarPrecios(datos, codigo);
   return datos;
 }
 

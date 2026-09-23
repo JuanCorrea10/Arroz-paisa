@@ -23,6 +23,7 @@ import {
 import { pdfComandasDelDia } from "../exportar/pdf.js";
 import {
   nuevoConsumo, agregarPersona, agregarProducto, ponerComoPagaLaPersona, ponerFormaDeCobro,
+  preciosQueLeFaltan, heredarPrecios,
 } from "../nucleo/modelo.js";
 import {
   limpiarNombre, parecidasEnEmpresa, tocayosEnOtrasEmpresas,
@@ -68,10 +69,100 @@ export function pintarRegistrar(raiz) {
       acciones(botonDePedidosEnPDF())
     ),
     barraDeMando(raiz),
+    faltanLosPrecios(raiz),
     tarjetaDeAyer(raiz),
     cajaDeCaptura(raiz),
     resumenEnVivo(),
     listaDeComandas(raiz)
+  );
+}
+
+/**
+ * El aviso de "a esta empresa le faltan los precios", con el botón que lo
+ * arregla de un toque.
+ *
+ * El precio se guarda por plato Y POR EMPRESA, así que una empresa creada
+ * antes de este arreglo nació con los 77 platos en blanco. Ella la creó, fue
+ * a anotar el primer pedido y todo le decía "sin precio", sin nada que
+ * dijera por qué ni cómo salir de ahí.
+ *
+ * Va AQUÍ, en Registrar, y no en Platos: aquí es donde se queda atascada, y
+ * lo que hay que destapar para ella no existe. Y va arriba de la caja de
+ * captura, antes de que anote nada: un pedido anotado con el plato en $ 0 ya
+ * es plata perdida.
+ */
+function faltanLosPrecios(raiz) {
+  const cod = estado.empresa;
+  if (!cod) return null;
+
+  const { sePueden, noSePueden } = preciosQueLeFaltan(estado.datos, cod);
+  const faltan = sePueden.length + noSePueden.length;
+
+  // Pedidos de HOY que quedaron en $ 0.
+  //
+  // Copiar los precios no los arregla, y no puede: el precio se congela en
+  // cada renglón a propósito, para que cambiar el catálogo no mueva una
+  // cuenta ya entregada. Así que los que ella alcanzó a anotar con la empresa
+  // rota siguen valiendo cero, y el botón de arriba se ve como "ya quedó".
+  //
+  // Solo los del día que está en pantalla, y no los de toda la historia: en
+  // los datos de verdad hay 38 renglones viejos en $ 0 repartidos en tres
+  // empresas, así que mirando todo el aviso saldría TODOS los días -- y un
+  // aviso que sale siempre se deja de leer, justo para cuando importa. Los
+  // viejos tienen su sitio: la pestaña Revisar, que aparece sola cuando hay
+  // algo y los cuenta todos.
+  const enCero = estado.datos.consumos.filter(
+    (c) => c.fecha === estado.fecha &&
+           normalizar(c.empresa) === normalizar(cod) &&
+           !esCortesia(c) && !(Number(c.precioUnitario) > 0)).length;
+
+  if (!faltan && !enCero) return null;
+
+  const copiar = () => {
+    const r = heredarPrecios(estado.datos, cod);
+    cambio();
+    if (r.quedanSinPrecio.length) {
+      const nombres = r.quedanSinPrecio.slice(0, 3).map((x) => x.plato).join(", ");
+      const mas = r.quedanSinPrecio.length - Math.min(3, r.quedanSinPrecio.length);
+      mensaje(
+        `Se copiaron ${r.copiados}. Quedan ${r.quedanSinPrecio.length} sin precio ` +
+        `(${nombres}${mas ? ` y ${mas} más` : ""}): póngaselos en Platos.`, "ojo", 10);
+    } else {
+      mensaje(`Listo: ${r.copiados} precios copiados.`, "bien", 6);
+    }
+    pintarRegistrar(raiz);
+  };
+
+  return el("div", {},
+    faltan
+      ? el("div", { clase: "nota malo no-imprimir" },
+          el("div", { estilo: "flex:1 1 auto;min-width:0" },
+            el("strong", { texto: `A ${cod} le ${faltan === 1 ? "falta 1 precio" : `faltan ${faltan} precios`}` }),
+            el("p", { texto: sePueden.length
+              ? "Los platos existen, pero en esta empresa no tienen precio: si anota un " +
+                "pedido ahora, se cobra en $ 0. Las otras empresas ya los tienen."
+              : "Los platos no tienen precio en ninguna empresa. Póngaselos en Platos " +
+                "antes de anotar, o el pedido se cobra en $ 0." })
+          ),
+          el("div", { clase: "acciones" },
+            sePueden.length
+              ? el("button", { clase: "boton", alHacerClic: copiar },
+                   `Copiar ${sePueden.length === 1 ? "el precio" : `los ${sePueden.length} precios`} de las otras empresas`)
+              : el("a", { clase: "boton chico", href: "#catalogo", texto: "Ir a Platos" })))
+      : null,
+
+    enCero
+      ? el("div", { clase: "nota ojo no-imprimir" },
+          el("div", { estilo: "flex:1 1 auto;min-width:0" },
+            el("strong", { texto: `${enCero} ${enCero === 1 ? "pedido de hoy" : "pedidos de hoy"} en ${cod} ${enCero === 1 ? "quedó" : "quedaron"} en $ 0` }),
+            el("p", { texto:
+              "Son los que se anotaron cuando el plato no tenía precio. El precio se " +
+              "guarda junto con el pedido, así que ponerlo ahora en el catálogo no los " +
+              "cambia: hay que arreglarlos uno por uno." })
+          ),
+          el("div", { clase: "acciones" },
+            el("a", { clase: "boton chico", href: "#revisar", texto: "Arreglarlos en Revisar" })))
+      : null
   );
 }
 
@@ -165,7 +256,9 @@ function cajaDeCaptura(raiz) {
 
   const buscaPersona = buscador({
     etiqueta: "¿Quién comió?",
-    placeholder: `Escriba el nombre (hay ${gente.length} personas en ${estado.empresa})`,
+    placeholder: gente.length === 1
+      ? `Escriba el nombre (hay 1 persona en ${estado.empresa})`
+      : `Escriba el nombre (hay ${gente.length} personas en ${estado.empresa})`,
     opciones: gente.map((p) => ({ texto: p.nombre, valor: p.nombre })),
     alElegir: (nombre) => { personaActiva = nombre; pintarRegistrar(raiz); },
     alCrear: (nombre) => crearPersona(nombre, raiz),

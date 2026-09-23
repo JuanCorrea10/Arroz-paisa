@@ -149,6 +149,33 @@ try {
     }
   }
 
+  // Una empresa creada A MANO y sin precios: es exactamente lo que le paso a
+  // ella al crear la del restaurante. Se mete a pelo en los datos, sin pasar
+  // por agregarEmpresa, porque agregarEmpresa ya hereda los precios -- y lo
+  // que hay que poder mirar es la empresa que quedo mal ANTES del arreglo.
+  if (forzar.includes("empresa-sin-precios")) {
+    datos.empresas.push({
+      codigo: "RESTAURANTE", razonSocial: "Arroz Paisa", nit: "",
+      primerDiaQ1: 1, ultimoDiaQ1: 15, primerDiaQ2: 16, ultimoDiaQ2: 31,
+      activa: true, esCasa: true,
+    });
+    datos.personas.push({ empresa: "RESTAURANTE", nombre: "LEIDY GALLEGO", activa: true });
+    estado.empresa = "RESTAURANTE";
+
+    // Y con pedidos ya anotados en $ 0, que es lo que le pasa a quien alcanzo
+    // a trabajar con la empresa rota: copiar los precios NO los arregla,
+    // porque el precio se congela en cada renglon.
+    if (forzar.includes("ya-anotados")) {
+      for (const plato of ["ALMUERZO", "COCA COLA 1.5", "OFERTA"]) {
+        datos.consumos.push({
+          id: "prueba-" + plato, fecha: estado.fecha, empresa: "RESTAURANTE",
+          persona: "LEIDY GALLEGO", producto: plato, cantidad: 1,
+          precioUnitario: 0, cobro: "empresa",
+        });
+      }
+    }
+  }
+
   // Un plato que SI esta en el catalogo pero con renglones sin precio. En los
   // datos de verdad no hay ninguno, y es justo el caso que la tarjeta de
   // Revisar contaba al reves.
@@ -496,6 +523,14 @@ try {
       .find((b) => comoSeLlama && comoSeLlama.test(b.textContent));
     if (boton) boton.click();
     else loQueSeTecleo = "no encontre el boton de filtrar: " + cual;
+  }
+
+  // "&forzar=empresa-sin-precios+copiar-precios" toca el boton del aviso.
+  if (forzar.includes("copiar-precios")) {
+    const boton = [...raiz.querySelectorAll("button")]
+      .find((b) => /Copiar los .* precios/i.test(b.textContent));
+    if (boton) boton.click();
+    else loQueSeTecleo = "no encontre el boton de copiar precios";
   }
 
   if (forzar === "ventana") {
