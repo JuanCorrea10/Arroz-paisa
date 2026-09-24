@@ -76,8 +76,9 @@ export function pintarEmpresas(raiz) {
             e.esCasa
               ? el("p", { clase: "nota", estilo: "margin:var(--e1) 0 0" },
                   el("strong", { texto: "Es su propio restaurante. " }),
-                  "Su gente paga de una, así que entra a la caja. No se le hace " +
-                  "cuenta de cobro ni se le manda resumen.")
+                  "Sus platos nacen marcados “Pagó de una” y entran a la caja. " +
+                  "Si a alguien de aquí hay que cobrarle, márquele el plato " +
+                  "“A crédito” y sale en la cuenta de cobro.")
               : null),
           el("td", { clase: "dato", texto: e.nit || "—" }),
           el("td", { clase: "dato", texto: diceElRango(e, 1) }),
@@ -172,8 +173,9 @@ const CAMPOS_EMPRESA = (e = {}) => [
     nombre: "esCasa", etiqueta: "Es mi propio restaurante", tipo: "casilla",
     valor: e.esCasa === true,
     ayuda: "Márquela para anotarle el almuerzo a SU gente (la cocinera, el que " +
-           "reparte). Ellos pagan de una, así que sus platos entran a la caja " +
-           "y no se le hace cuenta de cobro a nadie.",
+           "reparte). Sus platos nacen marcados “Pagó de una”, porque ellos " +
+           "pagan de su bolsillo y esa plata entra a la caja. Si a alguno sí hay " +
+           "que cobrarle, márquele el plato “A crédito” y sale en la cuenta.",
   },
   ...CAMPOS_QUINCENA(e),
 ];

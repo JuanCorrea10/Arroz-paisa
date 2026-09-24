@@ -11,7 +11,7 @@ import { el, vaciar, tabla, cifra, cifraPlata, acciones, vacio, mensaje, confirm
   pedirDatos, cinta,
 } from "./componentes.js";
 import {
-  estado, cambio, empresas, empresaPorCodigo, asegurarEmpresa, empresasClientes,
+  estado, cambio, empresas, empresaPorCodigo, asegurarEmpresa,
 } from "./estado.js";
 import { pesos, nombreMes, fechaCorta, fechaLarga, normalizar,
   esFechaISO, rangoEnPalabras, diasDichos, sedeDeEmpresa,
@@ -39,8 +39,7 @@ export function pintarCobro(raiz) {
   vaciar(raiz);
   const repintar = () => pintarCobro(raiz);
 
-  // A la casa no se le cobra: es el restaurante mismo. Ni se ofrece.
-  if (!empresasClientes().length) {
+  if (!empresas().length) {
     poner(raiz,
       el("div", { clase: "encabezado-pantalla" }, el("div", {}, el("h1", { texto: "Cuenta de cobro" }))),
       vacio("Todavía no hay empresas", el("p", {}, "Cree las empresas en ", el("a", { href: "#empresas", texto: "Empresas" }), "."))
@@ -50,17 +49,17 @@ export function pintarCobro(raiz) {
   // "Todas" es una eleccion valida y no se pisa. Sin esto, cada repintada la
   // devolvia a la primera empresa y el selector no se dejaba poner en Todas.
   if (empresaCobro !== TODAS &&
-      (!empresaCobro || !empresasClientes().some((e) => e.codigo === empresaCobro))) {
+      (!empresaCobro || !empresas().some((e) => e.codigo === empresaCobro))) {
     const puesta = asegurarEmpresa();
-    const sirve = puesta && empresasClientes().some((e) => e.codigo === puesta.codigo);
-    empresaCobro = (sirve ? puesta : empresasClientes()[0]).codigo;
+    const sirve = puesta && empresas().some((e) => e.codigo === puesta.codigo);
+    empresaCobro = (sirve ? puesta : empresas()[0]).codigo;
   }
 
   // Con una empresa escogida, "las que estan en juego" es ella sola. Con
   // Todas, son las cuatro, y todo lo de abajo -- la fecha, la quincena, los
   // avisos, los documentos -- se hace para cada una.
   const empresa = empresaCobro === TODAS ? null : empresaPorCodigo(empresaCobro);
-  const enJuego = empresa ? [empresa] : empresasClientes();
+  const enJuego = empresa ? [empresa] : empresas();
   const acreedor = estado.datos.config.acreedor || {};
 
   // La fecha que va escrita en el documento. Con Todas se muestra solo si las
@@ -131,7 +130,7 @@ export function pintarCobro(raiz) {
           // Va de primera, como en Resumen del dia y en Cuanto vendi: las tres
           // pantallas se eligen igual, y asi no hay que aprenderse cada una.
           el("option", { value: TODAS, selected: empresaCobro === TODAS }, "Todas las empresas"),
-          ...empresasClientes().map((e) => el("option", { value: e.codigo, selected: e.codigo === empresaCobro }, `${e.codigo} — ${e.razonSocial}`)))
+          ...empresas().map((e) => el("option", { value: e.codigo, selected: e.codigo === empresaCobro }, `${e.codigo} — ${e.razonSocial}`)))
       ),
       el("div", { clase: "campo" },
         el("label", { for: "cobro-fecha", texto: "Fecha de la cuenta" }),
@@ -415,10 +414,29 @@ function seccionDeCobro(raiz, empresa, quincena, acreedor, repintar, conTitulo) 
   }
 
   if (!cuenta.personas.length) {
-    poner(raiz, vacio(
-      `No hay nada que cobrarle a ${empresaCobro} en la quincena ${quincena} de ${nombreMes(estado.mes)}`,
-      "Pruebe con la otra quincena, con otro mes o con otra empresa."
-    ));
+    // Una cuenta vacía tiene DOS causas distintas, y confundirlas cuesta.
+    //
+    // En una fábrica quiere decir "ese periodo no comió nadie". En la casa
+    // casi siempre quiere decir otra cosa: que sus platos nacen marcados
+    // "pagó de una" -- porque la cocinera paga de su bolsillo -- y la cuenta
+    // de cobro solo recoge lo que esté a crédito. Sin explicarlo, ella ve un
+    // $ 0 mudo y cree que la app no sirve.
+    poner(raiz, esLaCasa(empresa)
+      ? vacio(
+          `No hay nada a crédito en ${empresaCobro} en este periodo`,
+          el("p", {},
+            "En su propio restaurante los platos nacen marcados como ",
+            el("strong", { texto: "“Pagó de una”" }),
+            ", porque su gente paga de su bolsillo, y la cuenta de cobro solo " +
+            "recoge lo que esté a crédito. Si a alguien de aquí sí hay que " +
+            "cobrarle, marque sus platos como ",
+            el("strong", { texto: "“A crédito”" }),
+            " en ",
+            el("a", { href: "#registrar", texto: "Registrar el día" }),
+            " y vuelva: salen solos."))
+      : vacio(
+          `No hay nada que cobrarle a ${empresaCobro} en la quincena ${quincena} de ${nombreMes(estado.mes)}`,
+          "Pruebe con la otra quincena, con otro mes o con otra empresa."));
   } else {
     poner(raiz, documentoDeCobro(cuenta, acreedor));
   }
@@ -430,40 +448,31 @@ function seccionDeCobro(raiz, empresa, quincena, acreedor, repintar, conTitulo) 
 /**
  * Las empresas que existen pero NO salen en este selector, y por qué.
  *
- * Ella creó la empresa de su propio restaurante, la marcó como "es mi propio
- * restaurante" y después no la encontró aquí. La app hacía lo correcto -- a
- * la casa no se le cobra -- pero lo hacía EN SILENCIO: la empresa
- * simplemente no estaba en la lista, y no había forma de saber si era a
- * propósito, si se borró o si la app estaba mala.
+ * Hoy solo queda un motivo: que esté apagada. Hubo otro -- estar marcada como
+ * "mi propio restaurante" -- y ese fue el que hizo falta explicar: ella creó
+ * la empresa del restaurante, la marcó, y después no la encontraba aquí. Ya
+ * no se esconde: a la casa también se le hace cuenta de cobro.
  *
- * Una empresa que desaparece sin explicación se busca media hora. Una que
- * dice por qué no está, y cómo traerla, se resuelve en diez segundos.
+ * El aviso se queda igual, porque el problema de fondo no era la casa: era
+ * que una empresa desapareciera de la lista sin decir por qué. Eso se busca
+ * media hora; una que explica dónde está se resuelve en diez segundos.
  */
 function lasQueNoSalenAqui() {
-  const salen = new Set(empresasClientes().map((e) => normalizar(e.codigo)));
+  const salen = new Set(empresas().map((e) => normalizar(e.codigo)));
   const faltantes = (estado.datos.empresas || [])
     .filter((e) => !salen.has(normalizar(e.codigo)))
-    .map((e) => ({
-      codigo: e.codigo,
-      porque: esLaCasa(e)
-        ? "es su propio restaurante: su gente paga de una, así que entra a la caja y no se le cobra a nadie"
-        : "está apagada",
-      comoSeArregla: esLaCasa(e)
-        ? "Si a esa sí hay que cobrarle, quítele la marca de “Es mi propio restaurante”"
-        : "Vuelva a prenderla",
-    }));
+    .map((e) => e.codigo);
 
   if (!faltantes.length) return null;
 
   return el("div", { clase: "nota dato no-imprimir" },
     el("div", {},
       el("strong", { texto: faltantes.length === 1
-        ? `${faltantes[0].codigo} no sale en esta lista`
+        ? `${faltantes[0]} no sale en esta lista`
         : `${faltantes.length} empresas no salen en esta lista` }),
-      ...faltantes.map((f) =>
-        el("p", { texto: faltantes.length === 1
-          ? `Porque ${f.porque}. ${f.comoSeArregla} en Empresas.`
-          : `${f.codigo}: ${f.porque}. ${f.comoSeArregla} en Empresas.` })),
+      el("p", { texto: faltantes.length === 1
+        ? "Está apagada. Vuelva a prenderla en Empresas si le va a cobrar."
+        : `Están apagadas: ${faltantes.join(", ")}. Vuelva a prenderlas en Empresas si les va a cobrar.` }),
       el("p", {}, el("a", { href: "#empresas", texto: "Ir a Empresas" }))
     )
   );
@@ -754,7 +763,7 @@ function paraElCliente(empresa) {
  * la cuenta de cobro otro, ella dejaría de creerle a los dos.
  */
 export function totalesDelMes() {
-  return empresasClientes().map((e) => {
+  return empresas().map((e) => {
     const q1 = deQuincena(estado.datos.consumos, estado.anio, estado.mes, 1, e);
     const q2 = deQuincena(estado.datos.consumos, estado.anio, estado.mes, 2, e);
     const cobraQ1 = sumarLoDeLaEmpresa(q1);

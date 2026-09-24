@@ -533,6 +533,15 @@ try {
     else loQueSeTecleo = "no encontre el boton de copiar precios";
   }
 
+  // "&forzar=empresa-sin-precios+elegir:RESTAURANTE" pone el selector de la
+  // cuenta de cobro en una empresa concreta.
+  if (forzar.includes("elegir:")) {
+    const cual = forzar.split("elegir:")[1].split("+")[0];
+    const sel = raiz.querySelector("#cobro-empresa");
+    if (sel) { sel.value = cual; sel.dispatchEvent(new Event("change", { bubbles: true })); }
+    else loQueSeTecleo = "no encontre el selector de empresa";
+  }
+
   if (forzar === "ventana") {
     const abrir = [...raiz.querySelectorAll("button")]
       .find((b) => /editar|cambiar|agregar|póngale/i.test(b.textContent));

@@ -35,7 +35,7 @@ import {
   poner,
 } from "./componentes.js";
 import {
-  estado, empresas, empresaPorCodigo, empresasClientes,
+  estado, empresas, empresaPorCodigo,
 } from "./estado.js";
 import { pesos, nombreMes, sedeDeEmpresa, razonSocialDe } from "../nucleo/formato.js";
 import {
@@ -51,7 +51,7 @@ export function pintarCompartir(raiz) {
   vaciar(raiz);
   // Igual que el resumen: esto sale hacia una fábrica, y a la casa no hay a
   // quién mandarle nada.
-  const lista = empresasClientes();
+  const lista = empresas();
 
   poner(raiz,
     el("div", { clase: "encabezado-pantalla" },

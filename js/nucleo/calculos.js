@@ -149,7 +149,14 @@ export function esLaCasa(empresa) {
   return !!(empresa && empresa.esCasa);
 }
 
-/** Las empresas a las que SÍ se les cobra. La casa no es una de ellas. */
+/**
+ * Las empresas sin la casa.
+ *
+ * Ya NO quiere decir "a las que se les cobra": a la casa también se le hace
+ * cuenta de cobro desde que ella lo pidió. Queda para lo único donde la casa
+ * sigue siendo distinta: de dónde se copian los precios cuando nace una
+ * empresa. Ver preciosQueLeFaltan en modelo.js.
+ */
 export function empresasClientes(lista) {
   return (lista || []).filter((e) => !esLaCasa(e));
 }
@@ -763,15 +770,18 @@ export function informePorPersona(consumos, anio, mes, empresasPorCodigo, codigo
  * Solo entra lo que paga la empresa: ni lo de contado ni las cortesías.
  */
 export function cuentaDeCobro(consumos, anio, mes, quincena, empresa, fechaCuenta = null, rango = null) {
-  // A la casa no se le cobra: es el restaurante mismo. Si esto llegara a
-  // pasar sería un documento cobrándose a sí misma, así que se para aquí y no
-  // en la pantalla -- una pantalla se puede olvidar, esto no.
-  if (esLaCasa(empresa)) {
-    throw new Error(
-      `"${empresa.codigo}" es su propio restaurante, no una empresa cliente. ` +
-      "A la casa no se le hace cuenta de cobro."
-    );
-  }
+  // A la casa TAMBIÉN se le puede hacer cuenta de cobro.
+  //
+  // Antes esto reventaba a propósito: la casa es el restaurante mismo y un
+  // documento cobrándose a sí misma no tiene sentido. Resultó que sí lo
+  // tiene, porque ella lo pidió: al restaurante propio también hay a quién
+  // cobrarle.
+  //
+  // No hace falta ningún trato especial: la cuenta solo recoge lo que esté
+  // marcado "a crédito", y en la casa los platos nacen "pagó de una". Así
+  // que la cuenta de una casa sale vacía mientras ella no marque a crédito
+  // lo que sí va a cobrar -- que es justo lo correcto, y la pantalla lo
+  // explica en vez de mostrar un $ 0 mudo.
   // Lo de contado NO puede entrar aquí. Si entrara, se le cobraría a la
   // empresa un almuerzo que la persona ya pagó en la caja: cobrado dos veces.
   // El rango escogido MANDA. Si ella dijo "esta cuenta va del 3 al 20", la

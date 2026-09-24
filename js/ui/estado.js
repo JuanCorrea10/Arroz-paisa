@@ -45,12 +45,11 @@ export function empresas() {
 }
 
 /**
- * Las empresas a las que se les cobra. Deja por fuera la casa.
+ * Las empresas sin la casa.
  *
- * Se usa donde el papel sale del restaurante hacia afuera: la cuenta de cobro,
- * el resumen que se le manda a cada fábrica y lo que se comparte. Donde hay
- * que COCINAR o ANOTAR se usa empresas(), que sí trae la casa: su gente come
- * todos los días y esa comida hay que prepararla.
+ * Ya no quiere decir "a las que se les cobra": a la casa también se le hace
+ * cuenta de cobro desde que ella lo pidió, y sale en todas las pantallas como
+ * una empresa más. Queda por si alguna vez hace falta la distinción.
  */
 export function empresasClientes() {
   return empresas().filter((e) => !esLaCasa(e));

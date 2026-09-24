@@ -9,7 +9,7 @@ import { el, vaciar, tabla, cifra, cifraPlata, acciones, vacio, mensaje, cinta, 
   pedirDatos, colorDeEmpresa, ventana,
 } from "./componentes.js";
 import {
-  estado, cambio, empresas, empresaPorCodigo, empresasClientes,
+  estado, cambio, empresas, empresaPorCodigo,
 } from "./estado.js";
 import { pesos, fechaLarga, fechaCorta, nombreMes, diasDelMes, hoyISO, coincide, diaDe } from "../nucleo/formato.js";
 import {
@@ -82,7 +82,7 @@ function selectorDeEmpresa(valor, alCambiar, conTodas = true) {
     el("label", { for: "empresa-informe", texto: "Empresa" }),
     el("select", { id: "empresa-informe", alCambiar: (e) => alCambiar(e.target.value) },
       conTodas ? el("option", { value: "", selected: !valor }, "Todas las empresas") : null,
-      ...empresasClientes().map((e) => el("option", { value: e.codigo, selected: e.codigo === valor }, `${e.codigo} — ${e.razonSocial}`))
+      ...empresas().map((e) => el("option", { value: e.codigo, selected: e.codigo === valor }, `${e.codigo} — ${e.razonSocial}`))
     ),
     // El renglon de ayuda va aunque este vacio: asi los dos campos miden
     // igual y la caja no cambia de alto al elegir otra empresa.
@@ -217,7 +217,10 @@ function seccionesDelDia() {
   // Solo las empresas CLIENTES: este papel se imprime, se recorta y se le
   // manda a cada fábrica. Lo que come la gente del propio restaurante no tiene
   // a quién mandársele, y saldría una hoja para nadie.
-  const codigos = empresaResumen ? [empresaResumen] : empresasClientes().map((e) => e.codigo);
+  // Con la casa adentro: lo que come la gente del propio restaurante sale de
+  // la misma cocina y tiene que verse en el resumen del día. Estaba fuera, y
+  // esos platos no aparecían en el papel que se le manda a la supervisora.
+  const codigos = empresaResumen ? [empresaResumen] : empresas().map((e) => e.codigo);
   return codigos
     .map((cod) => {
       const emp = empresaPorCodigo(cod) || {};

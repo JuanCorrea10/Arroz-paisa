@@ -512,7 +512,10 @@ tfoot td.n { font-family: var(--dato); }
   border: 1.5px dashed var(--borde-fuerte);
   border-radius: var(--radio-g);
 }
-.vacio strong { display: block; font-family: var(--display); font-size: var(--t-md); color: var(--tinta-media); margin-bottom: var(--e1); }
+/* Solo el PRIMER strong es el titulo. La regla le pegaba a CUALQUIER
+   negrita del texto de abajo, y una frase con dos palabras resaltadas
+   se partia en cinco renglones centrados. */
+.vacio > strong:first-child { display: block; font-family: var(--display); font-size: var(--t-md); color: var(--tinta-media); margin-bottom: var(--e1); }
 
 /* --------------------------------------------------------------------- */
 /*  LA COMANDA  -  el papelito del talonario. La pieza del diseño.         */

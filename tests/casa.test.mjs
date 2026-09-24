@@ -5,10 +5,11 @@
 //  UNA, de su bolsillo. O sea que sí es una venta y esa plata sí entra a la
 //  caja -- pero NO son un cliente al que se le pasa una cuenta a fin de mes.
 //
-//  Si la casa se tratara como una fábrica más pasarían dos cosas calladas:
-//  se le armaría una cuenta de cobro a sí misma, y cada plato entraría "a
-//  crédito", o sea como plata que alguien debe, cuando ya la pagaron. Esa
-//  plata nunca aparecería en la caja y el cuadre no daría nunca.
+//  Lo de la cuenta de cobro cambió: ella pidió que al restaurante propio
+//  también se le pueda pasar una, y ahora se puede. Lo que NO cambia es lo
+//  otro: que cada plato de la casa entrara "a crédito" -- o sea como plata que
+//  alguien debe, cuando ya la pagaron -- haría que esa plata nunca apareciera
+//  en la caja y el cuadre no diera nunca. Por eso nacen "pagó de una".
 // ============================================================================
 
 import { grupo, prueba, igual, cierto } from "./probar.mjs";
@@ -36,21 +37,39 @@ prueba("la casa se reconoce, y las fábricas no", () => {
   cierto(!esLaCasa(mgp), "MGP no");
 });
 
-prueba("las empresas clientes dejan la casa por fuera", () => {
+prueba("empresasClientes deja la casa por fuera: de ahí no se copian precios", () => {
   const d = negocio();
   igual(empresasClientes(d.empresas).map((e) => e.codigo), ["MGP"]);
 });
 
-prueba("a la casa NO se le puede hacer cuenta de cobro", () => {
-  // Es un freno del núcleo y no de la pantalla: una pantalla se puede olvidar
-  // de filtrar, y el documento saldría cobrándose a sí misma.
+prueba("a la casa TAMBIÉN se le puede hacer cuenta de cobro", () => {
+  // Esto antes reventaba a propósito. Ella pidió lo contrario: al restaurante
+  // propio también hay a quién cobrarle, y la app no tiene por qué decidir
+  // por ella a quién le pasa una cuenta.
   const d = negocio();
   const casa = d.empresas.find((e) => e.codigo === "CASA");
-  let reclamo = null;
-  try { cuentaDeCobro([], 2026, 8, 1, casa); } catch (e) { reclamo = e.message; }
-  cierto(reclamo, "tiene que reclamar");
-  cierto(/no se le hace cuenta de cobro/i.test(reclamo), "y decir por qué: " + reclamo);
+  const cuenta = cuentaDeCobro([almuerzoDeLaCasa(A_CREDITO)], 2026, 8, 1, casa);
+  igual(cuenta.total, 12000, "lo que esté a crédito sí se le cobra");
+  igual(cuenta.personas.length, 1);
 });
+
+prueba("pero solo entra lo que esté a crédito, como en cualquier empresa", () => {
+  // En la casa los platos nacen "pagó de una", así que la cuenta sale vacía
+  // mientras ella no marque a crédito lo que sí va a cobrar. Es correcto, y
+  // la pantalla lo explica en vez de mostrar un $ 0 mudo.
+  const d = negocio();
+  const casa = d.empresas.find((e) => e.codigo === "CASA");
+  const cuenta = cuentaDeCobro([almuerzoDeLaCasa(DE_CONTADO)], 2026, 8, 1, casa);
+  igual(cuenta.total, 0, "lo que ya se pagó no se cobra otra vez");
+});
+
+/** Un almuerzo de la casa, para las dos pruebas de arriba. */
+function almuerzoDeLaCasa(cobro) {
+  return nuevoConsumo({
+    fecha: "2026-08-03", empresa: "CASA", persona: "ROSA", producto: "ALMUERZO",
+    cantidad: 1, precioUnitario: 12000, cobro,
+  });
+}
 
 prueba("a una fábrica sí, como siempre", () => {
   const d = negocio();
