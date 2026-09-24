@@ -19,7 +19,7 @@ import { pesos, nombreMes, fechaCorta, fechaLarga, normalizar,
 import {
   cuentaDeCobro, deQuincena, sumar, fechaDeCobro, ponerFechaDeCobro,
   esCortesia, sumarLoDeLaEmpresa, sumarLoDeContado, loPagaLaEmpresa,
-  contarFacturas, fueraDelRango, deRango,
+  contarFacturas, fueraDelRango, deRango, esLaCasa,
   rangoQuincena, rangoDeCobro, ponerRangoDeCobro, rangoEnFechas,
 } from "../nucleo/calculos.js";
 import { ponerlePrecio } from "../nucleo/modelo.js";
@@ -239,6 +239,7 @@ export function pintarCobro(raiz) {
   // poner la cuenta por quincena". Además rompía el orden que tienen las trece
   // pantallas -- título, controles, contenido -- que es lo que hace que no haya
   // que aprenderse cada una por aparte.
+  poner(raiz, lasQueNoSalenAqui());
   poner(raiz, tarjetaDeTodasLasEmpresas());
 
   // Una seccion por empresa. Con una escogida es una sola; con Todas son las
@@ -425,6 +426,48 @@ function seccionDeCobro(raiz, empresa, quincena, acreedor, repintar, conTitulo) 
 }
 
 // ---------------------------------------------------------------------------
+
+/**
+ * Las empresas que existen pero NO salen en este selector, y por qué.
+ *
+ * Ella creó la empresa de su propio restaurante, la marcó como "es mi propio
+ * restaurante" y después no la encontró aquí. La app hacía lo correcto -- a
+ * la casa no se le cobra -- pero lo hacía EN SILENCIO: la empresa
+ * simplemente no estaba en la lista, y no había forma de saber si era a
+ * propósito, si se borró o si la app estaba mala.
+ *
+ * Una empresa que desaparece sin explicación se busca media hora. Una que
+ * dice por qué no está, y cómo traerla, se resuelve en diez segundos.
+ */
+function lasQueNoSalenAqui() {
+  const salen = new Set(empresasClientes().map((e) => normalizar(e.codigo)));
+  const faltantes = (estado.datos.empresas || [])
+    .filter((e) => !salen.has(normalizar(e.codigo)))
+    .map((e) => ({
+      codigo: e.codigo,
+      porque: esLaCasa(e)
+        ? "es su propio restaurante: su gente paga de una, así que entra a la caja y no se le cobra a nadie"
+        : "está apagada",
+      comoSeArregla: esLaCasa(e)
+        ? "Si a esa sí hay que cobrarle, quítele la marca de “Es mi propio restaurante”"
+        : "Vuelva a prenderla",
+    }));
+
+  if (!faltantes.length) return null;
+
+  return el("div", { clase: "nota dato no-imprimir" },
+    el("div", {},
+      el("strong", { texto: faltantes.length === 1
+        ? `${faltantes[0].codigo} no sale en esta lista`
+        : `${faltantes.length} empresas no salen en esta lista` }),
+      ...faltantes.map((f) =>
+        el("p", { texto: faltantes.length === 1
+          ? `Porque ${f.porque}. ${f.comoSeArregla} en Empresas.`
+          : `${f.codigo}: ${f.porque}. ${f.comoSeArregla} en Empresas.` })),
+      el("p", {}, el("a", { href: "#empresas", texto: "Ir a Empresas" }))
+    )
+  );
+}
 
 /**
  * Las cuatro empresas y sus dos quincenas, de una sola mirada.

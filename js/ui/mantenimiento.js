@@ -463,14 +463,30 @@ function campoDePrecio(raiz, producto, info, codigos) {
         if (!seguro) { pintarCatalogo(raiz); return; }
       }
 
+      // Cuántos pedidos hay anotados de este plato, ANTES de cambiar nada.
+      //
+      // Se cuentan para poder decirle que esos no se mueven. Un precio nuevo
+      // vale de aquí en adelante: el precio viejo se quedó guardado dentro de
+      // cada pedido, que es lo que hace que una cuenta ya entregada siga
+      // diciendo lo mismo la semana que viene.
+      //
+      // Sin decirlo, ella no tiene forma de saber si le acaba de mover la
+      // quincena entera -- y esa duda, con plata de por medio, cuesta cara.
+      const yaAnotados = estado.datos.consumos.filter(
+        (c) => normalizar(c.producto) === normalizar(producto.nombre)).length;
+
       ponerPrecioEnTodas(estado.datos, producto.nombre, codigos, nuevoValor);
       cambio();
       pintarCatalogo(raiz);
+
+      const seQuedan = yaAnotados
+        ? ` Los ${yaAnotados} pedidos que ya estaban anotados se quedan con su precio.`
+        : "";
       mensaje(
-        nuevoValor === null
+        (nuevoValor === null
           ? `${producto.nombre}: sin precio.`
-          : `${producto.nombre}: ${pesos(nuevoValor)} en las ${codigos.length} empresas.`,
-        "bien", 3
+          : `${producto.nombre}: ${pesos(nuevoValor)} en las ${codigos.length} empresas.`) + seQuedan,
+        "bien", yaAnotados ? 7 : 3
       );
     },
   });
