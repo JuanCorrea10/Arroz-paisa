@@ -221,6 +221,10 @@ export function revisarQuincenas(r) {
  */
 export function preciosQueLeFaltan(datos, codigoEmpresa) {
   const cod = normalizar(codigoEmpresa);
+  // Con los datos a medio armar esto reventaba, y como se llama al crear una
+  // empresa, se llevaba por delante la creación entera. Sin precios que
+  // mirar no hay nada que heredar, y ya.
+  if (!datos || !datos.precios) return { sePueden: [], noSePueden: [] };
   const fuentes = (datos.empresas || [])
     .filter((e) => !esLaCasa(e) && normalizar(e.codigo) !== cod)
     .map((e) => normalizar(e.codigo));
@@ -293,12 +297,25 @@ export function agregarEmpresa(datos, empresa) {
   // ya sabía que ningún plato cuesta distinto según la fábrica; lo que
   // faltaba era que la app lo usara.
   //
-  // El resultado NO se guarda dentro de datos: sería un campo fantasma en
-  // el archivo. La pantalla que crea la empresa vuelve a preguntar con
-  // preciosQueLeFaltan y es ella la que se lo dice a la usuaria. Una app
-  // que llena 77 precios en silencio es una app en la que después nadie
-  // sabe de dónde salieron esos números.
-  heredarPrecios(datos, codigo);
+  // Heredar los precios es un EXTRA, y va dentro de un try a propósito.
+  //
+  // La empresa ya está creada en la línea de arriba. Si heredar reventara,
+  // el error subía hasta la pantalla, la pantalla mostraba el error y nunca
+  // llamaba a cambio(): la empresa quedaba en la lista pero SIN GUARDARSE.
+  // Ella la veía recién creada, recargaba, y había desaparecido.
+  //
+  // Crear la empresa es lo que ella pidió; copiarle los precios es una ayuda.
+  // Una ayuda no puede tumbar lo pedido.
+  //
+  // El resultado no se guarda dentro de datos -- sería un campo fantasma en
+  // el archivo. La pantalla vuelve a preguntar con preciosQueLeFaltan y es
+  // ella la que se lo dice a la usuaria.
+  try {
+    heredarPrecios(datos, codigo);
+  } catch {
+    // Sin precios heredados la empresa sirve igual: Registrar avisa de los
+    // que falten y trae el botón para copiarlos.
+  }
   return datos;
 }
 

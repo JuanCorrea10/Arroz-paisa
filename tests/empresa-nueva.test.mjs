@@ -149,3 +149,27 @@ prueba("heredar no guarda campos raros dentro de los datos", () => {
   agregarEmpresa(datos, { codigo: "CASA", razonSocial: "Arroz Paisa" });
   igual(Object.keys(datos).sort(), antes);
 });
+
+grupo("Crear la empresa no depende de nada más");
+
+prueba("si heredar los precios falla, la empresa se crea igual", () => {
+  // Pasó de verdad: heredar reventaba, el error subía hasta la pantalla, la
+  // pantalla mostraba el error y nunca llamaba a cambio(). La empresa quedaba
+  // en la lista pero SIN GUARDARSE: ella la veía recién creada, recargaba, y
+  // había desaparecido.
+  //
+  // Crear la empresa es lo que ella pidió. Copiarle los precios es una ayuda,
+  // y una ayuda no puede tumbar lo pedido.
+  const datos = negocio();
+  delete datos.precios;               // datos a medio armar
+
+  agregarEmpresa(datos, { codigo: "CASA", razonSocial: "Arroz Paisa" });
+
+  igual(datos.empresas.map((e) => e.codigo), ["MGP", "AGRO", "CASA"]);
+});
+
+prueba("sin precios que mirar, no hay nada que heredar y no revienta", () => {
+  const datos = negocio();
+  delete datos.precios;
+  igual(preciosQueLeFaltan(datos, "CASA"), { sePueden: [], noSePueden: [] });
+});
