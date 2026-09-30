@@ -60,3 +60,10 @@ desktop.ini
 .vscode/
 .idea/
 node_modules/
+
+# Cosas tuyas que quedaron sueltas en la carpeta y NO son del proyecto.
+# Se subieron una vez por accidente (10 MB, incluido un mod de GTA). El
+# guardian de publicar.cmd solo miraba datos de personas, no basura.
+*.oiv
+*.rtf
+Untitled-*.png

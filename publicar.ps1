@@ -122,6 +122,42 @@ if ($peligrosos) {
 
 Write-Host "  Ningun dato de personas. Se puede subir." -ForegroundColor Green
 
+# --- 3b. Lo que no es del proyecto -----------------------------------------
+#
+# Una vez se subieron 10 MB de basura sin que nada dijera nada: cuatro
+# capturas "Untitled-N.png" y un mod de GTA que estaban tirados en la carpeta.
+# El guardian de arriba solo mira datos de personas, y esto no lo era -- pero
+# tampoco era del proyecto, y quedo publicado en internet.
+#
+# Se avisa de los archivos NUEVOS que esten en la raiz y no sean de los tipos
+# con los que se trabaja. No se para la subida: puede ser algo legitimo. Se
+# pregunta, que es lo que faltaba.
+
+$nuevosRaros = git diff --cached --name-only --diff-filter=A | Where-Object {
+    $_ -notmatch '/' -and
+    $_ -notmatch '\.(js|html|css|md|json|cmd|ps1|py|gitignore)$' -and
+    $_ -ne '.gitignore'
+}
+
+if ($nuevosRaros) {
+    Write-Host ""
+    Write-Host "  OJO: esto se va a subir y no parece del proyecto:" -ForegroundColor Yellow
+    $nuevosRaros | ForEach-Object {
+        $kb = [math]::Round((Get-Item $_).Length / 1KB)
+        Write-Host "     $_  ($kb KB)" -ForegroundColor Yellow
+    }
+    Write-Host ""
+    Write-Host "  Si son archivos suyos que quedaron en la carpeta, agreguelos al" -ForegroundColor Yellow
+    Write-Host "  .gitignore antes de subir: una vez publicados quedan en internet." -ForegroundColor Yellow
+    Write-Host ""
+    $sigue = Read-Host "  Subirlos de todas formas? (escriba SI)"
+    if ($sigue -ne "SI") {
+        Write-Host "  No se subio nada." -ForegroundColor Red
+        git reset | Out-Null
+        exit 1
+    }
+}
+
 # --- 4. Que se va a subir ---------------------------------------------------
 
 Titulo "Lo que cambia"
