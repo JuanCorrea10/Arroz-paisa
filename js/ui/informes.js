@@ -607,9 +607,22 @@ async function bajarPorPersonaEnPDF(filas, nombre, hasta = null) {
  * Lleva TODO el historial y no solo el mes que se está mirando, porque lo que
  * le preguntan de frente es "¿yo qué debo?" y "¿cuándo fue que comí?", y para
  * contestar eso hoy toca ir pasando meses uno por uno.
+ *
+ * Pero eso confundía: ella filtraba "del 15 de septiembre en adelante", abría
+ * a alguien y veía un pedido del 20 de agosto. Parecía un error de la app y
+ * no lo era -- la ventana contesta otra pregunta. El problema era que dentro
+ * de la misma ventana había TRES periodos distintos sin decir cuál era cuál:
+ * lo que ella filtró, el mes, y desde siempre.
+ *
+ * Ahora los tres están rotulados, el que ella filtró va de primero, y en la
+ * tabla los días que quedan fuera de su filtro salen apagados.
  */
-function verHistorial(fila) {
+function verHistorial(fila, periodo) {
   const h = historialDePersona(estado.datos.consumos, fila.empresa, fila.persona);
+
+  // Que dias caen dentro de lo que ella filtro.
+  const dentro = (fecha) => Boolean(periodo) && fecha >= periodo.desde && fecha <= periodo.hasta;
+  const cuantosFuera = h.dias.filter((d) => !dentro(d.fecha)).length;
 
   const comoSePago = (c) =>
     esCortesia(c) ? "  (cortesía)" : yaLoPago(c) ? "  (pagó de una)" : "";
@@ -626,11 +639,14 @@ function verHistorial(fila) {
       // "se le descuenta" y "todo lo que ha pedido" son el mismo número
       // repetido, y tres cifras iguales al lado se leen como un error.
       ? el("dl", { clase: "cifras" },
-          cifraPlata(`Este mes (${nombreMes(estado.mes).toLowerCase()})`, fila.mes),
+          // De primero lo que ella escogió arriba: es el periodo que está
+          // mirando, y hasta ahora era el único que la ventana NO decía.
+          periodo ? cifraPlata(periodo.dice, fila.dia, true) : null,
+          cifraPlata(`Todo ${nombreMes(estado.mes).toLowerCase()}`, fila.mes),
           ...(h.deContado > 0
             ? [cifraPlata("Se le descuenta", h.aLaEmpresa), cifraPlata("Ya pagó de una", h.deContado)]
             : []),
-          cifraPlata("Todo lo que ha pedido", h.total, true))
+          cifraPlata("Desde siempre", h.total))
       : null,
 
     // Lo que más pide. Es lo que ella usa para adivinar el pedido cuando la
@@ -643,11 +659,19 @@ function verHistorial(fila) {
             .join(",  "))
       : null,
 
+    // El renglón que evita el susto: esta tabla es TODO, no lo filtrado.
+    h.veces && cuantosFuera
+      ? el("p", { clase: "nota", estilo: "margin:0" },
+          `Abajo va todo lo que ha pedido, desde siempre. ` +
+          `${cuantosFuera === 1 ? "El día apagado queda" : `Los ${cuantosFuera} días apagados quedan`} ` +
+          `fuera ${periodo ? periodo.enFrase : "de lo que está mirando"}.`)
+      : null,
+
     h.veces
       ? tabla(
           [{ titulo: "Día" }, { titulo: "Qué pidió" }, { titulo: "Total", clase: "n" }],
           h.dias.map((d) =>
-            el("tr", {},
+            el("tr", { datos: { fuera: dentro(d.fecha) ? "no" : "si" } },
               el("td", { clase: "dato", texto: fechaCorta(d.fecha) }),
               el("td", {}, ...d.platos.map((c) =>
                 el("div", {
@@ -713,6 +737,23 @@ export function pintarPorPersona(raiz) {
   const elPeriodo = hasta
     ? `del ${fechaLarga(estado.fecha)} al ${fechaLarga(hasta)}`
     : `el ${fechaLarga(estado.fecha)}`;
+
+  // El mismo periodo, empaquetado para la ventana del historial: ahí hace
+  // falta saber qué días está mirando ella para no mostrarle un pedido de
+  // otro mes como si fuera del filtro.
+  const elPeriodoQueMira = {
+    desde: estado.fecha,
+    hasta: hasta || estado.fecha,
+    // Dos formas del mismo periodo: "dice" es el rótulo de la cifra y
+    // "enFrase" va detrás de "fuera de". Con una sola salía "fuera de el
+    // 25/08/2026".
+    dice: hasta
+      ? `Del ${fechaCorta(estado.fecha)} al ${fechaCorta(hasta)}`
+      : `El ${fechaCorta(estado.fecha)}`,
+    enFrase: hasta
+      ? `del ${fechaCorta(estado.fecha)} al ${fechaCorta(hasta)}`
+      : `del ${fechaCorta(estado.fecha)}`,
+  };
 
   const todas = informePorPersona(
     estado.datos.consumos, estado.anio, estado.mes, indice,
@@ -923,7 +964,7 @@ export function pintarPorPersona(raiz) {
             el("button", {
               clase: "nombre-historial",
               title: `Ver todo lo que ha pedido ${f.persona}`,
-              alHacerClic: () => verHistorial(f),
+              alHacerClic: () => verHistorial(f, elPeriodoQueMira),
             }, f.persona),
             // Lo que pidió, debajo del nombre.
             //

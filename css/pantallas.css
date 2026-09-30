@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20260929-0927";
+  --version: "20260930-1520";
 }
 
 /* ===========================================================================
@@ -1282,6 +1282,20 @@ tfoot tr.total-del-mes td {
   flex: 1 0 100%;
   color: var(--tinta-suave);
   font-size: var(--t-xs);
+}
+
+/* ---------------------------------------------------------------------
+   El historial de una persona: los dias fuera del filtro
+
+   La ventana muestra TODO lo que ha pedido, a proposito -- lo que le
+   preguntan de frente es "yo que debo". Pero ella acababa de filtrar
+   "del 15 de septiembre" y ver ahi un 20 de agosto parecia un error.
+   Apagados se entiende de una que son de otro periodo.
+   --------------------------------------------------------------------- */
+
+tr[data-fuera="si"] td {
+  color: var(--tinta-suave);
+  background: var(--papel-raya);
 }
 
 /* ===========================================================================

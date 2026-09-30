@@ -286,6 +286,29 @@ try {
 
   // Abrir el historial de la persona que más ha pedido: es la ventana más
   // larga que puede salir, y es donde se ve si se sale de la pantalla.
+  // "&forzar=historial-filtrado": filtra desde mediados de mes y abre a alguien
+  // que ademas comio antes. Es el caso que la confundio -- filtro del 15 de
+  // septiembre y en la ventana le salio un pedido del 20 de agosto.
+  if (forzar === "historial-filtrado") {
+    const desde = raiz.querySelector("#persona-dia") || raiz.querySelector("input[type=date]");
+    if (desde) {
+      desde.value = estado.fecha.slice(0, 8) + "20";
+      desde.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    const nombres = raiz.querySelectorAll(".nombre-historial");
+    let elMejor = null;
+    let mejor = 0;
+    for (const boton of nombres) {
+      // Alguien con pedidos en DOS meses distintos: es el que hace visible
+      // la diferencia entre "lo que filtro" y "desde siempre".
+      const suyos = datos.consumos.filter((c) => c.persona === boton.textContent);
+      const meses = new Set(suyos.map((c) => c.fecha.slice(0, 7))).size;
+      if (meses > mejor) { mejor = meses; elMejor = boton; }
+    }
+    if (elMejor) elMejor.click();
+    else loQueSeTecleo = "no encontre a nadie con pedidos de dos meses";
+  }
+
   if (forzar === "historial") {
     const nombres = raiz.querySelectorAll(".nombre-historial");
     let elMasLargo = null;
