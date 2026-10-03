@@ -586,10 +586,56 @@ try {
         gente[2].replace(/.$/, "") + "a un almuerzo",   // solo el nombre mal: se arregla aqui
         gente[3] + " trece almuerzos",
         "Rigoberto Castañeda un sancocho",
+        // "+tete": el apodo que ningún parecido rescata. La persona existe
+        // con otro nombre; el señor le dice distinto y WhatsApp lo daña más.
+        ...(forzar.includes("tete") ? [gente[4] + " una oferta, te tomate un almuerzo"] : []),
       ].join(String.fromCharCode(10));
+      // "+aprendido": como si ella ya le hubiera dicho quién es "te tomate".
+      if (forzar.includes("aprendido")) {
+        datos.apodos = { [estado.empresa + "|TE TOMATE"]: gente[5] };
+      }
       const ver = [...document.querySelectorAll("dialog button")]
         .find((b) => /Ver qu/i.test(b.textContent));
       if (ver) ver.click();
+
+      // "+ensenar": hace lo que ella haria la primera vez con un apodo.
+      // Escribe en el buscador de la tarjeta, elige a la persona, y anota.
+      // Es lo unico que prueba el recorrido entero: que el buscador sirve
+      // DENTRO de la ventana, que el pedido entra, y que queda aprendido.
+      if (forzar.includes("ensenar")) {
+        await new Promise((listo) => setTimeout(listo, 400));
+        const caja2 = document.querySelector("dialog .buscador input");
+        if (!caja2) { loQueSeTecleo = "no hay buscador en la ventana"; }
+        else {
+          caja2.focus();
+          caja2.value = gente[5];
+          caja2.dispatchEvent(new Event("input", { bubbles: true }));
+          await new Promise((listo) => setTimeout(listo, 100));
+          const opcion = document.querySelector("dialog .buscador-lista li");
+          if (!opcion) { loQueSeTecleo = "el buscador no mostro opciones"; }
+          else if (forzar.includes("foto")) {
+            // La ventana le quita el foco a la casilla un instante despues de
+            // abrir, y con eso la lista se esconde. Se vuelve a abrir cuando
+            // ya paso, solo para poder MIRAR como queda desplegada.
+            setTimeout(() => {
+              caja2.value = gente[5].split(" ")[0];
+              caja2.dispatchEvent(new Event("input", { bubbles: true }));
+              caja2.scrollIntoView({ block: "start" });
+            }, 1500);
+          }
+          else {
+            opcion.click();
+            const antes = datos.consumos.length;
+            const ok = [...document.querySelectorAll("dialog button")]
+              .find((b) => /Anotar lo que/i.test(b.textContent));
+            ok.click();
+            const suyo = datos.consumos.slice(antes).find((c) => c.persona === gente[5]);
+            loQueSeTecleo = "ANOTADOS: " + (datos.consumos.length - antes) +
+              " | el de te tomate quedo a nombre de: " + (suyo ? suyo.persona + " (" + suyo.producto + ")" : "NADIE") +
+              " | aprendido: " + JSON.stringify(datos.apodos);
+          }
+        }
+      }
 
       // "+anotar" llega hasta el final: toca el boton y cuenta las comandas
       // que quedaron. Es lo unico que prueba que de verdad se anotan.

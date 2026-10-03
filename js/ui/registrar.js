@@ -28,7 +28,7 @@ import {
 import {
   limpiarNombre, parecidasEnEmpresa, tocayosEnOtrasEmpresas,
 } from "../nucleo/nombres.js";
-import { leerElDictado } from "../nucleo/dictado.js";
+import { leerElDictado, apodosDe, aprenderApodo, olvidarApodo } from "../nucleo/dictado.js";
 import {
   pedidoHabitual, tieneCostumbre, platosFrecuentes, loDelDiaAnterior,
   yaAnotadasHoy, cuantoValdria,
@@ -226,7 +226,14 @@ function pedirElDictado(raiz) {
  */
 function mostrarLoQueEntendi(raiz, texto) {
   const gente = personasDe(estado.datos, estado.empresa).map((p) => p.nombre);
-  const leido = leerElDictado(texto, { gente, productos: estado.datos.productos });
+  const leido = leerElDictado(texto, {
+    gente,
+    productos: estado.datos.productos,
+    // Lo que ella ya le enseñó: cómo le dice el señor a cada quien.
+    apodos: apodosDe(estado.datos, estado.empresa),
+    // El señor arranca diciendo la empresa ("Agro, fulano..."). No es nadie.
+    relleno: [estado.empresa],
+  });
 
   if (leido.nadieReconocido) {
     // Lo más probable no es que el texto esté mal: es que el audio era de
@@ -235,54 +242,108 @@ function mostrarLoQueEntendi(raiz, texto) {
     mensaje(
       `No reconocí a nadie de ${estado.empresa} en ese texto. ` +
       `Revise que arriba esté elegida la empresa del audio.`, "malo", 10);
-    if (!leido.renglones.length) return;
+  }
+  if (!leido.renglones.length) {
+    if (!leido.nadieReconocido) mensaje("No encontré ningún pedido en ese texto.", "malo", 7);
+    return;
   }
 
-  // Los que se pueden arreglar aquí mismo: el nombre se parece a varios y
-  // ella escoge cuál. Cada uno lleva su <select>, que es lo que ella ya sabe
-  // usar en el resto de la app.
+  // Quién dijo ella que era cada persona dudosa. Va por TRAMO y no por
+  // renglón: si alguien pidió almuerzo y gaseosa son dos renglones, y
+  // preguntarle dos veces quién es la misma persona es hacerla trabajar doble.
   const escogidos = new Map();
+  const yaSePregunto = new Set();
 
-  const renglon = (p, i) => {
-    // Cuando lo único dudoso es el nombre, ella lo arregla aquí mismo.
-    const puedeEscoger = p.soloFaltaElNombre;
-    // La sugerida va de primera y las otras detrás: casi siempre la primera
-    // es la buena, pero escogerla por ella sería adivinar un nombre, y un
-    // nombre adivinado se le cobra a la persona equivocada.
+  const preguntaQuien = (p) => {
+    if (!p.soloFaltaElNombre) return null;
+    if (yaSePregunto.has(p.tramo)) {
+      return el("p", { clase: "apunte", estilo: "margin:var(--e2) 0 0",
+                       texto: "La misma persona de arriba." });
+    }
+    yaSePregunto.add(p.tramo);
+    escogidos.set(p.tramo, "");
+
+    // No se reconoció a nadie: puede ser cualquiera de la empresa, así que
+    // va el mismo buscador con el que ella anota a mano. Es el caso del
+    // apodo -- "te tomate" por Tete Rivera -- que ningún parecido rescata:
+    // lo dice ella una vez y la app lo aprende.
+    if (p.persona.desconocida) {
+      const dice = el("strong", { texto: "" });
+      const busca = buscador({
+        etiqueta: `¿Quién es «${p.persona.escrito.toLowerCase()}»?`,
+        placeholder: "Escriba el nombre de verdad",
+        opciones: gente.map((n) => ({ texto: n, valor: n })),
+        alElegir: (nombre) => {
+          escogidos.set(p.tramo, nombre);
+          dice.textContent = `Es ${nombre}.`;
+        },
+      });
+      // Al tocar la casilla, la tarjeta sube: la lista de nombres sale
+      // debajo, y si la casilla queda al fondo de la ventana la lista nace
+      // fuera de la vista.
+      const casilla = busca.nodo.querySelector("input");
+      if (casilla) {
+        casilla.addEventListener("focus", () =>
+          busca.nodo.scrollIntoView({ block: "start", behavior: "smooth" }));
+      }
+      return el("div", { estilo: "margin-top:var(--e2)" }, busca.nodo, dice);
+    }
+
+    // Se parece a una o a varias: se escoge de la lista corta. La sugerida va
+    // de primera, pero NO viene escogida: escogerla por ella sería adivinar
+    // un nombre, y un nombre adivinado se le cobra a la persona equivocada.
     const candidatas = [...new Set([
       ...(p.persona.elegida ? [p.persona.elegida] : []),
       ...p.persona.opciones,
     ])];
-    const sel = puedeEscoger
-      ? el("div", { clase: "fila", estilo: "align-items:center;gap:var(--e2);margin-top:var(--e2)" },
-          el("span", { clase: "apunte", texto: "¿Quién era?" }),
-          el("select", { alCambiar: (e) => { escogidos.set(i, e.target.value); } },
-            el("option", { value: "" }, "No lo anote todavía"),
-            ...candidatas.map((n) => el("option", { value: n }, n))))
-      : null;
-    if (puedeEscoger) escogidos.set(i, "");
+    return el("div", { clase: "fila", estilo: "align-items:center;gap:var(--e2);margin-top:var(--e2)" },
+      el("span", { clase: "apunte", texto: "¿Quién era?" }),
+      el("select", { alCambiar: (e) => { escogidos.set(p.tramo, e.target.value); } },
+        el("option", { value: "" }, "No lo anote todavía"),
+        ...candidatas.map((n) => el("option", { value: n }, n))));
+  };
 
+  const recortada = (linea) => (linea.length > 90 ? linea.slice(0, 90) + "…" : linea);
+
+  const tarjeta = (p) => {
+    const aQuien = p.persona.elegida
+      || (p.persona.escrito ? `«${p.persona.escrito.toLowerCase()}»` : "?");
     return el("div", { clase: p.listo ? "nota bien" : "nota malo" },
       el("div", { estilo: "flex:1 1 auto;min-width:0" },
         el("strong", { texto: p.listo
           ? `${p.persona.elegida}  ·  ${p.cantidad}× ${p.producto.nombre}`
-          : `${p.cantidad}× ${p.producto.nombre || "?"}  ·  ${p.persona.elegida || p.persona.escrito || "?"}` }),
-        el("p", { clase: "apunte", estilo: "margin:var(--e1) 0 0",
-          texto: `“${p.linea.length > 90 ? p.linea.slice(0, 90) + "…" : p.linea}”` }),
+          : `${p.cantidad}× ${p.producto.nombre || "?"}  ·  ${aQuien}` }),
+        el("p", { clase: "apunte", estilo: "margin:var(--e1) 0 0", texto: `“${recortada(p.linea)}”` }),
         p.listo ? null : el("p", { estilo: "margin:var(--e1) 0 0", texto: p.porque.join(" · ") }),
-        sel),
+
+        // De dónde salió un nombre que el texto no trae. Lo enseñó ella, así
+        // que se da por bueno -- pero se dice, y se puede desaprender: una
+        // app que anota a nombre de alguien sin decir por qué no se puede
+        // corregir cuando se equivoca.
+        p.listo && p.persona.porApodo
+          ? el("p", { clase: "apunte", estilo: "margin:var(--e1) 0 0" },
+              `El señor le dice «${p.persona.escrito.toLowerCase()}». `,
+              el("button", {
+                clase: "plano chico",
+                alHacerClic: (e) => {
+                  olvidarApodo(estado.datos, estado.empresa, p.persona.escrito);
+                  cambio();
+                  const abierta = e.target.closest("dialog");
+                  if (abierta) { abierta.close(); abierta.remove(); }
+                  mostrarLoQueEntendi(raiz, texto);
+                },
+              }, "No es"))
+          : null,
+
+        preguntaQuien(p)),
     );
   };
 
-  const dudosos = leido.renglones
-    .map((p, i) => ({ p, i }))
-    .filter((x) => !x.p.listo);
-  const buenos = leido.renglones
-    .map((p, i) => ({ p, i }))
-    .filter((x) => x.p.listo);
+  const dudosos = leido.renglones.filter((p) => !p.listo);
+  const buenos = leido.renglones.filter((p) => p.listo);
 
   const cuerpo = el("div", { clase: "rejilla" },
-    // Pasó con el primer texto de verdad: la transcripción venia pegada dos
+    // Pasó con el primer texto de verdad: la transcripción venía pegada dos
     // veces. Se lee una, y se dice, para que no crea que se le perdió la mitad.
     leido.estabaRepetido
       ? el("p", { clase: "nota", estilo: "margin:0",
@@ -290,20 +351,21 @@ function mostrarLoQueEntendi(raiz, texto) {
       : null,
     el("dl", { clase: "cifras" },
       cifra("Listos para anotar", String(buenos.length), true),
-      cifra("Para preguntarle al señor", String(dudosos.length))),
+      cifra("Para revisar", String(dudosos.length))),
 
     dudosos.length
       ? el("div", {},
-          el("h3", { estilo: "margin:var(--e4) 0 var(--e2)", texto: "Estos no los anoto" }),
+          el("h3", { estilo: "margin:var(--e4) 0 var(--e2)", texto: "Estos no los anoto todavía" }),
           el("p", { clase: "apunte", estilo: "margin:0 0 var(--e2)",
-            texto: "Llámelo y pregúntele. Si el nombre se parece a varios, puede escogerlo aquí mismo." }),
-          ...dudosos.map((x) => renglon(x.p, x.i)))
+            texto: "Si sabe quién es, dígamelo aquí y la próxima vez ya lo sé. " +
+                   "Lo demás, pregúnteselo al señor y anótelo a mano." }),
+          ...dudosos.map(tarjeta))
       : null,
 
     buenos.length
       ? el("div", {},
           el("h3", { estilo: "margin:var(--e4) 0 var(--e2)", texto: "Estos sí" }),
-          ...buenos.map((x) => renglon(x.p, x.i)))
+          ...buenos.map(tarjeta))
       : null,
   );
 
@@ -313,7 +375,7 @@ function mostrarLoQueEntendi(raiz, texto) {
     botones: [
       { texto: "Cancelar" },
       {
-        // Sin número: si ella escoge un nombre de los dudosos, se anota
+        // Sin número: si ella dice quién es uno de los dudosos, se anota
         // también, y un botón que dice "los 3" anotando 4 es justo la
         // sorpresa que no se puede dar con plata. El cuántos lo dicen las
         // cifras de arriba, y el mensaje de después dice cuántos entraron.
@@ -321,14 +383,25 @@ function mostrarLoQueEntendi(raiz, texto) {
         clase: "principal",
         alHacerClic: () => {
           const paraAnotar = [...buenos];
-          // Los que ella resolvió escogiendo el nombre entran también.
-          for (const [i, nombre] of escogidos) {
+          const aprendidos = [];
+          const yaAprendi = new Set();
+
+          for (const p of dudosos) {
+            const nombre = p.soloFaltaElNombre ? escogidos.get(p.tramo) : "";
             if (!nombre) continue;
-            const p = leido.renglones[i];
-            paraAnotar.push({ p: { ...p, persona: { ...p.persona, elegida: nombre } }, i });
+            paraAnotar.push({ ...p, persona: { ...p.persona, elegida: nombre } });
+            // Lo que ella acaba de decir se recuerda: mañana el señor va a
+            // volver a decirlo igual, y ya no habrá que preguntar.
+            if (!yaAprendi.has(p.tramo)) {
+              yaAprendi.add(p.tramo);
+              if (aprenderApodo(estado.datos, estado.empresa, p.persona.escrito, nombre, gente)) {
+                aprendidos.push(`«${p.persona.escrito.toLowerCase()}» es ${nombre}`);
+              }
+            }
           }
+
           if (!paraAnotar.length) { mensaje("No hay nada que anotar.", "ojo", 5); return false; }
-          anotarElDictado(raiz, paraAnotar.map((x) => x.p));
+          anotarElDictado(raiz, paraAnotar, aprendidos);
         },
       },
     ],
@@ -336,7 +409,7 @@ function mostrarLoQueEntendi(raiz, texto) {
 }
 
 /** Mete en el día los pedidos que ella aprobó. */
-function anotarElDictado(raiz, pedidos) {
+function anotarElDictado(raiz, pedidos, aprendidos = []) {
   let puestos = 0;
   for (const p of pedidos) {
     const precio = precioDe(estado.datos, p.producto.nombre, estado.empresa);
@@ -360,7 +433,12 @@ function anotarElDictado(raiz, pedidos) {
   }
   cambio();
   pintarRegistrar(raiz);
-  mensaje(`${puestos} ${puestos === 1 ? "pedido anotado" : "pedidos anotados"}.`, "bien", 6);
+  // Lo aprendido se DICE. Si la app recordara nombres calladita, el día que
+  // anote uno mal nadie sabría de dónde lo sacó.
+  mensaje(
+    `${puestos} ${puestos === 1 ? "pedido anotado" : "pedidos anotados"}.` +
+    (aprendidos.length ? ` Aprendí que ${aprendidos.join(", y que ")}.` : ""),
+    "bien", aprendidos.length ? 10 : 6);
 }
 
 /**

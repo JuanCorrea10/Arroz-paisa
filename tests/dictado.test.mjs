@@ -16,7 +16,9 @@
 // ============================================================================
 
 import { grupo, prueba, igual, cierto } from "./probar.mjs";
-import { leerElDictado } from "../js/nucleo/dictado.js";
+import {
+  leerElDictado, aprenderApodo, olvidarApodo, apodosDe, valeLaPenaAprender,
+} from "../js/nucleo/dictado.js";
 
 const GENTE = [
   "PAOLA ALVAREZ", "PEDRO OCAMPO", "DANIEL TRIANA", "DANIELA TRIANA",
@@ -143,7 +145,8 @@ prueba("un nombre que no existe NO hace desaparecer el almuerzo", () => {
   igual(r.renglones[0].persona.elegida, null);
   igual(r.listos, 0);
   cierto(r.nadieReconocido, "y dice que no reconoció a nadie");
-  cierto(r.renglones[0].porque.some((p) => /de quién es/.test(p)), r.renglones[0].porque.join(", "));
+  cierto(r.renglones[0].porque.some((p) => /quién es/.test(p)), r.renglones[0].porque.join(", "));
+  igual(r.renglones[0].persona.escrito, "RIGOBERTO CASTANEDA", "y guarda lo que dijo");
 });
 
 prueba("un plato que no se entiende se marca", () => {
@@ -277,9 +280,12 @@ prueba("si la cantidad es rara, tampoco", () => {
   igual(r.soloFaltaElNombre, false, "las 13 hay que preguntarlas");
 });
 
-prueba("si no se parece a nadie, no hay nada que escoger", () => {
+prueba("si no se parece a nadie, ella puede decir quién es", () => {
+  // Antes aquí no había nada que hacer. Ahora sale como desconocida y ella
+  // dice quién es -- y la app lo aprende para la próxima.
   const r = uno("Rigoberto Castañeda un almuerzo");
-  igual(r.soloFaltaElNombre, false);
+  cierto(r.persona.desconocida);
+  cierto(r.soloFaltaElNombre);
 });
 
 prueba("un pedido bueno no se marca como arreglable", () => {
@@ -360,13 +366,21 @@ prueba("'Juan Camilo' no es JUAN: se dice que el nombre quedó corto", () => {
   cierto(x.soloFaltaElNombre, "se resuelve escogiendo, sin llamar a nadie");
 });
 
-prueba("una palabra suelta entre dos platos huele a persona que no se reconoció", () => {
-  // "...paisa con papas, rado, dos ofertas": "rado" era Javier Torrado y
-  // sus dos ofertas se le estaban colgando a Pablo. Se avisa.
+prueba("una palabra suelta entre dos platos es OTRA persona, no un plato más del anterior", () => {
+  // "...paisa con papas, rado, dos ofertas": "rado" era Javier Torrado. Sus
+  // dos ofertas se le colgaban a Pablo. Ahora salen aparte, a nombre de lo
+  // que dijo, y Pablo queda limpio con lo suyo.
   const r = real("Pablo Rincon paisa con papas rado dos ofertas");
+  const dePablo = r.renglones.filter((x) => x.persona.elegida === "PABLO RINCON");
+  igual(dePablo.map((x) => x.producto.nombre), ["PAISA CON PAPAS"]);
+  cierto(dePablo[0].listo, "lo de Pablo queda listo: " + dePablo[0].porque.join("; "));
+
   const ofertas = r.renglones.find((x) => x.producto.nombre === "OFERTA");
-  igual(ofertas.listo, false);
-  cierto(ofertas.porque.some((p) => /no entendí/.test(p)), ofertas.porque.join("; "));
+  igual(ofertas.cantidad, 2);
+  igual(ofertas.persona.elegida, null);
+  cierto(ofertas.persona.desconocida, "es de alguien que no se reconoció");
+  igual(ofertas.persona.escrito, "RADO");
+  cierto(ofertas.soloFaltaElNombre, "y ella puede decir quién es ahí mismo");
 });
 
 prueba("si 'coca cola' viene sin tamaño, pregunta cuál y no escoge", () => {
@@ -387,4 +401,220 @@ prueba("el texto pegado dos veces se lee una", () => {
 prueba("los guiones y las rayas de WhatsApp no estorban", () => {
   const r = real("Santiago Calderon Coca-Cola 1.5. Jerson _____ _____ Pablo Rincon oferta");
   igual(r.renglones.map((x) => x.producto.nombre), ["COCA COLA 1.5", "OFERTA"]);
+});
+
+
+// ---------------------------------------------------------------------------
+grupo("Aprender cómo le dice el señor a cada quien");
+
+// La persona se llama TETE RIVERA. El señor le dice "Tete Tomate" -- un apodo
+// que no está en ninguna lista -- y WhatsApp escribe "te tomate". De ahí al
+// nombre no hay letras que comparar: eso no se adivina, se aprende.
+
+const BARRIO = ["TETE RIVERA", "EDNA RIVERA", "PABLO RINCON", "SANTIAGO CALDERON",
+                "JUAN PEREZ", "JUAN GOMEZ", "JUAN CAMILO RESTREPO"];
+const MENU = ["ALMUERZO", "OFERTA", "PAISA CON PAPAS"].map((n) => ({ nombre: n, activo: true }));
+const conApodos = (t, datos) => leerElDictado(t, {
+  gente: BARRIO, productos: MENU, apodos: apodosDe(datos, "AGRO"),
+});
+
+prueba("la primera vez no lo sabe: sale aparte y pregunta quién es", () => {
+  const r = conApodos("Pablo Rincon oferta, te tomate un almuerzo, Santiago Calderon oferta", {});
+  igual(r.renglones.length, 3);
+  const [pablo, tete, santiago] = r.renglones;
+  cierto(pablo.listo && santiago.listo, "los vecinos no se ensucian");
+  igual(pablo.producto.nombre, "OFERTA", "y a Pablo no se le cuelga el almuerzo de otro");
+  igual(tete.persona.escrito, "TE TOMATE");
+  igual(tete.producto.nombre, "ALMUERZO");
+  igual(tete.listo, false);
+  cierto(tete.soloFaltaElNombre, "solo falta que ella diga quién es");
+});
+
+prueba("ella lo dice una vez, y la próxima ya lo sabe", () => {
+  const datos = {};
+  cierto(aprenderApodo(datos, "AGRO", "te tomate", "TETE RIVERA", BARRIO));
+
+  const r = conApodos("Pablo Rincon oferta, te tomate un almuerzo", datos);
+  const tete = r.renglones[1];
+  igual(tete.persona.elegida, "TETE RIVERA");
+  cierto(tete.listo, "ya no pregunta: " + tete.porque.join("; "));
+  cierto(tete.persona.porApodo, "pero dice de dónde lo sacó");
+});
+
+prueba("lo aprendido es de ESA empresa y de ninguna otra", () => {
+  // En otra fábrica "te tomate" puede ser otra persona, o nadie.
+  const datos = {};
+  aprenderApodo(datos, "AGRO", "te tomate", "TETE RIVERA", BARRIO);
+  igual(apodosDe(datos, "MGP"), []);
+  igual(apodosDe(datos, "AGRO"), [{ dicho: "TE TOMATE", persona: "TETE RIVERA" }]);
+});
+
+prueba("se puede desaprender, por si enseñó uno mal", () => {
+  const datos = {};
+  aprenderApodo(datos, "AGRO", "te tomate", "TETE RIVERA", BARRIO);
+  olvidarApodo(datos, "AGRO", "Te tomate");
+  igual(apodosDe(datos, "AGRO"), []);
+  igual(conApodos("te tomate un almuerzo", datos).renglones[0].persona.elegida, null);
+});
+
+prueba("un apodo de alguien que ya no está en la lista se ignora", () => {
+  // La persona se renombró o se unió con otra. No se anota un pedido a
+  // nombre de alguien que no existe.
+  const datos = { apodos: { "AGRO|EL FLACO": "PERSONA QUE YA NO ESTA" } };
+  const r = conApodos("el flaco un almuerzo", datos);
+  igual(r.renglones[0].persona.elegida, null);
+});
+
+prueba("no aprende que 'Juan' es uno de los tres Juanes", () => {
+  // Mañana el pedido de Juan Gómez se le anotaría a Juan Pérez sin preguntar.
+  igual(valeLaPenaAprender("Juan", "JUAN PEREZ", BARRIO), false);
+  igual(aprenderApodo({}, "AGRO", "Juan", "JUAN PEREZ", BARRIO), false);
+});
+
+prueba("no aprende el nombre mismo, ni basura", () => {
+  igual(valeLaPenaAprender("Tete Rivera", "TETE RIVERA", BARRIO), false, "ya se llama así");
+  igual(valeLaPenaAprender("rivera tete", "TETE RIVERA", BARRIO), false, "al revés también es su nombre");
+  igual(valeLaPenaAprender("", "TETE RIVERA", BARRIO), false);
+  igual(valeLaPenaAprender("ab", "TETE RIVERA", BARRIO), false, "dos letras no son un apodo");
+  igual(valeLaPenaAprender("uno dos tres cuatro cinco", "TETE RIVERA", BARRIO), false, "cinco palabras tampoco");
+});
+
+prueba("sí aprende un apellido mal oído, aunque sea una palabra", () => {
+  // "rado" por Torrado: una palabra, pero no es de nadie más.
+  cierto(valeLaPenaAprender("rado", "PABLO RINCON", BARRIO));
+});
+
+prueba("el nombre completo de otro le gana a un apodo corto", () => {
+  // Con "CAMILO" aprendido como apodo de Pablo, "Juan Camilo Restrepo" sigue
+  // siendo Juan Camilo Restrepo.
+  const datos = { apodos: { "AGRO|JUAN CAMILO": "PABLO RINCON" } };
+  const r = conApodos("Juan Camilo Restrepo oferta", datos);
+  igual(r.renglones[0].persona.elegida, "JUAN CAMILO RESTREPO");
+});
+
+prueba("un apodo puede llevar una palabra que también es plato", () => {
+  // "El paisa" es una persona, aunque PAISA CON PAPAS sea un plato.
+  const datos = {};
+  aprenderApodo(datos, "AGRO", "el paisa", "PABLO RINCON", BARRIO);
+  const r = conApodos("el paisa una oferta, Santiago Calderon paisa con papas", datos);
+  igual(r.renglones.map((x) => [x.persona.elegida, x.producto.nombre]),
+        [["PABLO RINCON", "OFERTA"], ["SANTIAGO CALDERON", "PAISA CON PAPAS"]]);
+});
+
+// ---------------------------------------------------------------------------
+grupo("La persona que no se reconoció");
+
+prueba("si el señor se pone a contar algo, eso NO es una persona", () => {
+  // Cinco palabras sueltas o más antes de un plato ya no son un nombre: es
+  // el señor explicando algo. No se inventa a nadie; se avisa que sobra texto.
+  const r = conApodos(
+    "Pablo Rincon oferta ayer llevaron jugo porteria nadie recibio nada un almuerzo", {});
+  cierto(r.renglones.every((x) => !x.persona.desconocida), "nadie inventado");
+  const almuerzo = r.renglones.find((x) => x.producto.nombre === "ALMUERZO");
+  igual(almuerzo.listo, false);
+  cierto(almuerzo.porque.some((p) => /no entendí/.test(p)), almuerzo.porque.join("; "));
+});
+
+prueba("lo suelto entre el nombre y su PRIMER plato no es otra persona", () => {
+  // El señor le da al menos un plato a cada quien. "Pablo Rincon combo de
+  // andas oferta": "andas" es un plato mal dicho, no alguien nuevo.
+  const r = conApodos("Pablo Rincon andas oferta", {});
+  igual(r.renglones.length, 1);
+  igual(r.renglones[0].persona.elegida, "PABLO RINCON");
+});
+
+prueba("el nombre de la empresa al arrancar no se vuelve persona", () => {
+  // "Agro, un almuerzo para Pablo": sin esto, "AGRO" salía como alguien
+  // desconocido que pidió un almuerzo.
+  const r = leerElDictado("Agro un almuerzo para Pablo Rincon",
+                          { gente: BARRIO, productos: MENU, relleno: ["AGRO"] });
+  igual(r.renglones.length, 1);
+  igual(r.renglones[0].persona.elegida, "PABLO RINCON");
+  cierto(r.renglones[0].listo, r.renglones[0].porque.join("; "));
+});
+
+prueba("los platos de una misma persona comparten tramo", () => {
+  // La pantalla lo usa para preguntar "¿quién es?" una vez, no una por plato.
+  const r = conApodos("Pablo Rincon oferta, te tomate un almuerzo y una oferta", {});
+  const deTete = r.renglones.filter((x) => x.persona.escrito === "TE TOMATE");
+  igual(deTete.length, 2);
+  igual(deTete[0].tramo, deTete[1].tramo);
+  cierto(deTete[0].tramo !== r.renglones[0].tramo, "y distinto del de Pablo");
+});
+
+
+// ---------------------------------------------------------------------------
+grupo("Nada de lo dicho se pierde callado");
+
+prueba("un plato que no está en el catálogo no desaparece: se marca y se muestra", () => {
+  // "Pablo oferta, sancocho". El sancocho no existe en el catálogo. Antes
+  // sobraba una palabra, no alcanzaba a marcar, y el pedido salía "listo"
+  // con un plato de menos: plata que nadie cobra, sin que nada lo diga.
+  const r = conApodos("Pablo Rincon oferta sancocho", {});
+  const oferta = r.renglones[0];
+  igual(oferta.listo, false);
+  cierto(oferta.porque.some((p) => /SANCOCHO/.test(p)), "dice cuál palabra: " + oferta.porque.join("; "));
+});
+
+prueba("un pedido limpio no deja nada suelto y sigue listo", () => {
+  const r = conApodos("Pablo Rincon una oferta por favor", {});
+  cierto(r.renglones[0].listo, r.renglones[0].porque.join("; "));
+});
+
+prueba("'cuatro de 1.5' es la gaseosa QUATRO 1,5, no cuatro de algo", () => {
+  // Salió del audio de verdad. El catálogo la tiene con Q y con coma;
+  // WhatsApp la escribe con C y con punto. Antes se perdía entera.
+  const r = leerElDictado("Pablo Rincon oferta y cuatro de 1.5", {
+    gente: BARRIO,
+    productos: [...MENU, { nombre: "QUATRO 1,5", activo: true }],
+  });
+  const gaseosa = r.renglones.find((x) => x.producto.nombre === "QUATRO 1,5");
+  cierto(gaseosa, "la encuentra: " + r.renglones.map((x) => x.producto.nombre).join(", "));
+  igual(gaseosa.cantidad, 1, "y no la toma por una cantidad de cuatro");
+  igual(gaseosa.producto.seguro, false, "pero sugerida, no dada por buena");
+});
+
+prueba("la coma y el punto del tamaño son lo mismo", () => {
+  const r = leerElDictado("Pablo Rincon quatro 1.5", {
+    gente: BARRIO, productos: [{ nombre: "QUATRO 1,5", activo: true }],
+  });
+  igual(r.renglones[0].producto.nombre, "QUATRO 1,5");
+  cierto(r.renglones[0].listo, r.renglones[0].porque.join("; "));
+});
+
+prueba("un plato dicho bien le gana a uno dicho a medias", () => {
+  // Con MANGO LECHE y MANGA LECHE en el catálogo, "mango leche" es el
+  // primero y es seguro: lo tolerante solo corre cuando lo exacto no dio.
+  const r = leerElDictado("Pablo Rincon mango leche", {
+    gente: BARRIO,
+    productos: [{ nombre: "MANGA LECHE", activo: true }, { nombre: "MANGO LECHE", activo: true }],
+  });
+  igual(r.renglones[0].producto.nombre, "MANGO LECHE");
+  igual(r.renglones[0].producto.seguro, true);
+});
+
+prueba("entre dos platos que calzan, gana el que cubre más de lo dicho", () => {
+  // "Combo en chuleta de cerdo" calza con CHULETA DE CERDO y con COMBO
+  // CHULETA CERDO. Son dos platos con dos precios. Ganaba el primero del
+  // catálogo y el "combo" quedaba sobrando; pasaba callado hasta que una
+  // palabra suelta empezó a marcarse.
+  for (const carta of [
+    ["CHULETA DE CERDO", "COMBO CHULETA CERDO"],
+    ["COMBO CHULETA CERDO", "CHULETA DE CERDO"],     // en el otro orden también
+  ]) {
+    const r = leerElDictado("Pablo Rincon combo en chuleta de cerdo", {
+      gente: BARRIO, productos: carta.map((n) => ({ nombre: n, activo: true })),
+    });
+    igual(r.renglones.length, 1);
+    igual(r.renglones[0].producto.nombre, "COMBO CHULETA CERDO");
+    cierto(r.renglones[0].listo, r.renglones[0].porque.join("; "));
+  }
+});
+
+prueba("y la chuleta sola sigue siendo la chuleta sola", () => {
+  const r = leerElDictado("Pablo Rincon chuleta de cerdo", {
+    gente: BARRIO,
+    productos: ["CHULETA DE CERDO", "COMBO CHULETA CERDO"].map((n) => ({ nombre: n, activo: true })),
+  });
+  igual(r.renglones[0].producto.nombre, "CHULETA DE CERDO");
 });

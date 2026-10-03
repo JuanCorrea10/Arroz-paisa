@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20261003-1021";
+  --version: "20261003-1438";
 }
 
 /* ===========================================================================
@@ -1296,6 +1296,22 @@ tfoot tr.total-del-mes td {
 tr[data-fuera="si"] td {
   color: var(--tinta-suave);
   background: var(--papel-raya);
+}
+
+/* ---------------------------------------------------------------------
+   El buscador DENTRO de una ventana
+
+   Afuera, la lista de opciones flota debajo de la casilla. Dentro de una
+   ventana eso la deja cortada: el cuerpo de la ventana es el que se corre,
+   y lo que flota por debajo del borde no se ve -- habria que adivinar que
+   hay que bajar. Aqui la lista ocupa su sitio y empuja lo demas.
+   --------------------------------------------------------------------- */
+
+dialog .buscador-lista {
+  position: static;
+  margin-top: 3px;
+  max-height: 230px;
+  box-shadow: none;
 }
 
 /* ===========================================================================

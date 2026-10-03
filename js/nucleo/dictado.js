@@ -38,7 +38,7 @@
 //  cambia es la lista de gente y el catálogo.
 // ============================================================================
 
-import { paraBuscar } from "./formato.js";
+import { paraBuscar, normalizar } from "./formato.js";
 import { limpiarNombre, esqueletoApretado, distancia } from "./nombres.js";
 
 /**
@@ -93,7 +93,11 @@ const RELLENO = new Set([
  * bajas con que WhatsApp tapa lo que no entendió ("Jerson _____") se van.
  */
 export function palabrasDe(texto) {
-  return paraBuscar(String(texto || "").replace(/[_\-–—]+/g, " "))
+  return paraBuscar(String(texto || "")
+    .replace(/[_\-–—]+/g, " ")
+    // "1,5" y "1.5" son la misma gaseosa: el catálogo la tiene con coma y
+    // WhatsApp la escribe con punto.
+    .replace(/(\d),(\d)/g, "$1.$2"))
     .split(/\s+/)
     .map((w) => w.replace(/^[^A-Z0-9]+/, "").replace(/[^A-Z0-9]+$/, ""))
     .filter(Boolean);
@@ -150,13 +154,28 @@ const mismaPalabra = (dicha, delCatalogo) =>
  */
 const CONECTOR = new Set(["DE", "DEL", "EN", "CON", "LA", "EL", "A"]);
 
-/** Si el plato calza empezando en i, devuelve dónde termina; si no, -1. */
-function calzaDesde(palabras, i, suyas, usadas) {
+/** Casi la misma: una letra de diferencia, y solo en palabras de cinco o más. */
+const casiLaMisma = (dicha, delCatalogo) =>
+  delCatalogo.length >= 5 && dicha.length >= 4 && distancia(dicha, delCatalogo, 1) <= 1;
+
+/**
+ * Si el plato calza empezando en i, devuelve dónde termina; si no, -1.
+ *
+ * Con "tolerante", se deja pasar UNA palabra mal oída dentro de un plato de
+ * varias: "cuatro de 1.5" es la gaseosa QUATRO 1,5. Lo que calza así no se da
+ * por seguro -- sale como sugerencia.
+ */
+function calzaDesde(palabras, i, suyas, usadas, tolerante = false) {
   let j = i;
+  let perdonadas = 0;
   for (let k = 0; k < suyas.length; k++) {
     if (k > 0 && j < palabras.length && !usadas.has(j) &&
         CONECTOR.has(palabras[j]) && !mismaPalabra(palabras[j], suyas[k])) j++;
-    if (j >= palabras.length || usadas.has(j) || !mismaPalabra(palabras[j], suyas[k])) return -1;
+    if (j >= palabras.length || usadas.has(j)) return -1;
+    if (!mismaPalabra(palabras[j], suyas[k])) {
+      if (!tolerante || suyas.length < 2 || perdonadas >= 1 || !casiLaMisma(palabras[j], suyas[k])) return -1;
+      perdonadas++;
+    }
     j++;
   }
   return j - 1;
@@ -175,19 +194,40 @@ function calzaDesde(palabras, i, suyas, usadas) {
  *      tamaño). Dudoso, y con las opciones si hay varios que empiezan así.
  *   3. Una palabra parecida ("almuerso", "gaseoza"). Dudoso.
  */
-export function losPlatos(palabras, productos) {
+export function losPlatos(palabras, productos, reservadas = new Set()) {
   const catalogo = catalogoListo(productos);
-  const usadas = new Set();
+  // Lo reservado ya es de un apodo ("el paisa" puede ser una persona): ahí no
+  // se buscan platos.
+  const usadas = new Set(reservadas);
   const hallados = [];
 
-  // 1. Enteros (saltando un conector si hace falta).
-  for (const p of catalogo) {
-    for (let i = 0; i < palabras.length; i++) {
-      if (usadas.has(i)) continue;
-      const hasta = calzaDesde(palabras, i, p.palabras, usadas);
-      if (hasta < 0) continue;
-      for (let k = i; k <= hasta; k++) usadas.add(k);
-      hallados.push({ nombre: p.nombre, seguro: true, desde: i, hasta, opciones: [] });
+  // 1. Enteros (saltando un conector si hace falta). Primero los exactos de
+  //    TODO el catálogo, y solo después los que tienen una palabra mal oída:
+  //    así un plato dicho bien nunca pierde contra uno dicho a medias.
+  //
+  //    Y entre dos que calzan sobre las mismas palabras, gana el que CUBRE
+  //    MÁS de lo dicho. "Combo en chuleta de cerdo" calza con CHULETA DE
+  //    CERDO (tres palabras) y con COMBO CHULETA CERDO (las cinco). Ganaba el
+  //    primero del catálogo: otro plato, otro precio, y el "combo" sobraba.
+  for (const tolerante of [false, true]) {
+    const candidatos = [];
+    for (const p of catalogo) {
+      for (let i = 0; i < palabras.length; i++) {
+        if (usadas.has(i)) continue;
+        const hasta = calzaDesde(palabras, i, p.palabras, usadas, tolerante);
+        if (hasta >= 0) candidatos.push({ p, desde: i, hasta });
+      }
+    }
+    candidatos.sort((a, b) =>
+      (b.hasta - b.desde) - (a.hasta - a.desde) ||
+      b.p.palabras.length - a.p.palabras.length ||
+      a.desde - b.desde);
+    for (const c of candidatos) {
+      let libre = true;
+      for (let k = c.desde; k <= c.hasta; k++) if (usadas.has(k)) { libre = false; break; }
+      if (!libre) continue;
+      for (let k = c.desde; k <= c.hasta; k++) usadas.add(k);
+      hallados.push({ nombre: c.p.nombre, seguro: !tolerante, desde: c.desde, hasta: c.hasta, opciones: [] });
     }
   }
 
@@ -399,6 +439,116 @@ export function dondeEstanLosNombres(palabras, gente, ocupadas = new Set(), pala
 }
 
 // ---------------------------------------------------------------------------
+//  Cómo le dice el señor a cada quien
+//
+//  Hay errores que ningún parecido rescata. La persona se llama TETE RIVERA,
+//  el señor le dice "Tete Tomate" -- un apodo que no está en ninguna lista --
+//  y WhatsApp escribe "te tomate". De ahí a TETE RIVERA no hay letras que
+//  comparar.
+//
+//  Pero el señor es CONSTANTE en sus errores: a Tete le va a decir "Tete
+//  Tomate" todos los días, y WhatsApp lo va a escribir casi siempre igual.
+//  Así que no se adivina: se APRENDE. La primera vez ella dice quién era, y
+//  de ahí en adelante "te tomate" es Tete Rivera.
+//
+//  Se guarda por empresa, y exacto como salió del texto. Es lo que ella
+//  enseñó, con su propia mano, así que la próxima vez se da por bueno -- pero
+//  la pantalla dice de dónde salió y deja desaprenderlo.
+// ---------------------------------------------------------------------------
+
+/** La llave de un apodo: las palabras tal como se leen del texto. */
+export function claveDeApodo(dicho) {
+  return palabrasDe(dicho).join(" ");
+}
+
+/** Los apodos aprendidos de una empresa: [{ dicho, persona }]. */
+export function apodosDe(datos, codigoEmpresa) {
+  const prefijo = normalizar(codigoEmpresa) + "|";
+  return Object.entries((datos && datos.apodos) || {})
+    .filter(([llave]) => llave.startsWith(prefijo))
+    .map(([llave, persona]) => ({ dicho: llave.slice(prefijo.length), persona }));
+}
+
+/**
+ * ¿Vale la pena recordar que "esto" es esa persona?
+ *
+ * No, si es su nombre tal cual (no hay nada que aprender). Y no, si es UNA
+ * palabra que comparten varias personas: aprender que "Juan" es Juan Pérez
+ * haría que mañana el pedido de Juan Gómez se le anote a Pérez sin preguntar.
+ */
+export function valeLaPenaAprender(dicho, persona, gente = []) {
+  const clave = claveDeApodo(dicho);
+  const palabras = clave.split(" ").filter(Boolean);
+  if (!clave || !persona) return false;
+  if (palabras.length > 4 || clave.replace(/ /g, "").length < 3) return false;
+  if (esqueletoApretado(clave) === esqueletoApretado(persona)) return false;
+  if (palabras.length === 1) {
+    const comparten = genteLista(gente).filter(
+      (p) => p.primero === clave || p.apellido === clave || p.esq === clave);
+    if (comparten.length > 1) return false;
+  }
+  return true;
+}
+
+/** Recuerda que así le dice el señor a esa persona. Dice si lo aprendió. */
+export function aprenderApodo(datos, codigoEmpresa, dicho, persona, gente = []) {
+  if (!valeLaPenaAprender(dicho, persona, gente)) return false;
+  if (!datos.apodos) datos.apodos = {};
+  datos.apodos[normalizar(codigoEmpresa) + "|" + claveDeApodo(dicho)] = persona;
+  return true;
+}
+
+/** Lo desaprende, por si ella enseñó uno mal. */
+export function olvidarApodo(datos, codigoEmpresa, dicho) {
+  if (!datos || !datos.apodos) return;
+  delete datos.apodos[normalizar(codigoEmpresa) + "|" + claveDeApodo(dicho)];
+}
+
+/**
+ * Dónde aparecen en el texto los apodos ya aprendidos.
+ *
+ * Van ANTES que los platos y que los nombres: un apodo puede llevar una
+ * palabra que también es plato ("el paisa") o relleno ("la negra").
+ *
+ * Dos cuidados:
+ *   - Un apodo de alguien que ya no está en la lista (se renombró, se unió
+ *     con otro) se ignora: no se anota un pedido a nombre de nadie.
+ *   - Si justo ahí empieza el nombre COMPLETO de otra persona, gana el
+ *     nombre: el apodo "JUAN" no puede comerse a "JUAN CAMILO RESTREPO".
+ */
+function losApodos(palabras, apodos, gente) {
+  const lista = genteLista(gente);
+  const vivos = new Map(lista.map((p) => [normalizar(p.nombre), p.nombre]));
+  const conocidos = (apodos || [])
+    .map((a) => ({ persona: vivos.get(normalizar(a.persona)), palabras: palabrasDe(a.dicho) }))
+    .filter((a) => a.persona && a.palabras.length)
+    .sort((a, b) => b.palabras.length - a.palabras.length);
+
+  const hayNombreMasLargo = (i, n) => [3, 2].some((c) =>
+    c > n && i + c <= palabras.length &&
+    lista.some((p) => p.esq === esqueletoApretado(palabras.slice(i, i + c).join(" "))));
+
+  const usadas = new Set();
+  const hallados = [];
+  for (const a of conocidos) {
+    const n = a.palabras.length;
+    for (let i = 0; i + n <= palabras.length; i++) {
+      let calza = true;
+      for (let k = 0; k < n; k++) {
+        if (usadas.has(i + k) || palabras[i + k] !== a.palabras[k]) { calza = false; break; }
+      }
+      if (!calza || hayNombreMasLargo(i, n)) continue;
+      for (let k = 0; k < n; k++) usadas.add(i + k);
+      hallados.push({
+        nombre: a.persona, segura: true, opciones: [], porApodo: true,
+        desde: i, hasta: i + n - 1, dicho: a.palabras.join(" "),
+      });
+    }
+  }
+  return { hallados, usadas };
+}
+
+// ---------------------------------------------------------------------------
 //  Leerlo todo
 // ---------------------------------------------------------------------------
 
@@ -406,25 +556,94 @@ export function dondeEstanLosNombres(palabras, gente, ocupadas = new Set(), pala
  * Lee el texto pegado y devuelve lo que entendió: un pedido por plato, cada
  * uno con su persona, y cada uno diciendo si hay algo de qué dudar y qué.
  *
- * El texto se parte en cada nombre. Lo que va entre un nombre y el siguiente
- * es de esa persona; lo que va antes del primer nombre también es del
- * primero ("un almuerzo para Pedro" es español). Si no se reconoce a nadie,
- * los platos que haya salen como "no se entiende de quién es", porque un
- * almuerzo que nadie anota es un almuerzo que nadie cobra.
+ * El texto se recorre de principio a fin, y se va partiendo en TRAMOS: uno
+ * por cada persona que se nombra. Lo que va detrás de un nombre es suyo
+ * hasta que aparezca el siguiente.
+ *
+ * Y hay un tercer caso, que es el que más importa: palabras que no son nada
+ * conocido, justo antes de un plato, cuando la persona de antes YA pidió.
+ * Eso es alguien a quien no se reconoció -- "rado" por Javier Torrado, "te
+ * tomate" por Tete Rivera -- y sale como su PROPIO tramo, "desconocida",
+ * para que ella diga quién es. Antes sus platos se le colgaban a la persona
+ * anterior: marcados, sí, pero sin forma de decirle a la app de quién eran.
+ *
+ * "relleno" son palabras de más que hay que ignorar en ESTE texto: el nombre
+ * de la empresa, que el señor dice al arrancar ("Agro, fulano...").
  */
-export function leerElDictado(textoCrudo, { gente = [], productos = [] } = {}) {
+export function leerElDictado(textoCrudo, { gente = [], productos = [], apodos = [], relleno = [] } = {}) {
   const { texto, estabaRepetido } = sinRepetir(textoCrudo);
-  const palabras = palabrasDe(texto);
-  const { platos, usadas } = losPlatos(palabras, productos);
+  const deMas = new Set(relleno.flatMap((r) => palabrasDe(r)));
+  const palabras = palabrasDe(texto).filter((w) => !deMas.has(w));
+
+  const conApodo = losApodos(palabras, apodos, gente);
+  const { platos, usadas } = losPlatos(palabras, productos, conApodo.usadas);
   const palabrasDePlato = new Set(catalogoListo(productos).flatMap((p) => p.palabras));
-  const nombres = dondeEstanLosNombres(palabras, gente, usadas, palabrasDePlato);
+  const nombres = [
+    ...conApodo.hallados,
+    ...dondeEstanLosNombres(palabras, gente, usadas, palabrasDePlato),
+  ].sort((a, b) => a.desde - b.desde);
 
+  const enUnNombre = new Set();
+  for (const n of nombres) for (let i = n.desde; i <= n.hasta; i++) enUnNombre.add(i);
+
+  // "Suelta": no es plato, ni palabra de plato, ni número, ni relleno, ni
+  // parte de un nombre. Es la huella de alguien que no se reconoció.
+  const suelta = (i) => !usadas.has(i) && !enUnNombre.has(i) && !RELLENO.has(palabras[i]) &&
+                        !esNumero(palabras[i]) && !palabrasDePlato.has(palabras[i]);
+
+  // --- 1. Partir en tramos --------------------------------------------------
+  const eventos = [
+    ...nombres.map((n) => ({ tipo: "nombre", desde: n.desde, hasta: n.hasta, n })),
+    ...platos.map((p) => ({ tipo: "plato", desde: p.desde, hasta: p.hasta, p })),
+  ].sort((a, b) => a.desde - b.desde);
+
+  const tramos = [];
+  let cur = { tipo: "inicio", platos: [], desde: 0, nombreDesde: -1, nombreHasta: -1 };
+  let ultimo = -1;
+  const cerrar = (dondeEmpiezaElQueSigue) => {
+    cur.fin = dondeEmpiezaElQueSigue - 1;
+    if (cur.tipo !== "inicio" || cur.platos.length) tramos.push(cur);
+  };
+
+  for (const ev of eventos) {
+    if (ev.tipo === "nombre") {
+      // Los platos de antes del PRIMER nombre son del primero: "un almuerzo
+      // para Pedro" también es español.
+      const eraElInicio = cur.tipo === "inicio";
+      const heredados = eraElInicio ? cur.platos : [];
+      if (!eraElInicio) cerrar(ev.desde);
+      cur = {
+        tipo: "persona", n: ev.n, platos: [...heredados],
+        desde: eraElInicio ? 0 : ev.desde, nombreDesde: ev.desde, nombreHasta: ev.hasta,
+      };
+    } else {
+      const corrida = [];
+      for (let i = ultimo + 1; i < ev.desde; i++) if (suelta(i)) corrida.push(i);
+      // De una a cuatro palabras sueltas antes de un plato son un NOMBRE que
+      // no se reconoció -- siempre que la persona de antes ya tenga su plato:
+      // el señor le da al menos uno a cada quien, así que lo suelto entre un
+      // nombre y su primer plato es un plato mal dicho, no otra persona.
+      // Cinco o más ya no son un nombre: es el señor contándole algo.
+      const hayAlguienNuevo = corrida.length >= 1 && corrida.length <= 4 &&
+                              (cur.tipo === "inicio" || cur.platos.length >= 1);
+      if (hayAlguienNuevo) {
+        cerrar(corrida[0]);
+        const hasta = corrida[corrida.length - 1];
+        cur = {
+          tipo: "desconocida", platos: [ev.p], desde: corrida[0],
+          nombreDesde: corrida[0], nombreHasta: hasta,
+          dicho: palabras.slice(corrida[0], hasta + 1).join(" "),
+        };
+      } else {
+        cur.platos.push(ev.p);
+      }
+    }
+    ultimo = ev.hasta;
+  }
+  cerrar(palabras.length);
+
+  // --- 2. De cada tramo, sus pedidos ----------------------------------------
   const pedidos = [];
-  const pedido = (extra) => pedidos.push({
-    cantidadDicha: false, soloFaltaElNombre: false, ...extra,
-    listo: extra.porque.length === 0,
-  });
-
   const dudaDelPlato = (p) => {
     if (!p.nombre && p.opciones.length > 1) return `¿cuál: ${p.opciones.join(" o ")}?`;
     if (!p.nombre) return "no se entiende qué pidió";
@@ -432,88 +651,65 @@ export function leerElDictado(textoCrudo, { gente = [], productos = [] } = {}) {
     return null;
   };
 
-  // Sin nadie reconocido, los platos salen igual, pero huérfanos.
-  if (!nombres.length) {
-    for (const p of platos) {
-      pedido({
-        linea: palabras.join(" "),
-        cantidad: cantidadDe(palabras, p.desde, 0).valor,
-        persona: { escrito: "", elegida: null, opciones: [], segura: false },
-        producto: { nombre: p.nombre, seguro: p.seguro, opciones: p.opciones },
-        porque: ["no se entiende de quién es", dudaDelPlato(p)].filter(Boolean),
-      });
-    }
-    return {
-      renglones: pedidos, listos: 0, porRevisar: pedidos.length,
-      nadieReconocido: true, estabaRepetido,
-    };
-  }
+  tramos.forEach((t, cual) => {
+    const comoLoDijo = palabras.slice(t.desde, t.fin + 1).join(" ");
 
-  // Lo que ocupa cada persona: desde que acaba SU nombre hasta donde empieza
-  // el siguiente. El señor dice el nombre y después el plato.
-  //
-  // La primera versión arrancaba el tramo donde acababa el nombre ANTERIOR,
-  // y con eso cada persona se llevaba los platos de la de antes: Santiago
-  // salía con la chuleta de Juan Camilo y Octavio con la oferta de Santiago.
-  // Cobrado a quien no era, tres veces seguidas.
-  //
-  // Solo al primero se le suma lo que venga antes de su nombre, por si el
-  // señor arranca con el plato: "un almuerzo para Pedro".
-  const tramos = nombres.map((n, k) => ({
-    ...n,
-    inicio: k === 0 ? 0 : n.hasta + 1,
-    fin: k + 1 < nombres.length ? nombres[k + 1].desde - 1 : palabras.length - 1,
-  }));
-
-  for (const t of tramos) {
-    const suyos = platos.filter((p) => p.desde >= t.inicio && p.desde <= t.fin);
-    const comoLoDijo = palabras.slice(t.inicio, t.fin + 1).join(" ");
-
+    let persona;
     const dudasDelNombre = [];
-    if (!t.nombre) dudasDelNombre.push("el nombre se parece a varios");
-    else if (!t.segura) dudasDelNombre.push(`¿será ${t.nombre}?`);
-    if (t.incompleto) dudasDelNombre.push(`dijo «${t.dicho}» y solo reconozco una parte`);
-
-    // Las palabras que no son plato, ni número, ni relleno, ni el nombre:
-    // lo que la app no entendió. En un pedido limpio son cero. En una
-    // divagación del señor son veinte, y ahí adentro puede ir un pedido que
-    // se le está colgando a la persona equivocada. Se avisa.
-    let sobran = 0;
-    for (let i = t.inicio; i <= t.fin; i++) {
-      if (i >= t.desde && i <= t.hasta) continue;
-      // Lo de antes del primer nombre es el saludo o la empresa ("Agro"),
-      // no palabras que la app debía entender.
-      if (i < t.desde) continue;
-      if (usadas.has(i) || RELLENO.has(palabras[i]) || esNumero(palabras[i])) continue;
-      sobran++;
+    let sePuedeDecirQuien = false;
+    if (t.tipo === "persona") {
+      persona = {
+        escrito: t.n.dicho || palabras.slice(t.n.desde, t.n.hasta + 1).join(" "),
+        elegida: t.n.nombre, opciones: t.n.opciones, segura: t.n.segura,
+        porApodo: t.n.porApodo === true,
+      };
+      if (!t.n.nombre) dudasDelNombre.push("el nombre se parece a varios");
+      else if (!t.n.segura) dudasDelNombre.push(`¿será ${t.n.nombre}?`);
+      if (t.n.incompleto) dudasDelNombre.push(`dijo «${t.n.dicho}» y solo reconozco una parte`);
+      sePuedeDecirQuien = !t.n.incompleto && t.n.opciones.length > 0;
+    } else if (t.tipo === "desconocida") {
+      persona = { escrito: t.dicho, elegida: null, opciones: [], segura: false, desconocida: true };
+      dudasDelNombre.push(`no sé quién es «${t.dicho}»`);
+      sePuedeDecirQuien = true;
+    } else {
+      persona = { escrito: "", elegida: null, opciones: [], segura: false };
+      dudasDelNombre.push("no se entiende de quién es");
     }
-    // Dos palabras sueltas ya es raro en un pedido. Y si hay DOS platos en el
-    // mismo tramo con una palabra suelta en medio, lo más probable es que ahí
-    // había otra persona que no se reconoció ("...abierto, RADO, dos ofertas"
-    // era Javier Torrado), y sus platos se le están colgando a la anterior.
-    const sospechoso = sobran >= 2 || (suyos.length >= 2 && sobran >= 1);
-    const dudaDeTexto = sospechoso
-      ? [`hay ${sobran} ${sobran === 1 ? "palabra" : "palabras"} que no entendí`]
+
+    // Las palabras que la app no entendió dentro del tramo. En un pedido
+    // limpio son cero. En una divagación del señor son veinte, y ahí adentro
+    // puede ir un pedido colgándose de la persona equivocada. Se avisa.
+    const sobran = [];
+    for (let i = t.desde; i <= t.fin; i++) {
+      if (i >= t.nombreDesde && i <= t.nombreHasta) continue;
+      // Lo de antes del primer nombre es el saludo, no algo que entender.
+      if (t.tipo === "persona" && i < t.nombreDesde) continue;
+      if (usadas.has(i) || RELLENO.has(palabras[i]) || esNumero(palabras[i])) continue;
+      sobran.push(palabras[i]);
+    }
+    // UNA sola palabra que sobre ya se marca, y se dice cuál.
+    //
+    // El umbral era dos, y con eso se perdía plata callada: en "Pablo oferta,
+    // sancocho" el sancocho no está en el catálogo, sobraba una palabra, no
+    // alcanzaba a marcar, y el pedido salía "listo" con un plato de menos.
+    // En el audio de verdad, los pedidos limpios no dejan ni una palabra
+    // suelta, así que marcar desde la primera no molesta a los que están bien.
+    const dudaDeTexto = sobran.length
+      ? [`no entendí: «${sobran.slice(0, 5).join(" ")}${sobran.length > 5 ? "…" : ""}»`]
       : [];
 
-    const persona = {
-      escrito: t.dicho || palabras.slice(t.desde, t.hasta + 1).join(" "),
-      elegida: t.nombre,
-      opciones: t.opciones,
-      segura: t.segura,
-    };
+    const base = { tramo: cual, linea: comoLoDijo, persona };
 
-    if (!suyos.length) {
-      pedido({
-        linea: comoLoDijo, cantidad: 1, persona,
+    if (!t.platos.length) {
+      const porque = [...dudasDelNombre, "no se entiende qué pidió", ...dudaDeTexto];
+      pedidos.push({ ...base, cantidad: 1, cantidadDicha: false,
         producto: { nombre: null, seguro: false, opciones: [] },
-        porque: [...dudasDelNombre, "no se entiende qué pidió", ...dudaDeTexto],
-      });
-      continue;
+        porque, listo: false, soloFaltaElNombre: false });
+      return;
     }
 
-    suyos.forEach((p, k) => {
-      const tope = k === 0 ? t.inicio : suyos[k - 1].hasta + 1;
+    t.platos.forEach((p, k) => {
+      const tope = k === 0 ? t.desde : t.platos[k - 1].hasta + 1;
       const cantidad = cantidadDe(palabras, p.desde, tope);
       const porque = [...dudasDelNombre];
       const dp = dudaDelPlato(p);
@@ -521,26 +717,29 @@ export function leerElDictado(textoCrudo, { gente = [], productos = [] } = {}) {
       if (cantidad.rara) porque.push(`¿de verdad son ${cantidad.valor}?`);
       porque.push(...dudaDeTexto);
 
-      pedido({
-        linea: comoLoDijo,
+      pedidos.push({
+        ...base,
         cantidad: cantidad.valor,
         cantidadDicha: cantidad.dicha,
-        persona,
         producto: { nombre: p.nombre, seguro: p.seguro, opciones: p.opciones },
         porque,
-        // Si lo ÚNICO que falla es el nombre y hay de dónde escoger, ella lo
-        // resuelve en la misma pantalla. Es el caso de todos los días.
+        listo: porque.length === 0,
+        // Si lo ÚNICO que falla es el nombre, ella lo resuelve en la misma
+        // pantalla: escogiendo entre las parecidas, o diciendo quién es la
+        // desconocida. Es el caso de todos los días.
         soloFaltaElNombre: porque.length > 0 && porque.length === dudasDelNombre.length &&
-                           !t.incompleto && p.seguro && !cantidad.rara && t.opciones.length > 0,
+                           sePuedeDecirQuien && p.seguro && !cantidad.rara,
       });
     });
-  }
+  });
 
   return {
     renglones: pedidos,
-    listos: pedidos.filter((r) => r.listo).length,
-    porRevisar: pedidos.filter((r) => !r.listo).length,
-    nadieReconocido: false,
+    listos: pedidos.filter((x) => x.listo).length,
+    porRevisar: pedidos.filter((x) => !x.listo).length,
+    // Ni un nombre ni un apodo reconocido: casi siempre es que el audio era
+    // de otra empresa.
+    nadieReconocido: nombres.length === 0,
     estabaRepetido,
   };
 }

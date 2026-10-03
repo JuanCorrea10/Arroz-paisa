@@ -40,6 +40,9 @@ export function datosVacios() {
     // el respaldo, la carpeta y el Excel sigan siendo uno solo.
     compras: [],
     cuadres: {},
+    // Cómo le dice el señor de los audios a cada persona ("te tomate" es
+    // TETE RIVERA). Lo va aprendiendo dictado.js cada vez que ella corrige.
+    apodos: {},
   };
 }
 
@@ -66,6 +69,7 @@ export function completarDatos(datos) {
   salida.config = { ...base.config, ...(datos.config || {}) };
   salida.config.acreedor = { ...base.config.acreedor, ...((datos.config || {}).acreedor || {}) };
   salida.cuadres = datos.cuadres || {};
+  salida.apodos = datos.apodos && typeof datos.apodos === "object" ? datos.apodos : {};
   salida.precios = datos.precios || {};
   salida.version = VERSION_DATOS;
   // Todo renglón tiene que tener id y lista de revisión, sí o sí.
