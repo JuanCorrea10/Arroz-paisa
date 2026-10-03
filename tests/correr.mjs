@@ -2,6 +2,7 @@
 // (Si no hay Node instalado, se abre tests/pruebas.html en el navegador.)
 import "./calculos.test.mjs";
 import "./nombres.test.mjs";
+import "./dictado.test.mjs";
 import "./personal.test.mjs";
 import "./sueltos.test.mjs";
 import "./habitos.test.mjs";

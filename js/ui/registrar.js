@@ -28,6 +28,7 @@ import {
 import {
   limpiarNombre, parecidasEnEmpresa, tocayosEnOtrasEmpresas,
 } from "../nucleo/nombres.js";
+import { leerElDictado } from "../nucleo/dictado.js";
 import {
   pedidoHabitual, tieneCostumbre, platosFrecuentes, loDelDiaAnterior,
   yaAnotadasHoy, cuantoValdria,
@@ -66,7 +67,7 @@ export function pintarRegistrar(raiz) {
         el("h1", { texto: "Registrar el día" }),
         el("p", { texto: "Elija el día y la empresa, y vaya agregando persona por persona." })
       ),
-      acciones(botonDePedidosEnPDF())
+      acciones(botonDePegarElDictado(raiz), botonDePedidosEnPDF())
     ),
     barraDeMando(raiz),
     faltanLosPrecios(raiz),
@@ -164,6 +165,190 @@ function faltanLosPrecios(raiz) {
             el("a", { clase: "boton chico", href: "#revisar", texto: "Arreglarlos en Revisar" })))
       : null
   );
+}
+
+/**
+ * "Pegar el pedido del señor": de la nota de voz a las comandas.
+ *
+ * Todas las mañanas un señor mayor le dicta los pedidos por una nota de voz.
+ * WhatsApp la transcribe, ella copia ese texto y lo pega aquí. No hay que
+ * escribir nada: copiar y pegar.
+ *
+ * Dos pasos y ya, porque ella no anda explorando pantallas: pegar, y mirar.
+ */
+function botonDePegarElDictado(raiz) {
+  return el("button", { clase: "chico", alHacerClic: () => pedirElDictado(raiz) },
+            "Pegar el pedido del señor");
+}
+
+function pedirElDictado(raiz) {
+  const caja = el("textarea", {
+    rows: 10,
+    estilo: "width:100%;font-size:var(--t-base);min-height:11rem",
+    placeholder: "Pegue aquí lo que mandó el señor...",
+  });
+
+  ventana({
+    titulo: "Pegar el pedido del señor",
+    cuerpo: el("div", { clase: "rejilla" },
+      el("p", { clase: "nota", estilo: "margin:0" },
+        `Va a quedar anotado en ${estado.empresa}, el ${fechaLarga(estado.fecha)}. `,
+        el("strong", { texto: "Nada se guarda todavía: " }),
+        "primero le muestro lo que entendí."),
+      caja),
+    botones: [
+      { texto: "Cancelar" },
+      {
+        texto: "Ver qué entendí",
+        clase: "principal",
+        alHacerClic: () => {
+          const texto = caja.value.trim();
+          if (!texto) { mensaje("Pegue primero el texto del señor.", "ojo", 5); return false; }
+          // La ventana se cierra y se abre la otra: dos pantallas cortas se
+          // entienden mejor que una larga con todo encima.
+          setTimeout(() => mostrarLoQueEntendi(raiz, texto), 50);
+        },
+      },
+    ],
+  });
+}
+
+/**
+ * Lo que entendió, para que ella apruebe.
+ *
+ * Los dudosos van ARRIBA y en rojo. Si fueran abajo, con treinta renglones
+ * ella aprobaría sin verlos -- y un pedido anotado con el nombre equivocado
+ * se le cobra a la persona equivocada, y eso no sale a la luz hasta que
+ * alguien reclama a fin de quincena.
+ *
+ * Los dudosos NO se anotan. Se quedan en una lista que ella puede leerle al
+ * señor por teléfono, y después los mete a mano.
+ */
+function mostrarLoQueEntendi(raiz, texto) {
+  const gente = personasDe(estado.datos, estado.empresa).map((p) => p.nombre);
+  const leido = leerElDictado(texto, { gente, productos: estado.datos.productos });
+
+  if (!leido.renglones.length) {
+    mensaje("No encontré ningún pedido en ese texto.", "malo", 7);
+    return;
+  }
+
+  // Los que se pueden arreglar aquí mismo: el nombre se parece a varios y
+  // ella escoge cuál. Cada uno lleva su <select>, que es lo que ella ya sabe
+  // usar en el resto de la app.
+  const escogidos = new Map();
+
+  const renglon = (p, i) => {
+    // Cuando lo único dudoso es el nombre, ella lo arregla aquí mismo.
+    const puedeEscoger = p.soloFaltaElNombre;
+    // La sugerida va de primera y las otras detrás: casi siempre la primera
+    // es la buena, pero escogerla por ella sería adivinar un nombre, y un
+    // nombre adivinado se le cobra a la persona equivocada.
+    const candidatas = [...new Set([
+      ...(p.persona.elegida ? [p.persona.elegida] : []),
+      ...p.persona.opciones,
+    ])];
+    const sel = puedeEscoger
+      ? el("div", { clase: "fila", estilo: "align-items:center;gap:var(--e2);margin-top:var(--e2)" },
+          el("span", { clase: "apunte", texto: "¿Quién era?" }),
+          el("select", { alCambiar: (e) => { escogidos.set(i, e.target.value); } },
+            el("option", { value: "" }, "No lo anote todavía"),
+            ...candidatas.map((n) => el("option", { value: n }, n))))
+      : null;
+    if (puedeEscoger) escogidos.set(i, "");
+
+    return el("div", { clase: p.listo ? "nota bien" : "nota malo" },
+      el("div", { estilo: "flex:1 1 auto;min-width:0" },
+        el("strong", { texto: p.listo
+          ? `${p.persona.elegida}  ·  ${p.cantidad}× ${p.producto.nombre}`
+          : `${p.cantidad}× ${p.producto.nombre || "?"}  ·  ${p.persona.escrito || "?"}` }),
+        el("p", { clase: "apunte", estilo: "margin:var(--e1) 0 0", texto: `“${p.linea}”` }),
+        p.listo ? null : el("p", { estilo: "margin:var(--e1) 0 0", texto: p.porque.join(" · ") }),
+        sel),
+    );
+  };
+
+  const dudosos = leido.renglones
+    .map((p, i) => ({ p, i }))
+    .filter((x) => !x.p.listo);
+  const buenos = leido.renglones
+    .map((p, i) => ({ p, i }))
+    .filter((x) => x.p.listo);
+
+  const cuerpo = el("div", { clase: "rejilla" },
+    el("dl", { clase: "cifras" },
+      cifra("Listos para anotar", String(buenos.length), true),
+      cifra("Para preguntarle al señor", String(dudosos.length))),
+
+    dudosos.length
+      ? el("div", {},
+          el("h3", { estilo: "margin:var(--e4) 0 var(--e2)", texto: "Estos no los anoto" }),
+          el("p", { clase: "apunte", estilo: "margin:0 0 var(--e2)",
+            texto: "Llámelo y pregúntele. Si el nombre se parece a varios, puede escogerlo aquí mismo." }),
+          ...dudosos.map((x) => renglon(x.p, x.i)))
+      : null,
+
+    buenos.length
+      ? el("div", {},
+          el("h3", { estilo: "margin:var(--e4) 0 var(--e2)", texto: "Estos sí" }),
+          ...buenos.map((x) => renglon(x.p, x.i)))
+      : null,
+  );
+
+  ventana({
+    titulo: "Lo que entendí",
+    cuerpo,
+    botones: [
+      { texto: "Cancelar" },
+      {
+        // Sin número: si ella escoge un nombre de los dudosos, se anota
+        // también, y un botón que dice "los 3" anotando 4 es justo la
+        // sorpresa que no se puede dar con plata. El cuántos lo dicen las
+        // cifras de arriba, y el mensaje de después dice cuántos entraron.
+        texto: "Anotar lo que está bien",
+        clase: "principal",
+        alHacerClic: () => {
+          const paraAnotar = [...buenos];
+          // Los que ella resolvió escogiendo el nombre entran también.
+          for (const [i, nombre] of escogidos) {
+            if (!nombre) continue;
+            const p = leido.renglones[i];
+            paraAnotar.push({ p: { ...p, persona: { ...p.persona, elegida: nombre } }, i });
+          }
+          if (!paraAnotar.length) { mensaje("No hay nada que anotar.", "ojo", 5); return false; }
+          anotarElDictado(raiz, paraAnotar.map((x) => x.p));
+        },
+      },
+    ],
+  });
+}
+
+/** Mete en el día los pedidos que ella aprobó. */
+function anotarElDictado(raiz, pedidos) {
+  let puestos = 0;
+  for (const p of pedidos) {
+    const precio = precioDe(estado.datos, p.producto.nombre, estado.empresa);
+    const esCasa = esLaCasa(empresaPorCodigo(estado.empresa));
+    // Nace como los que esa persona YA tiene hoy, igual que cuando ella los
+    // anota a mano: si no, la gaseosa entraría a crédito después de que ella
+    // marcó el almuerzo como pagado, y se cobraría dos veces.
+    const comoViene = comoPagaLaPersona(estado.datos.consumos, {
+      empresa: estado.empresa, persona: p.persona.elegida, fecha: estado.fecha,
+    });
+    estado.datos.consumos.push(nuevoConsumo({
+      fecha: estado.fecha,
+      empresa: estado.empresa,
+      persona: p.persona.elegida,
+      producto: p.producto.nombre,
+      cantidad: p.cantidad,
+      precioUnitario: precio === null ? 0 : precio,
+      cobro: comoViene || (esCasa ? DE_CONTADO : null),
+    }));
+    puestos++;
+  }
+  cambio();
+  pintarRegistrar(raiz);
+  mensaje(`${puestos} ${puestos === 1 ? "pedido anotado" : "pedidos anotados"}.`, "bien", 6);
 }
 
 /**

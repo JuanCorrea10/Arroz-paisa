@@ -565,6 +565,53 @@ try {
     else loQueSeTecleo = "no encontre el selector de empresa";
   }
 
+  // "&forzar=dictado": pega un audio transcrito como los que manda el senor,
+  // con sus errores, y abre la ventana de "lo que entendi". Es la unica forma
+  // de MIRAR esa pantalla: el texto entra pegado a mano.
+  if (forzar.includes("dictado")) {
+    const boton = [...raiz.querySelectorAll("button")]
+      .find((b) => /Pegar el pedido/i.test(b.textContent));
+    if (!boton) { loQueSeTecleo = "no encontre el boton de pegar"; }
+    else {
+      boton.click();
+      const caja = document.querySelector("dialog textarea");
+      const gente = datos.personas
+        .filter((p) => p.empresa === estado.empresa).map((p) => p.nombre);
+      // Un nombre bien, uno mal escrito, dos platos en un renglon, una
+      // cantidad rara, un saludo y alguien que no existe.
+      caja.value = [
+        "Buenos dias doña, le mando el pedido",
+        "Para " + gente[0] + " un almuerzo",
+        gente[1] + " dos almuerzos y una coca cola 1.5",
+        gente[2].replace(/.$/, "") + "a un almuerzo",   // solo el nombre mal: se arregla aqui
+        gente[3] + " trece almuerzos",
+        "Rigoberto Castañeda un sancocho",
+      ].join(String.fromCharCode(10));
+      const ver = [...document.querySelectorAll("dialog button")]
+        .find((b) => /Ver qu/i.test(b.textContent));
+      if (ver) ver.click();
+
+      // "+anotar" llega hasta el final: toca el boton y cuenta las comandas
+      // que quedaron. Es lo unico que prueba que de verdad se anotan.
+      if (forzar.includes("anotar")) {
+        // La segunda ventana se abre con un respiro, para que la primera
+        // alcance a cerrarse. Hay que esperarla.
+        await new Promise((listo) => setTimeout(listo, 400));
+        const antes = datos.consumos.filter((c) => c.fecha === estado.fecha &&
+                                                   c.empresa === estado.empresa).length;
+        const ok = [...document.querySelectorAll("dialog button")]
+          .find((b) => /Anotar lo que/i.test(b.textContent));
+        if (!ok) { loQueSeTecleo = "no encontre el boton de anotar"; }
+        else {
+          ok.click();
+          const ahora = datos.consumos.filter((c) => c.fecha === estado.fecha &&
+                                                     c.empresa === estado.empresa).length;
+          loQueSeTecleo = "ANOTADOS: " + (ahora - antes) + " (antes " + antes + ", ahora " + ahora + ")";
+        }
+      }
+    }
+  }
+
   if (forzar === "ventana") {
     const abrir = [...raiz.querySelectorAll("button")]
       .find((b) => /editar|cambiar|agregar|póngale/i.test(b.textContent));
