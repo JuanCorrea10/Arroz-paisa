@@ -133,11 +133,17 @@ prueba("si se parece a DOS, no escoge: las muestra", () => {
   cierto(otro.persona.opciones.includes("DANIELA TRIANA"));
 });
 
-prueba("un nombre que no existe se marca y lo dice", () => {
-  const r = uno("Rigoberto Castañeda almuerzo");
-  igual(r.listo, false);
-  igual(r.persona.elegida, null);
-  cierto(r.porque.some((p) => /no está en la lista/.test(p)), r.porque.join(", "));
+prueba("un nombre que no existe NO hace desaparecer el almuerzo", () => {
+  // Con el troceo por nombre, un nombre desconocido no abre pedido. Pero el
+  // almuerzo que venía con él tiene que salir igual, huérfano y marcado: un
+  // almuerzo que nadie anota es un almuerzo que nadie cobra, en silencio.
+  const r = leer("Rigoberto Castañeda almuerzo");
+  igual(r.renglones.length, 1, "el almuerzo sale");
+  igual(r.renglones[0].producto.nombre, "ALMUERZO");
+  igual(r.renglones[0].persona.elegida, null);
+  igual(r.listos, 0);
+  cierto(r.nadieReconocido, "y dice que no reconoció a nadie");
+  cierto(r.renglones[0].porque.some((p) => /de quién es/.test(p)), r.renglones[0].porque.join(", "));
 });
 
 prueba("un plato que no se entiende se marca", () => {
@@ -162,9 +168,12 @@ prueba("dos platos sí pasan: es normal pedir dos", () => {
 });
 
 prueba("un renglón puede tener varias dudas a la vez", () => {
-  const r = uno("Rigoberto no se que cosa");
+  // Nombre mal dicho Y plato mal dicho: las dos se dicen, no solo la primera.
+  const r = uno("Paula Alvares el almuerso");
   igual(r.listo, false);
   cierto(r.porque.length >= 2, "dice las dos: " + r.porque.join(", "));
+  cierto(r.porque.some((p) => /PAOLA ALVAREZ/.test(p)));
+  cierto(r.porque.some((p) => /ALMUERZO/.test(p)));
 });
 
 prueba("cuenta cuántos quedan listos y cuántos por revisar", () => {
@@ -186,16 +195,24 @@ prueba("texto vacío o basura no revienta", () => {
 });
 
 prueba("sin gente y sin catálogo tampoco", () => {
+  // Sin nada contra qué comparar no hay nada que entender: cero pedidos, y
+  // dicho. Antes inventaba un renglón vacío.
   const r = leerElDictado("Paola almuerzo", {});
-  igual(r.renglones.length, 1);
-  igual(r.renglones[0].listo, false);
+  igual(r.renglones.length, 0);
+  cierto(r.nadieReconocido);
 });
 
 prueba("un saludo suelto no se vuelve un pedido fantasma", () => {
-  // El señor arranca el audio saludando. Eso no es un pedido, y tiene que
-  // salir marcado y no anotarse solo.
-  const r = uno("Buenos días doña");
-  igual(r.listo, false);
+  // El señor arranca el audio saludando. Sin nombre y sin plato no hay
+  // pedido: cero renglones, no uno inventado.
+  igual(leer("Buenos días doña").renglones.length, 0);
+});
+
+prueba("el saludo ANTES del primer pedido no estorba", () => {
+  const r = leer("Buenos días doña le mando el pedido. Paola Alvarez almuerzo");
+  igual(r.renglones.length, 1);
+  igual(r.renglones[0].persona.elegida, "PAOLA ALVAREZ");
+  cierto(r.renglones[0].listo, r.renglones[0].porque.join(", "));
 });
 
 // ---------------------------------------------------------------------------
@@ -267,4 +284,107 @@ prueba("si no se parece a nadie, no hay nada que escoger", () => {
 
 prueba("un pedido bueno no se marca como arreglable", () => {
   igual(uno("Paola Alvarez almuerzo").soloFaltaElNombre, false);
+});
+
+
+// ---------------------------------------------------------------------------
+grupo("Lo que enseñó la transcripción de verdad");
+
+const REAL = [
+  "ANDRES AMORTEGUI", "PABLO RINCON", "JAVIER TORRADO", "SOL VERA",
+  "JHON TRIVIÑO", "CAMILO BERTEL", "JUAN", "SANTIAGO CALDERON",
+];
+
+const CARTA = [
+  "OFERTA", "PAISA CON PAPAS", "MANGO LECHE", "MARACUYA AGUA",
+  "COMBO CHULETA CERDO", "COCA COLA 1.5", "COCA COLA PERSONAL",
+].map((n) => ({ nombre: n, activo: true }));
+
+const real = (t) => leerElDictado(t, { gente: REAL, productos: CARTA });
+
+prueba("sin saltos de línea ni comas fiables, parte por los nombres", () => {
+  const r = real("Agro Pablo Rincon paisa con papas, Santiago Calderon oferta");
+  igual(r.renglones.map((x) => [x.persona.elegida, x.producto.nombre]),
+        [["PABLO RINCON", "PAISA CON PAPAS"], ["SANTIAGO CALDERON", "OFERTA"]]);
+  igual(r.listos, 2);
+});
+
+prueba("cada persona se queda con SUS platos, no con los de la anterior", () => {
+  // Esto salió mal en la primera versión: Santiago salía con la chuleta de
+  // Camilo y Octavio con la oferta de Santiago. Tres cobros a quien no era.
+  const r = real("Camilo Bertel combo en chuleta de cerdo Santiago Calderon oferta");
+  igual(r.renglones.map((x) => [x.persona.elegida, x.producto.nombre]),
+        [["CAMILO BERTEL", "COMBO CHULETA CERDO"], ["SANTIAGO CALDERON", "OFERTA"]]);
+});
+
+prueba("el señor mete 'en' y 'de' donde el catálogo no los tiene", () => {
+  // El catálogo dice MANGO LECHE; él dice "mango en leche".
+  const r = real("Jhon Triviño mango en leche, dos coca cola de 1.5");
+  igual(r.renglones.map((x) => x.producto.nombre), ["MANGO LECHE", "COCA COLA 1.5"]);
+  igual(r.renglones.map((x) => x.cantidad), [1, 2]);
+  igual(r.listos, 2, r.renglones.flatMap((x) => x.porque).join("; "));
+});
+
+prueba("el apellido rescata al nombre que WhatsApp destrozó", () => {
+  // "James Amórtegui" era ANDRES AMORTEGUI. El apellido aguanta.
+  const r = real("James Amortegui oferta");
+  igual(r.renglones[0].persona.elegida, "ANDRES AMORTEGUI");
+  igual(r.renglones[0].persona.segura, false, "pero sugerido, no dado por bueno");
+  cierto(r.renglones[0].soloFaltaElNombre, "y se confirma de un toque");
+});
+
+prueba("un nombre pegado también: 'Solvera' es SOL VERA", () => {
+  const r = real("Solvera oferta");
+  igual(r.renglones[0].persona.elegida, "SOL VERA");
+  igual(r.renglones[0].persona.segura, false);
+});
+
+prueba("una sola palabra NUNCA es segura, aunque calce exacta", () => {
+  // Con 190 personas, un nombre de pila suelto no identifica a nadie.
+  const r = real("Juan oferta");
+  igual(r.renglones[0].persona.elegida, "JUAN");
+  igual(r.renglones[0].persona.segura, false);
+});
+
+prueba("'Juan Camilo' no es JUAN: se dice que el nombre quedó corto", () => {
+  // Engancha con la persona llamada JUAN, y el pedido era de Camilo Bertel.
+  // No se puede confirmar de un toque: hay que mirarlo.
+  const r = real("Juan Camilo combo en chuleta de cerdo");
+  igual(r.renglones.length, 1, "una sola persona, no dos");
+  const x = r.renglones[0];
+  igual(x.listo, false);
+  igual(x.persona.elegida, null, "no escoge por ella");
+  cierto(x.persona.opciones.includes("CAMILO BERTEL") && x.persona.opciones.includes("JUAN"),
+         "le da las dos para que escoja: " + x.persona.opciones.join(", "));
+  igual(x.producto.nombre, "COMBO CHULETA CERDO", "y el plato va con esa persona");
+  cierto(x.soloFaltaElNombre, "se resuelve escogiendo, sin llamar a nadie");
+});
+
+prueba("una palabra suelta entre dos platos huele a persona que no se reconoció", () => {
+  // "...paisa con papas, rado, dos ofertas": "rado" era Javier Torrado y
+  // sus dos ofertas se le estaban colgando a Pablo. Se avisa.
+  const r = real("Pablo Rincon paisa con papas rado dos ofertas");
+  const ofertas = r.renglones.find((x) => x.producto.nombre === "OFERTA");
+  igual(ofertas.listo, false);
+  cierto(ofertas.porque.some((p) => /no entendí/.test(p)), ofertas.porque.join("; "));
+});
+
+prueba("si 'coca cola' viene sin tamaño, pregunta cuál y no escoge", () => {
+  const r = real("Pablo Rincon coca cola de 500");
+  const x = r.renglones[0];
+  igual(x.producto.nombre, null);
+  igual(x.producto.opciones.slice().sort(), ["COCA COLA 1.5", "COCA COLA PERSONAL"]);
+  cierto(x.porque.some((p) => /cuál/.test(p)), x.porque.join("; "));
+});
+
+prueba("el texto pegado dos veces se lee una", () => {
+  const una = "Pablo Rincon paisa con papas, Santiago Calderon oferta, Solvera oferta";
+  const r = real(una + " " + una);
+  igual(r.renglones.length, 3, "y no seis");
+  cierto(r.estabaRepetido, "y lo dice");
+});
+
+prueba("los guiones y las rayas de WhatsApp no estorban", () => {
+  const r = real("Santiago Calderon Coca-Cola 1.5. Jerson _____ _____ Pablo Rincon oferta");
+  igual(r.renglones.map((x) => x.producto.nombre), ["COCA COLA 1.5", "OFERTA"]);
 });

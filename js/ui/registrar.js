@@ -228,9 +228,14 @@ function mostrarLoQueEntendi(raiz, texto) {
   const gente = personasDe(estado.datos, estado.empresa).map((p) => p.nombre);
   const leido = leerElDictado(texto, { gente, productos: estado.datos.productos });
 
-  if (!leido.renglones.length) {
-    mensaje("No encontré ningún pedido en ese texto.", "malo", 7);
-    return;
+  if (leido.nadieReconocido) {
+    // Lo más probable no es que el texto esté mal: es que el audio era de
+    // OTRA empresa. Si pega el de AGRO con MGP elegida, no reconoce a nadie.
+    // Eso es lo que ella puede arreglar, así que es lo que se le dice.
+    mensaje(
+      `No reconocí a nadie de ${estado.empresa} en ese texto. ` +
+      `Revise que arriba esté elegida la empresa del audio.`, "malo", 10);
+    if (!leido.renglones.length) return;
   }
 
   // Los que se pueden arreglar aquí mismo: el nombre se parece a varios y
@@ -261,8 +266,9 @@ function mostrarLoQueEntendi(raiz, texto) {
       el("div", { estilo: "flex:1 1 auto;min-width:0" },
         el("strong", { texto: p.listo
           ? `${p.persona.elegida}  ·  ${p.cantidad}× ${p.producto.nombre}`
-          : `${p.cantidad}× ${p.producto.nombre || "?"}  ·  ${p.persona.escrito || "?"}` }),
-        el("p", { clase: "apunte", estilo: "margin:var(--e1) 0 0", texto: `“${p.linea}”` }),
+          : `${p.cantidad}× ${p.producto.nombre || "?"}  ·  ${p.persona.elegida || p.persona.escrito || "?"}` }),
+        el("p", { clase: "apunte", estilo: "margin:var(--e1) 0 0",
+          texto: `“${p.linea.length > 90 ? p.linea.slice(0, 90) + "…" : p.linea}”` }),
         p.listo ? null : el("p", { estilo: "margin:var(--e1) 0 0", texto: p.porque.join(" · ") }),
         sel),
     );
@@ -276,6 +282,12 @@ function mostrarLoQueEntendi(raiz, texto) {
     .filter((x) => x.p.listo);
 
   const cuerpo = el("div", { clase: "rejilla" },
+    // Pasó con el primer texto de verdad: la transcripción venia pegada dos
+    // veces. Se lee una, y se dice, para que no crea que se le perdió la mitad.
+    leido.estabaRepetido
+      ? el("p", { clase: "nota", estilo: "margin:0",
+          texto: "El texto venía pegado dos veces. Leí una sola." })
+      : null,
     el("dl", { clase: "cifras" },
       cifra("Listos para anotar", String(buenos.length), true),
       cifra("Para preguntarle al señor", String(dudosos.length))),
