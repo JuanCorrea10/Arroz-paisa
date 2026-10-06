@@ -658,6 +658,13 @@ try {
     }
   }
 
+  // "&forzar=pago:empresa" pone "Como se pago" en Cuanto vendi.
+  if (forzar.startsWith("pago:")) {
+    const sel = raiz.querySelector("#ventas-pago");
+    if (sel) { sel.value = forzar.slice(5); sel.dispatchEvent(new Event("change", { bubbles: true })); }
+    else loQueSeTecleo = "no encontre el selector de pago";
+  }
+
   if (forzar === "ventana") {
     const abrir = [...raiz.querySelectorAll("button")]
       .find((b) => /editar|cambiar|agregar|póngale/i.test(b.textContent));

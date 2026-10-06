@@ -382,3 +382,50 @@ prueba("los días sumados dan lo mismo que los grupos del rango", () => {
     igual(porDia("otros", campo), delGrupo("otros", campo), "otros · " + campo);
   }
 });
+
+
+// ---------------------------------------------------------------------------
+grupo("Mirar solo lo de crédito, o solo lo de contado");
+
+// "Cuánto vendí" deja filtrar por cómo se pagó. El filtro es escoger los
+// renglones ANTES de sumar, así que lo que diga la pantalla filtrada tiene
+// que ser exactamente el desglose que ya daba sin filtrar. Si no, habría dos
+// números distintos para lo mismo según el botón que se toque.
+
+prueba("solo lo de crédito suma lo que se le cobra a las empresas", () => {
+  const todos = [
+    renglon("2026-08-03"),
+    renglon("2026-08-03", "COCA COLA 1.5", { precioUnitario: 7000, cobro: DE_CONTADO }),
+    renglon("2026-08-04", "OFERTA", { precioUnitario: 10000 }),
+    renglon("2026-08-04", "ALMUERZO", { cobro: CORTESIA }),
+  ];
+  const sinFiltro = ventasEnRango(todos, "2026-08-01", "2026-08-31");
+  const soloCredito = ventasEnRango(todos.filter((c) => c.cobro !== DE_CONTADO && c.cobro !== CORTESIA),
+                                    "2026-08-01", "2026-08-31");
+  igual(soloCredito.total.plata, sinFiltro.total.aCredito);
+  igual(soloCredito.total.plata, 22000);
+  igual(soloCredito.total.cortesias, 0, "la cortesía no es crédito");
+});
+
+prueba("solo lo de contado suma lo que entró a la caja", () => {
+  const todos = [
+    renglon("2026-08-03"),
+    renglon("2026-08-03", "COCA COLA 1.5", { precioUnitario: 7000, cobro: DE_CONTADO }),
+    renglon("2026-08-05", "OFERTA", { precioUnitario: 10000, cobro: DE_CONTADO }),
+  ];
+  const sinFiltro = ventasEnRango(todos, "2026-08-01", "2026-08-31");
+  const soloContado = ventasEnRango(todos.filter((c) => c.cobro === DE_CONTADO), "2026-08-01", "2026-08-31");
+  igual(soloContado.total.plata, sinFiltro.total.deContado);
+  igual(soloContado.total.plata, 17000);
+  igual(soloContado.total.vendidos, 2);
+});
+
+prueba("crédito más contado da todo lo vendido, siempre", () => {
+  const todos = [
+    renglon("2026-08-03"),
+    renglon("2026-08-03", "COCA COLA 1.5", { precioUnitario: 7000, cobro: DE_CONTADO }),
+    renglon("2026-08-04", "OFERTA", { precioUnitario: 10000 }),
+  ];
+  const v = ventasEnRango(todos, "2026-08-01", "2026-08-31");
+  igual(v.total.aCredito + v.total.deContado, v.total.plata, "dejar el contado fuera descuadraría la caja");
+});

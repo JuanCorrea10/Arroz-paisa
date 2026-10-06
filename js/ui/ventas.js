@@ -21,12 +21,38 @@ import { estado, empresas, empresaPorCodigo } from "./estado.js";
 import {
   pesos, fechaLarga, fechaCorta, hoyISO, sumarDias, lunesDeLaSemana, elMesDe,
 } from "../nucleo/formato.js";
-import { ventasEnRango } from "../nucleo/calculos.js";
+import { ventasEnRango, loPagaLaEmpresa, yaLoPago } from "../nucleo/calculos.js";
 
 // El rango que se está mirando y la empresa. Viven aquí y no en estado.js
 // porque son de esta pantalla: cambiarlos no puede moverle el día a Registrar.
 let rango = null;
 let empresaVentas = "";
+
+// Qué ventas se están mirando según cómo se pagaron. "" es todo.
+//
+// Lo de contado ES una venta -- el plato salió y la plata entró a la caja --
+// así que la pantalla arranca mostrando todo, y eso no cambia. Pero ella se
+// hace otra pregunta igual de legítima: "¿cuánto le voy a cobrar a las
+// empresas?". Para eso está este filtro: con él puesto, TODA la pantalla --
+// las tres tarjetas de arriba, el total grande y las dos tablas -- contesta
+// esa pregunta y lo dice, en vez de mezclar las dos sin avisar.
+let comoSePago = "";
+
+const COMO_SE_PAGO = {
+  "": { nombre: "Todo lo vendido", corto: "", explica: "A crédito y de contado, junto" },
+  empresa: { nombre: "Solo a crédito", corto: "solo a crédito",
+             explica: "Lo que se le cobra a las empresas en la cuenta de cobro" },
+  contado: { nombre: "Solo efectivo", corto: "solo efectivo",
+             explica: "Lo que la gente pagó de una, que entró a la caja" },
+};
+
+/** Los renglones que cuentan para lo que ella escogió mirar. */
+function losQueCuentan() {
+  const todos = estado.datos.consumos;
+  if (comoSePago === "empresa") return todos.filter(loPagaLaEmpresa);
+  if (comoSePago === "contado") return todos.filter(yaLoPago);
+  return todos;
+}
 
 /** Los atajos. Cada uno dice de qué día a qué día va. */
 function atajos() {
@@ -92,13 +118,16 @@ export function pintarVentas(raiz) {
   const cual = rangoActual();
   const codigo = empresaVentas || null;
 
-  const venta = ventasEnRango(estado.datos.consumos, cual.desde, cual.hasta, codigo);
+  const venta = ventasEnRango(losQueCuentan(), cual.desde, cual.hasta, codigo);
+  const filtro = COMO_SE_PAGO[comoSePago] || COMO_SE_PAGO[""];
 
   poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Cuánto vendí" }),
-        el("p", { texto: "Cuántos platos salieron y cuánta plata entró, entre dos días." })
+        el("p", { texto: comoSePago
+          ? `${filtro.nombre}: ${filtro.explica.toLowerCase()}. Para ver todo, cambie "Cómo se pagó".`
+          : "Cuántos platos salieron y cuánta plata entró, entre dos días." })
       ),
       acciones(el("button", { clase: "chico", alHacerClic: () => window.print() }, "Imprimir"))
     ),
@@ -115,9 +144,12 @@ export function pintarVentas(raiz) {
       el("p", { clase: "nota", estilo: "margin:var(--e2) 0 var(--e4)" },
         [
           empresaVentas ? empresaVentas : "Todas las empresas",
+          // Con el filtro puesto se dice AQUÍ, pegado al total: este papel se
+          // imprime, y un total que no dice qué incluye se lee como el total.
+          comoSePago ? filtro.nombre.toLowerCase() : null,
           `${venta.total.diasConVenta} ${venta.total.diasConVenta === 1 ? "día" : "días"} con venta`,
           `${venta.total.facturas} facturas`,
-        ].join(" · ")),
+        ].filter(Boolean).join(" · ")),
 
       // Por qué está viendo otro mes. Sin esto estaría leyendo agosto creyendo
       // que es septiembre, que es peor que ver la pantalla en ceros.
@@ -140,9 +172,13 @@ export function pintarVentas(raiz) {
 
       el("dl", { clase: "cifras", estilo: "margin-bottom:var(--e5)" },
         cifra("Platos vendidos", String(venta.total.vendidos), true),
-        cifraPlata("Plata de esas ventas", venta.total.plata, true),
-        cifraPlata("Se le cobra a las empresas", venta.total.aCredito),
-        cifraPlata("Pagaron de una (caja)", venta.total.deContado),
+        cifraPlata(comoSePago === "empresa" ? "Se le cobra a las empresas"
+                 : comoSePago === "contado" ? "Pagaron de una (caja)"
+                 : "Plata de esas ventas", venta.total.plata, true),
+        // El desglose solo tiene sentido viendo todo: filtrado, una de las dos
+        // sería el total repetido y la otra un cero.
+        comoSePago ? null : cifraPlata("Se le cobra a las empresas", venta.total.aCredito),
+        comoSePago ? null : cifraPlata("Pagaron de una (caja)", venta.total.deContado),
         // Las cortesías solo se nombran si las hubo. Un "0 cortesías" fijo es
         // un número más que leer todos los días para nada.
         venta.total.cortesias
@@ -181,11 +217,15 @@ function tarjetasDeSiempre() {
       pie: `desde el ${fechaCorta(mes.desde)}` },
   ];
 
+  // Con el filtro puesto, estas tres también: si "Hoy" dijera todo y el total
+  // de abajo dijera solo crédito, serían dos definiciones de venta en la
+  // misma pantalla y ella no sabría a cuál creerle.
+  const filtro = COMO_SE_PAGO[comoSePago] || COMO_SE_PAGO[""];
   return el("div", { clase: "ventas-rapidas" },
     ...cuales.map((c) => {
-      const v = ventasEnRango(estado.datos.consumos, c.desde, c.hasta, empresaVentas || null);
+      const v = ventasEnRango(losQueCuentan(), c.desde, c.hasta, empresaVentas || null);
       return el("article", { clase: "venta-rapida" },
-        el("h3", { texto: c.nombre }),
+        el("h3", { texto: c.nombre + (filtro.corto ? ` · ${filtro.corto}` : "") }),
         el("p", { clase: "venta-rapida-platos" },
           el("strong", { texto: String(v.total.vendidos) }),
           v.total.vendidos === 1 ? " plato" : " platos"),
@@ -228,6 +268,14 @@ function mando(repintar, hoy) {
       el("option", { value: emp.codigo, selected: emp.codigo === empresaVentas }, emp.codigo))
   );
 
+  const pago = el("select", {
+    id: "ventas-pago",
+    alCambiar: (e) => { comoSePago = e.target.value; repintar(); },
+  },
+    ...Object.entries(COMO_SE_PAGO).map(([valor, o]) =>
+      el("option", { value: valor, selected: valor === comoSePago }, o.nombre))
+  );
+
   return el("div", { clase: "mando" },
     el("div", { clase: "campo" },
       el("label", { for: "ventas-desde", texto: "Desde" }), desde),
@@ -238,6 +286,11 @@ function mando(repintar, hoy) {
       empresa,
       el("small", { estilo: "color:var(--tinta-suave)",
         texto: (empresaPorCodigo(empresaVentas) || {}).razonSocial || "Sirve para ver todo junto" })),
+    el("div", { clase: "campo" },
+      el("label", { for: "ventas-pago", texto: "Cómo se pagó" }),
+      pago,
+      el("small", { estilo: "color:var(--tinta-suave)",
+        texto: (COMO_SE_PAGO[comoSePago] || COMO_SE_PAGO[""]).explica })),
     el("div", { clase: "campo" },
       el("label", { texto: "O elija de una" }),
       el("div", { clase: "atajos-rango" },
