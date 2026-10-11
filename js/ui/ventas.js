@@ -43,7 +43,7 @@ const COMO_SE_PAGO = {
   empresa: { nombre: "Solo a crédito", corto: "solo a crédito",
              explica: "Lo que se le cobra a las empresas en la cuenta de cobro" },
   contado: { nombre: "Solo efectivo", corto: "solo efectivo",
-             explica: "Lo que la gente pagó de una, que entró a la caja" },
+             explica: "Lo pagado en efectivo, que ingresó a la caja" },
 };
 
 /** Los renglones que cuentan para lo que ella escogió mirar. */
@@ -155,7 +155,7 @@ export function pintarVentas(raiz) {
       // que es septiembre, que es peor que ver la pantalla en ceros.
       cual.porqueNoHayDeEsteMes
         ? el("p", { clase: "aviso-ojo" },
-            el("strong", { texto: "Ojo: esto NO es de este mes. " }),
+            el("strong", { texto: "Atención: esto NO es de este mes. " }),
             "En lo que va de ", fechaLarga(hoyISO()).replace(/^\w+ \d+ de /, ""),
             " todavía no hay nada anotado, así que le estoy mostrando el último mes con ventas.")
         : null,
@@ -164,7 +164,7 @@ export function pintarVentas(raiz) {
       // precio. Callarlo dejaría el total corto sin que nada lo dijera.
       venta.total.sinPrecio
         ? el("p", { clase: "aviso-ojo" },
-            el("strong", { texto: `Ojo: ${venta.total.sinPrecio} ` +
+            el("strong", { texto: `Atención: ${venta.total.sinPrecio} ` +
               (venta.total.sinPrecio === 1 ? "plato salió" : "platos salieron") + " sin precio. " }),
             "No están sumando, así que lo vendido es más de lo que dice aquí. ",
             el("a", { href: "#revisar", texto: "Póngales precio en Revisar" }), ".")
@@ -173,12 +173,12 @@ export function pintarVentas(raiz) {
       el("dl", { clase: "cifras", estilo: "margin-bottom:var(--e5)" },
         cifra("Platos vendidos", String(venta.total.vendidos), true),
         cifraPlata(comoSePago === "empresa" ? "Se le cobra a las empresas"
-                 : comoSePago === "contado" ? "Pagaron de una (caja)"
+                 : comoSePago === "contado" ? "Pagado en efectivo (caja)"
                  : "Plata de esas ventas", venta.total.plata, true),
         // El desglose solo tiene sentido viendo todo: filtrado, una de las dos
         // sería el total repetido y la otra un cero.
         comoSePago ? null : cifraPlata("Se le cobra a las empresas", venta.total.aCredito),
-        comoSePago ? null : cifraPlata("Pagaron de una (caja)", venta.total.deContado),
+        comoSePago ? null : cifraPlata("Pagado en efectivo (caja)", venta.total.deContado),
         // Las cortesías solo se nombran si las hubo. Un "0 cortesías" fijo es
         // un número más que leer todos los días para nada.
         venta.total.cortesias
@@ -292,7 +292,7 @@ function mando(repintar, hoy) {
       el("small", { estilo: "color:var(--tinta-suave)",
         texto: (COMO_SE_PAGO[comoSePago] || COMO_SE_PAGO[""]).explica })),
     el("div", { clase: "campo" },
-      el("label", { texto: "O elija de una" }),
+      el("label", { texto: "O elija directamente" }),
       el("div", { clase: "atajos-rango" },
         ...atajos().map((a) =>
           el("button", {

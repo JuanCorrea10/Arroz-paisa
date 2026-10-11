@@ -28,6 +28,8 @@ import { pintarNombres } from "./ui/nombres.js";
 import { pintarDatos } from "./ui/datos.js";
 import { pintarAyuda } from "./ui/ayuda.js";
 import { pintarErrores } from "./ui/errores.js";
+import { pintarClave, pintarCerrada, necesitaClave, conClave, vigilarLaClave } from "./ui/clave.js";
+import { pideClave } from "./nucleo/clave.js";
 import { cuantosSueltos } from "./nucleo/sueltos.js";
 import { gruposParaRevisar, nombresSucios } from "./nucleo/nombres.js";
 import { revisarTodo } from "./nucleo/calculos.js";
@@ -50,22 +52,22 @@ import { revisarTodo } from "./nucleo/calculos.js";
 //  corrido buscando la que suene y se entra a la primera que se parezca.
 const PANTALLAS = {
   inicio:    { titulo: "Inicio",           barra: true,
-               dice: "Todo lo que hace la app",
+               dice: "Todas las secciones de la aplicación",
                pintar: (raiz) => pintarInicio(raiz, MUNDOS, DE_LOS_DOS, PANTALLAS) },
 
   // --- Almuerzos -----------------------------------------------------------
   registrar: { titulo: "Registrar el día", pintar: pintarRegistrar, barra: true,
-               dice: "Anotar lo que pidió cada persona" },
+               dice: "Registrar lo que pidió cada persona" },
   cocina:    { titulo: "Cocina",           pintar: pintarCocina,    barra: true,
-               dice: "Cuánto hay que preparar hoy" },
+               dice: "Cuánto se debe preparar hoy" },
   resumen:   { titulo: "Resumen del día",  pintar: pintarResumenDia, barra: true,
-               dice: "Cómo fue el día y qué se le manda a cada empresa" },
+               dice: "Resumen del día y lo que se envía a cada empresa" },
   persona:   { titulo: "Por persona",      pintar: pintarPorPersona, barra: true,
                dice: "Cuánto lleva cada persona" },
   cobro:     { titulo: "Cuenta de cobro",  pintar: pintarCobro,     barra: true,
                dice: "La cuenta de la quincena para cada empresa" },
   ventas:    { titulo: "Cuánto vendí",     pintar: pintarVentas,    barra: true,
-               dice: "Cuántos platos salieron y cuánta plata entró" },
+               dice: "Cuántos platos se vendieron y cuánto dinero ingresó" },
 
   // Revisar sale en la barra SOLO cuando hay algo que revisar.
   //
@@ -74,36 +76,39 @@ const PANTALLAS = {
   // haya algo, tampoco se mira. Cuando hay, aparece con su numerito rojo.
   revisar:   { titulo: "Revisar",          pintar: pintarErrores,
                barra: () => cuantosSueltos(estado.datos).total > 0,
-               dice: "Lo que quedó raro y hay que arreglar",
+               dice: "Registros con problemas por resolver",
                contar: () => cuantosSueltos(estado.datos).total },
 
   ventasmes: { titulo: "Ventas del mes",   pintar: pintarVentasDelMes,
-               dice: "Lo que entró cada día del mes, en una tabla" },
+               dice: "Lo vendido cada día del mes, en una tabla" },
   compartir: { titulo: "Compartir",        pintar: pintarCompartir,
-               dice: "Mandarle a una empresa lo suyo" },
+               dice: "Enviar a cada empresa su información" },
 
   // --- Proveedores ---------------------------------------------------------
   compras:   { titulo: "Facturas",         pintar: pintarCompras,   barra: true,
-               dice: "Anotar la factura que trajo el proveedor" },
+               dice: "Registrar la factura que trajo el proveedor" },
   pagos:     { titulo: "Pago semanal",     pintar: pintarPagos,     barra: true,
-               dice: "Cuánto hay que girarle a cada proveedor esta semana" },
+               dice: "Cuánto se le debe pagar a cada proveedor esta semana" },
 
   // --- Las listas y la app: solo en la portada -----------------------------
   personas:  { titulo: "Personas",         pintar: pintarPersonas,
-               dice: "La gente de cada empresa" },
+               dice: "El personal de cada empresa" },
   nombres:   { titulo: "Revisar nombres",  pintar: pintarNombres,
-               dice: "Juntar al mismo empleado anotado de dos formas",
+               dice: "Unificar un mismo empleado registrado con dos nombres",
                contar: () => gruposParaRevisar(estado.datos).length +
                              nombresSucios(estado.datos).length },
   catalogo:  { titulo: "Catálogo",         pintar: pintarCatalogo,
                dice: "Los platos y cuánto vale cada uno" },
   empresas:  { titulo: "Empresas",         pintar: pintarEmpresas,
-               dice: "A quiénes se les vende y cómo corta la quincena" },
+               dice: "Los clientes y el corte de quincena de cada uno" },
   datos:     { titulo: "Datos y respaldos", pintar: pintarDatos,
-               dice: "Respaldos, la carpeta y traer el Excel",
+               dice: "Respaldos, carpeta de guardado e importación del Excel",
                contar: () => revisarTodo(estado.datos).length },
+  // Recibe el mapa entero: de ahí saca los títulos de lo que se puede cerrar.
+  clave:     { titulo: "Clave de administrador", pintar: (raiz) => pintarClave(raiz, PANTALLAS),
+               dice: "Restringe los cambios de precios, platos, personas y empresas" },
   ayuda:     { titulo: "Cómo se usa",      pintar: pintarAyuda,
-               dice: "El manual, por si se le olvida algo" },
+               dice: "Manual de uso de la aplicación" },
 };
 
 /**
@@ -129,7 +134,7 @@ const MUNDOS = [
   {
     id: "almuerzos",
     nombre: "Almuerzos",
-    dice: "Lo que le vende a las fábricas: anotar los pedidos, las cuentas de cobro y cuánto vendió.",
+    dice: "Las ventas a las empresas: registro de pedidos, cuentas de cobro y ventas.",
     grupos: [
       {
         nombre: "El día a día",
@@ -151,7 +156,7 @@ const MUNDOS = [
   {
     id: "proveedores",
     nombre: "Proveedores",
-    dice: "Lo que le compra a los proveedores: las facturas que entran y cuánto hay que pagarles cada semana.",
+    dice: "Las compras a los proveedores: facturas recibidas y pagos semanales.",
     grupos: [
       {
         nombre: "Las compras",
@@ -165,8 +170,8 @@ const MUNDOS = [
 // Lo que no es de ningún mundo: sirve para los dos y sale abajo en la portada.
 const DE_LOS_DOS = {
   nombre: "La app",
-  explica: "Respaldos y ayuda",
-  pantallas: ["datos", "ayuda"],
+  explica: "Respaldos, clave de administrador y ayuda",
+  pantallas: ["datos", "clave", "ayuda"],
 };
 
 /** En qué mundo está una pantalla. El de almuerzos es el de siempre. */
@@ -203,6 +208,18 @@ function pintar() {
   // se usa diez veces al día. Lo suave es para lo que hace la persona.
   window.scrollTo({ top: 0, behavior: "instant" });
 
+  // Las pantallas con clave. Se pinta la tarjeta cerrada Y se pregunta: si
+  // cancela el diálogo, queda la tarjeta con su botón y su salida, no una
+  // pantalla en blanco. Si la escribe bien y sigue parada aquí, se pinta de
+  // verdad.
+  if (necesitaClave(cual)) {
+    pintarCerrada(donde, pantalla.titulo, pintar);
+    conClave(`entrar a ${pantalla.titulo}`).then((abrio) => {
+      if (abrio && pantallaActual() === cual) pintar();
+    });
+    return;
+  }
+
   try {
     // Hay pantallas que tardan (la de ayuda va a buscar el manual). Si esta
     // devuelve una promesa, hay que esperarla: si no, un error de adentro se
@@ -231,7 +248,7 @@ function pantallaRota(donde, error) {
         " Lo que falló fue solo el dibujo de esta pantalla."),
       el("p", { texto: "Pruebe a entrar a otra pantalla del menú de arriba." }),
       el("details", {},
-        el("summary", { texto: "Detalle para quien arregle la app" }),
+        el("summary", { texto: "Detalle técnico para el soporte" }),
         el("pre", { texto: String(error && error.stack || error) })),
       el("button", {
         clase: "principal",
@@ -323,7 +340,8 @@ function construirMenu(cual) {
       menu.append(el("a", {
         href: "#" + familia.pantallas[0].cual,
         datos: { familia: familia.id },
-      }, familia.nombre));
+      }, familia.nombre,
+         familia.pantallas.some((p) => pideClave(estado.datos, p.cual)) ? candadito() : null));
       continue;
     }
 
@@ -338,6 +356,7 @@ function construirMenu(cual) {
     menu.append(
       el("a", { href: "#" + nombre },
         p.titulo,
+        pideClave(estado.datos, nombre) ? candadito() : null,
         p.contar ? el("span", { clase: "contador oculto" }) : null
       )
     );
@@ -349,6 +368,18 @@ function construirMenu(cual) {
   menu.append(el("span", { clase: "indicador-nav", id: "indicador-nav", "aria-hidden": "true" }));
 
   refrescarContadores();
+}
+
+/**
+ * El candadito de las pantallas que piden la clave de la dueña. Va en el
+ * menú y en la portada, para que se sepa ANTES de entrar, no al chocar con
+ * el diálogo.
+ */
+function candadito() {
+  return el("span", {
+    clase: "candado", "aria-label": "requiere clave", title: "Requiere la clave de administrador",
+    texto: "🔒",
+  });
 }
 
 /**
@@ -529,7 +560,7 @@ function nadaFallaCallado() {
     mensaje(
       "Algo se dañó al dibujar la pantalla y quedó a medias. Sus datos están " +
       "guardados. Recargue la página (Ctrl + Shift + R) y, si vuelve a pasar, " +
-      "avísele a Juan: " + String((error && error.message) || error),
+      "informe al soporte técnico: " + String((error && error.message) || error),
       "malo", 20
     );
   };
@@ -581,6 +612,12 @@ async function arrancar() {
 
   // Cuando cambian los datos, el mes de la barra puede haber cambiado también.
   alCambiar(() => { construirPeriodo(); refrescarContadores(); });
+
+  // La clave de la dueña: el aviso de "abierta" en la barra y cerrarse sola
+  // a los quince minutos. Si se cierra estando parada en una pantalla con
+  // candado, se vuelve a pintar (sale la tarjeta cerrada); en las otras no
+  // se toca nada, que puede estar a mitad de un pedido.
+  vigilarLaClave(() => { if (pideClave(estado.datos, pantallaActual())) pintar(); });
 
   // Primera vez y de verdad vacía: la mandamos derecho a traer el Excel.
   const vacia = !estado.datos.consumos.length && !estado.datos.empresas.length;
@@ -662,7 +699,7 @@ arrancar().catch((error) => {
       el("h1", { texto: "La app no pudo arrancar" }),
       el("p", { texto: "Sus datos no se tocaron. Pruebe a cerrar y volver a abrir." }),
       el("details", {},
-        el("summary", { texto: "Detalle para quien arregle la app" }),
+        el("summary", { texto: "Detalle técnico para el soporte" }),
         el("pre", { texto: String(error && error.stack || error) }))
     )
   );

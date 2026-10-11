@@ -60,6 +60,22 @@ const PANTALLAS = {
   compartir: ["../js/ui/compartir.js", "pintarCompartir"],
   revisar:   ["../js/ui/errores.js", "pintarErrores"],
   nombres:   ["../js/ui/nombres.js", "pintarNombres"],
+  clave:     ["../js/ui/clave.js", "pintarClave"],
+};
+
+// La pantalla de la clave recibe el mapa de pantallas de app.js, que aqui no
+// se puede importar porque arranca la app entera. Esta copia es SOLO para
+// mirarla: si se desactualiza, la pantalla se ve con otros titulos, no mal.
+const TITULOS_DE_PRUEBA = {
+  registrar: { titulo: "Registrar el día" }, cocina: { titulo: "Cocina" },
+  resumen: { titulo: "Resumen del día" }, persona: { titulo: "Por persona" },
+  cobro: { titulo: "Cuenta de cobro" }, ventas: { titulo: "Cuánto vendí" },
+  revisar: { titulo: "Revisar" }, ventasmes: { titulo: "Ventas del mes" },
+  compartir: { titulo: "Compartir" }, compras: { titulo: "Facturas" },
+  pagos: { titulo: "Pago semanal" }, personas: { titulo: "Personas" },
+  nombres: { titulo: "Revisar nombres" }, catalogo: { titulo: "Catálogo" },
+  empresas: { titulo: "Empresas" }, datos: { titulo: "Datos y respaldos" },
+  ayuda: { titulo: "Cómo se usa" }, clave: { titulo: "Clave de administrador" },
 };
 
 const rotulo = document.getElementById("rotulo");
@@ -97,6 +113,13 @@ try {
   const forzar = new URLSearchParams(location.search).get("forzar") || "";
   let loQueSeTecleo = null;
   let loQueSeApago = null;
+
+  // "&forzar=con-clave": pone la clave "1234", para ver la pantalla de la
+  // clave con clave puesta. Va antes de pintar porque es un cambio a los datos.
+  if (forzar.includes("con-clave")) {
+    const { ponerClave } = await import("../js/nucleo/clave.js");
+    await ponerClave(datos, "1234");
+  }
 
   if (forzar === "precio-disparejo" && datos.productos.length) {
     const plato = datos.productos.find((p) => p.nombre === "OFERTA") || datos.productos[0];
@@ -282,7 +305,23 @@ try {
 
   const [ruta, fn] = PANTALLAS[cual] || PANTALLAS.catalogo;
   const modulo = await import(ruta);
-  await modulo[fn](raiz);
+  await (cual === "clave" ? modulo[fn](raiz, TITULOS_DE_PRUEBA) : modulo[fn](raiz));
+
+  // "&forzar=con-clave+pedir-clave": el diálogo que sale al entrar a una
+  // pantalla cerrada. "&forzar=con-clave+cerrada": la tarjeta que queda si
+  // cancela. "&forzar=ponerla": la ventana de poner la clave nueva.
+  if (forzar.includes("pedir-clave")) {
+    const { pedirLaClave } = await import("../js/ui/clave.js");
+    pedirLaClave("entrar a Platos y precios");
+  }
+  if (forzar.includes("cerrada")) {
+    const { pintarCerrada } = await import("../js/ui/clave.js");
+    pintarCerrada(raiz, "Platos y precios", () => {});
+  }
+  if (forzar.includes("ponerla")) {
+    const b = [...raiz.querySelectorAll("button")].find((x) => /Configurar la clave|Cambiar la clave/.test(x.textContent));
+    if (b) b.click();
+  }
 
   // Abrir el historial de la persona que más ha pedido: es la ventana más
   // larga que puede salir, y es donde se ve si se sale de la pantalla.

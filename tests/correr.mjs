@@ -21,6 +21,7 @@ import "./compras.test.mjs";
 import "./importar-compras.test.mjs";
 import "./empresa-unica.test.mjs";
 import "./empresa-nueva.test.mjs";
+import "./clave.test.mjs";
 import "./aceptacion.test.mjs";
 import { correrTodo } from "./probar.mjs";
 await correrTodo();

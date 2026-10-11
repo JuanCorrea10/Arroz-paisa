@@ -277,15 +277,14 @@
 </div>
 
 <div class="ficha">
-  <h3><span class="menu-item">Cuadre</span></h3>
-  <p class="parasirve">Que las facturas que dice el trabajador sean las mismas
-  que están anotadas.</p>
-  <p><strong>Qué se ve:</strong> un renglón por día, con lo que dijo el
-  trabajador al lado de lo registrado, y la diferencia.</p>
-  <p><strong>Qué se puede hacer:</strong> escribir cuántas facturas dijo él, y
-  ver de una en cuáles días no cuadra.</p>
-  <p><strong>Aquí NO se:</strong> corrige solo. La app muestra la diferencia;
-  decidir quién tiene la razón es de usted.</p>
+  <h3><span class="menu-item">Cuánto vendí</span> y <span class="menu-item">Ventas del mes</span></h3>
+  <p class="parasirve">Cuántos platos salieron y cuánta plata entró.</p>
+  <p><strong>Qué se ve:</strong> almuerzos y otros platos por aparte, día por
+  día, y el total del mes. Arriba se escoge si mirar todo, solo lo que va a
+  crédito, o solo lo que pagaron de una.</p>
+  <p><strong>Ojo:</strong> lo que alguien pagó de una <em>es una venta</em> y
+  sale aquí. Lo que no sale en ningún lado es en la cuenta de cobro: eso ya se
+  pagó.</p>
 </div>
 
 <div class="ficha">
@@ -320,9 +319,10 @@
 </div>
 
 <div class="ficha">
-  <h3><span class="menu-item">Ajustes</span></h3>
-  <p class="parasirve">La puerta a las cinco pantallas de mantenimiento.</p>
-  <p>No se usa todos los días. Adentro están:</p>
+  <h3><span class="menu-item">Listas</span></h3>
+  <p class="parasirve">Las listas de las que se alimenta todo lo demás.</p>
+  <p>No se usan todos los días. Son estas (y "Datos y respaldos", que está en
+  la portada):</p>
   <ul>
     <li><strong>Personas</strong> &mdash; se puede ordenar por empresa o por
       nombre, buscar, agregar gente, corregir un nombre y
@@ -358,6 +358,28 @@
     <li><strong>Datos y respaldos</strong> &mdash; bajar una copia de todo, volver a
       cargarla, o traer un Excel viejo.</li>
   </ul>
+</div>
+
+<div class="ficha">
+  <h3><span class="menu-item">Clave de administrador</span></h3>
+  <p class="parasirve">Permite que el personal registre los pedidos sin
+  modificar precios, catálogo, personas ni empresas.</p>
+  <p><strong>Qué hace:</strong> con una clave configurada, las pantallas
+  marcadas con un candado &#x1F512; la solicitan antes de abrirse: Platos y
+  precios, Personas, Empresas, Nombres repetidos, Datos y respaldos, Cuánto
+  vendí, Ventas del mes, Facturas y Pago semanal. En la misma pantalla se
+  escoge cuáles. Registrar el día, Cocina y Resumen del día están siempre
+  disponibles: corresponden al trabajo diario.</p>
+  <p><strong>Cómo funciona:</strong> la clave se ingresa una vez y la sesión
+  permanece abierta quince minutos sin actividad. Arriba aparece "Sesión de
+  administrador" con el botón <strong>Cerrar sesión</strong>, para cerrarla
+  antes de dejar el computador. Al recargar la página también se cierra.</p>
+  <p><strong>Si la olvida:</strong> no se pierde información. El soporte
+  técnico la restablece y usted configura una nueva. Mientras tanto, el
+  registro de pedidos sigue funcionando con normalidad.</p>
+  <p><strong>Lo que NO es:</strong> una caja fuerte. Evita que alguien cambie
+  un precio o borre a una persona sin autorización; no protege los datos
+  frente a quien tenga el archivo y conocimientos técnicos.</p>
 </div>
 
 <div class="ficha">
@@ -656,7 +678,16 @@ dañe el computador.</p>
   <tr>
     <td>Un plato aparece en $ 0</td>
     <td>Es que no tiene precio en esa empresa. Se lo pone en
-        <span class="menu-item">Ajustes</span> → Catálogo.</td>
+        <span class="menu-item">Listas</span> → Platos y precios.</td>
+  </tr>
+  <tr>
+    <td>Olvidó la <strong>clave de administrador</strong></td>
+    <td>No se pierde información. Comuníquese con el soporte técnico: la
+        restablece para que usted configure una nueva. Mientras tanto,
+        Registrar el día funciona con normalidad.
+        <br><small>Para el soporte: en la consola del navegador (F12), con la
+        app abierta: <code>delete estado.datos.config.clave; cambio()</code>,
+        o quitar <code>config.clave</code> del respaldo y devolverlo.</small></td>
   </tr>
   <tr>
     <td>Se quedó en <strong>"Abriendo…"</strong></td>

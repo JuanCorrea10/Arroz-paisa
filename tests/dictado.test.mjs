@@ -512,7 +512,7 @@ prueba("si el señor se pone a contar algo, eso NO es una persona", () => {
   cierto(r.renglones.every((x) => !x.persona.desconocida), "nadie inventado");
   const almuerzo = r.renglones.find((x) => x.producto.nombre === "ALMUERZO");
   igual(almuerzo.listo, false);
-  cierto(almuerzo.porque.some((p) => /no entendí/.test(p)), almuerzo.porque.join("; "));
+  cierto(almuerzo.porque.some((p) => /no se entendió/.test(p)), almuerzo.porque.join("; "));
 });
 
 prueba("lo suelto entre el nombre y su PRIMER plato no es otra persona", () => {

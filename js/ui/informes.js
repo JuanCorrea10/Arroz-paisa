@@ -267,7 +267,7 @@ function tablaDePlatosDelDia(informe) {
       el("tr", {},
         el("td", {}, f.producto,
           f.forma === DE_CONTADO
-            ? el("span", { clase: "marca-cobro contado", texto: "pagó de una" })
+            ? el("span", { clase: "marca-cobro contado", texto: "pagó en efectivo" })
             : f.forma === CORTESIA
               ? el("span", { clase: "marca-cobro cortesia", texto: "cortesía" })
               : null),
@@ -366,7 +366,7 @@ function tablaDeQuienPidio(comandas) {
               esCortesia(c)
                 ? el("span", { clase: "marca-cobro cortesia", texto: "cortesía" })
                 : yaLoPago(c)
-                  ? el("span", { clase: "marca-cobro contado", texto: "pagó de una" })
+                  ? el("span", { clase: "marca-cobro contado", texto: "pagó en efectivo" })
                   : null,
               // La nota del renglón ("sin cebolla"). Va pegada a SU plato y no
               // al final de la celda: si no, con dos platos no se sabe de cuál.
@@ -483,7 +483,7 @@ export function pintarResumenDia(raiz) {
           ? el("div", { clase: "caja-del-dia" },
               el("dl", { clase: "cifras" },
                 cifraPlata("Se le cobra a la empresa", sec.informe.aCredito),
-                cifraPlata("Pagaron de una", sec.informe.deContado)
+                cifraPlata("Pagaron en efectivo", sec.informe.deContado)
               ),
               el("p", { clase: "nota" },
                 "En la caja tienen que estar esos ",
@@ -625,7 +625,7 @@ function verHistorial(fila, periodo) {
   const cuantosFuera = h.dias.filter((d) => !dentro(d.fecha)).length;
 
   const comoSePago = (c) =>
-    esCortesia(c) ? "  (cortesía)" : yaLoPago(c) ? "  (pagó de una)" : "";
+    esCortesia(c) ? "  (cortesía)" : yaLoPago(c) ? "  (pagó en efectivo)" : "";
 
   const cuerpo = el("div", { clase: "rejilla" },
     el("p", { clase: "nota", estilo: "margin:0" },
@@ -644,7 +644,7 @@ function verHistorial(fila, periodo) {
           periodo ? cifraPlata(periodo.dice, fila.dia, true) : null,
           cifraPlata(`Todo ${nombreMes(estado.mes).toLowerCase()}`, fila.mes),
           ...(h.deContado > 0
-            ? [cifraPlata("Se le descuenta", h.aLaEmpresa), cifraPlata("Ya pagó de una", h.deContado)]
+            ? [cifraPlata("Se le descuenta", h.aLaEmpresa), cifraPlata("Ya pagó en efectivo", h.deContado)]
             : []),
           cifraPlata("Desde siempre", h.total))
       : null,
@@ -956,7 +956,7 @@ export function pintarPorPersona(raiz) {
         //
         // La columna sale solo cuando hay: el resto del tiempo sería una
         // columna de rayas que hay que leer todos los días para nada.
-        ...(hayContado ? [{ titulo: "Pagó de una", clase: "n" }] : []),
+        ...(hayContado ? [{ titulo: "Pagó en efectivo", clase: "n" }] : []),
       ],
       filas.map((f) =>
         el("tr", {},

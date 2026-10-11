@@ -174,7 +174,7 @@ const CAMPOS_EMPRESA = (e = {}) => [
     valor: e.esCasa === true,
     ayuda: "Márquela para anotarle el almuerzo a SU gente (la cocinera, el que " +
            "reparte). Sus platos nacen marcados “Pagó de una”, porque ellos " +
-           "pagan de su bolsillo y esa plata entra a la caja. Si a alguno sí hay " +
+           "pagan de su bolsillo y ese dinero ingresa a la caja. Si a alguno sí hay " +
            "que cobrarle, márquele el plato “A crédito” y sale en la cuenta.",
   },
   ...CAMPOS_QUINCENA(e),
@@ -733,7 +733,7 @@ async function unirLosPlatosMarcados(raiz, elegidos) {
             "Valían lo mismo, así que ningún total cambia.")
         : el("div", {},
             el("p", { clase: "nota ojo" },
-              "Ojo: no valían lo mismo. El total ",
+              "Atención: no valían lo mismo. El total ",
               el("strong", { texto: previa.diferencia > 0 ? "sube " : "baja " }),
               el("strong", { texto: pesos(Math.abs(previa.diferencia)) }),
               ", porque los renglones se quedan con el precio de ",
@@ -984,7 +984,7 @@ async function nuevaPersona(raiz) {
     .filter((p) => p.fuerza >= 2);
   if (parecidas.length) {
     const sigo = await confirmar({
-      titulo: "Ojo: hay alguien parecido",
+      titulo: "Atención: hay alguien parecido",
       mensaje:
         `En ${r.empresa} ya está "${parecidas[0].persona.nombre}" (${parecidas[0].razon}). ` +
         `¿De verdad quiere crear a "${nombre}" aparte?`,
@@ -1344,14 +1344,14 @@ async function unirLasMarcadas(raiz, elegidas) {
       el("dl", { clase: "cifras" },
         cifra("Renglones que se mueven", String(previa.renglones)),
         cifra("Días que tocan", String(previa.dias)),
-        cifra("Plata que se mueve", pesos(previa.plata))
+        cifra("Valor que se traslada", pesos(previa.plata))
       ),
       el("p", { clase: "nota bien" },
         "El total del negocio NO cambia: los renglones son los mismos, solo " +
         "cambian de dueño."),
       previa.facturasQueSePierden > 0
         ? el("p", { clase: "nota ojo" },
-            `Ojo: ${previa.facturasQueSePierden} ` +
+            `Atención: ${previa.facturasQueSePierden} ` +
             (previa.facturasQueSePierden === 1 ? "día tiene" : "días tienen") +
             " los dos nombres comiendo el mismo día. Después de unir van a " +
             "contar como una sola factura, así que ese número va a bajar. " +

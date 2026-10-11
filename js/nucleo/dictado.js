@@ -695,7 +695,7 @@ export function leerElDictado(textoCrudo, { gente = [], productos = [], apodos =
     // En el audio de verdad, los pedidos limpios no dejan ni una palabra
     // suelta, así que marcar desde la primera no molesta a los que están bien.
     const dudaDeTexto = sobran.length
-      ? [`no entendí: «${sobran.slice(0, 5).join(" ")}${sobran.length > 5 ? "…" : ""}»`]
+      ? [`no se entendió: «${sobran.slice(0, 5).join(" ")}${sobran.length > 5 ? "…" : ""}»`]
       : [];
 
     const base = { tramo: cual, linea: comoLoDijo, persona };

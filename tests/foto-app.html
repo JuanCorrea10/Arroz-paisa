@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<title>Foto de la app entera</title>
+<style>
+  body { margin: 0; background: #fff; }
+  iframe { width: 1280px; height: 940px; border: 0; display: block; }
+  #rotulo { position: fixed; left: 0; bottom: 0; background: #241b18; color: #fff;
+            font: 12px ui-monospace, Consolas, monospace; padding: 4px 10px; z-index: 9; }
+</style>
+</head>
+<body>
+<!--
+  Sacarle FOTO a la app ENTERA (con IndexedDB, ruteo y menú) con Chrome sin
+  ventana. ver-pantalla.html pinta una pantalla suelta sin base de datos;
+  esto arranca la app de verdad en un marco.
+
+  El truco: Chrome --screenshot toma la foto cuando la página termina de
+  cargar, y --virtual-time-budget no espera a IndexedDB. La imagen de abajo
+  apunta a /espera?ms=N del servidor, que contesta N ms después: mientras
+  no llegue, la página no "carga", y en ese rato la app arranca y hace lo que
+  se le pide. Hay que servirla con servidor.py (es quien tiene /espera).
+
+  Uso:
+    chrome --headless=new --user-data-dir=<carpeta nueva> --window-size=1300,980
+           --screenshot=foto.png "http://localhost:8000/tests/foto-app.html?ver=inicio&clave=1234"
+
+    ver=<pantalla>      a cuál entrar (inicio, registrar, catalogo, clave...)
+    clave=1234          pone esa clave de administrador antes de entrar
+    abierta=1           deja la sesión de administrador abierta
+    cancelar=1          cancela el diálogo que haya abierto
+    teclear=1234        escribe eso en el diálogo de la clave y pulsa Ingresar
+
+  Un perfil (--user-data-dir) ocupado por un Chrome anterior hace que el nuevo
+  se salga sin hacer nada: usar uno nuevo cada vez.
+-->
+<iframe id="app"></iframe>
+<div id="rotulo">arrancando…</div>
+<img src="/espera?ms=7000" alt="" hidden>
+<script type="module">
+const marco = document.getElementById("app");
+const rotulo = document.getElementById("rotulo");
+const params = new URLSearchParams(location.search);
+const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+
+marco.addEventListener("load", async () => {
+  try {
+    const ven = marco.contentWindow;
+    const doc = marco.contentDocument;
+    for (let i = 0; i < 60; i++) {
+      const g = doc.getElementById("guardado");
+      if (g && /Guardado|Sin datos/.test(g.textContent)) break;
+      await esperar(100);
+    }
+
+    // Un <script type="module"> METIDO en el marco: corre en su mundo, con su
+    // mapa de módulos, así que son LOS MISMOS módulos que corre la app. (Un
+    // import() desde aquí afuera resuelve las rutas contra esta página.)
+    const guion = doc.createElement("script");
+    guion.type = "module";
+    guion.textContent = `
+      const { estado, cambio } = await import("./js/ui/estado.js");
+      const clave = ${JSON.stringify(params.get("clave") || "")};
+      if (clave) {
+        const { ponerClave } = await import("./js/nucleo/clave.js");
+        await ponerClave(estado.datos, clave);
+        cambio();
+      }
+      if (${JSON.stringify(params.get("abierta") === "1")}) {
+        const ui = await import("./js/ui/clave.js");
+        ui.abrir();
+      }
+      window.__listo = true;
+    `;
+    doc.head.append(guion);
+    for (let i = 0; i < 50 && !ven.__listo; i++) await esperar(100);
+    if (!ven.__listo) throw new Error("el guion metido en el marco no terminó");
+
+    const ver = params.get("ver") || "inicio";
+    ven.location.hash = "#" + ver;
+    await esperar(500);
+
+    const delPie = (re) => [...doc.querySelectorAll("dialog .ventana-pie button")].find((b) => re.test(b.textContent));
+    if (params.get("cancelar") === "1") {
+      const cancelar = delPie(/Cancelar/);
+      if (cancelar) cancelar.click();
+      await esperar(300);
+    }
+    if (params.get("teclear")) {
+      const campo = doc.getElementById("campo-la-clave");
+      if (campo) { campo.value = params.get("teclear"); campo.dispatchEvent(new ven.Event("input", { bubbles: true })); }
+      const entrar = delPie(/Ingresar/);
+      if (entrar) entrar.click();
+      await esperar(800);
+    }
+    const menu = [...doc.querySelectorAll(".menu a")].map((a) => a.textContent.trim()).join(" · ");
+    rotulo.textContent = `#${ver} · menú: ${menu}`;
+  } catch (e) {
+    rotulo.textContent = "REVENTÓ: " + (e && (e.stack || e.message));
+    rotulo.style.background = "#8b1a12";
+  }
+});
+
+// El src va DESPUÉS del oyente: servido desde localhost, el marco alcanza a
+// cargar antes de que corra este guion, y el oyente llegaría tarde.
+marco.src = "../index.html#registrar";
+</script>
+</body>
+</html>

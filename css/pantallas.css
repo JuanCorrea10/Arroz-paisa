@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20261006-1315";
+  --version: "20261010-2146";
 }
 
 /* ===========================================================================
@@ -2352,3 +2352,83 @@ td.plata-fila { font-weight: 600; }
   background: var(--marca);
   color: #fff;
 }
+
+/* ---------------------------------------------------------------------
+/*  La clave de la dueña
+/*
+/*  Un candadito en la portada y en el menú dice cuáles pantallas la piden,
+/*  para saberlo ANTES de entrar; y mientras está abierta, la barra lo dice
+/*  con su "Cerrar" al lado. El diálogo y la tarjeta cerrada usan las piezas
+/*  de siempre (ventana, tarjeta, nota).
+/* --------------------------------------------------------------------- */
+.candado { margin-left: 0.3em; font-size: 0.85em; opacity: 0.85; }
+
+.etiqueta.candado {
+  display: inline-block;
+  margin: var(--e2) var(--e2) 0 0;
+  background: var(--papel-hueso);
+  color: var(--tinta-media);
+  border: 1px solid var(--borde);
+  font-size: var(--t-sm);
+  opacity: 1;
+}
+
+.clave-abierta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e2);
+  font-size: var(--t-sm);
+  color: #fff;
+  white-space: nowrap;
+}
+.clave-abierta button {
+  min-height: 30px;
+  padding: 0 var(--e3);
+  font-size: var(--t-sm);
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  color: #fff;
+}
+.clave-abierta button:hover { background: rgba(255, 255, 255, 0.26); }
+@media (max-width: 640px) {
+  .clave-abierta span { display: none; }   /* en el celular queda solo "Cerrar" */
+}
+
+/* Grande y espaciada: se escribe en una cocina, sin ver bien de cerca. */
+.campo-clave {
+  font-size: 1.5rem;
+  letter-spacing: 0.12em;
+  max-width: 18rem;
+}
+.casilla-ver {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e2);
+  margin-top: var(--e2);
+  font-size: var(--t-sm);
+  color: var(--tinta-media);
+  cursor: pointer;
+}
+
+.pantalla-cerrada { text-align: center; padding: var(--e6) var(--e4); }
+.pantalla-cerrada .candado-grande { font-size: 3rem; line-height: 1; margin-bottom: var(--e3); }
+.pantalla-cerrada p { max-width: 48ch; margin: 0 auto var(--e4); }
+.pantalla-cerrada .acciones { justify-content: center; }
+
+.lista-clave label {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--e3);
+  padding: var(--e3) 0;
+  border-bottom: 1px solid var(--borde);
+  cursor: pointer;
+}
+.lista-clave label:last-child { border-bottom: 0; }
+/* Casillas grandes: se marcan en una cocina, sin ver bien de cerca. */
+.lista-clave input[type="checkbox"] {
+  width: 24px; height: 24px; min-height: 0;
+  margin-top: 0.15rem; flex: none;
+  accent-color: var(--marca);
+}
+.lista-clave strong { display: block; }
+.lista-clave small { color: var(--tinta-media); }

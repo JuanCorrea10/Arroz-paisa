@@ -239,7 +239,7 @@ async function cruzarArchivo(raiz, codigoEmpresa, archivo) {
 
     plan.sinCruzar.length
       ? el("details", {},
-          el("summary", { texto: `${plan.sinCruzar.length} personas de la app no salen en la lista` }),
+          el("summary", { texto: `${plan.sinCruzar.length} personas registradas no aparecen en la lista` }),
           el("p", { clase: "nota" },
             "Es normal: puede que ya no trabajen ahí, o que estén escritas de " +
             "una forma que no se parece a la de la empresa. Se quedan como están."),
@@ -306,7 +306,7 @@ function tarjetaDeLimpieza(raiz, sucios) {
     el("h2", { texto: `${sucios.length} nombres tienen puntos o espacios de sobra` }),
     el("p", {},
       "Son errores de escritura sin ninguna duda: sobra un punto, un espacio o " +
-      "un guion. Se pueden arreglar todos de una, sin riesgo: la plata no cambia."),
+      "un guion. Se pueden corregir todos a la vez, sin riesgo: los valores no cambian."),
     tabla(
       [{ titulo: "Empresa" }, { titulo: "Como está ahora" }, { titulo: "Como va a quedar" }],
       muestra.map((s) =>
@@ -486,7 +486,7 @@ async function preguntarYUnir(raiz, grupo, elegido) {
     el("dl", { clase: "cifras" },
       cifra("Renglones que se mueven", String(previa.renglones)),
       cifra("Días que tocan", String(previa.dias)),
-      cifra("Plata que se mueve", pesos(previa.plata))
+      cifra("Valor que se traslada", pesos(previa.plata))
     ),
     el("p", { clase: "nota bien" },
       "El total del negocio NO cambia: los renglones son los mismos, solo " +
@@ -494,7 +494,7 @@ async function preguntarYUnir(raiz, grupo, elegido) {
 
     previa.facturasQueSePierden > 0
       ? el("p", { clase: "nota malo" },
-          `Ojo: ${previa.facturasQueSePierden} ` +
+          `Atención: ${previa.facturasQueSePierden} ` +
           (previa.facturasQueSePierden === 1 ? "día tiene" : "días tienen") +
           " los dos nombres comiendo el mismo día. Como una factura es una " +
           "persona por día, después de unir van a contar como una sola. " +

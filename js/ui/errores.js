@@ -407,7 +407,7 @@ function tarjetaDePlato(raiz, p) {
     // se avisara, ella crearía el mismo plato dos veces con dos nombres.
     p.parientes && p.parientes.length
       ? el("p", { clase: "nota ojo" },
-          "Ojo: tampoco está catalogado ",
+          "Atención: tampoco está catalogado ",
           ...p.parientes.map((x, i) => [
             i ? ", " : "",
             el("strong", { texto: x.nombre }),
@@ -454,7 +454,7 @@ function unirPlato(raiz, p, nombreBueno) {
       previa.diferencia !== 0
         ? el("div", {},
             el("p", { clase: "nota ojo" },
-              "Ojo, esto cambia lo que se cobra: de ",
+              "Atención: esto cambia lo que se cobra: de ",
               el("strong", { texto: pesos(previa.antes) }), " pasa a ",
               el("strong", { texto: pesos(previa.despues) }), "."),
             tabla(
@@ -576,7 +576,7 @@ function tarjetaDeDejados(raiz, platos, personas) {
       "Estos ya los revisó y dijo que se quedaran como están, así que no le " +
       "vuelvo a preguntar por ellos.",
       enCero
-        ? el("span", {}, " Ojo: ", el("strong", { texto: `${enCero} de esos renglones se siguen cobrando en $ 0` }),
+        ? el("span", {}, " Atención: ", el("strong", { texto: `${enCero} de esos renglones se siguen cobrando en $ 0` }),
             ". Si fue sin querer, tráigalo de vuelta y póngale precio.")
         : ""),
     el("ul", { clase: "lista-arreglable" },

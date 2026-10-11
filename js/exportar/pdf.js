@@ -567,7 +567,7 @@ export function pdfResumenDia(secciones, fecha, acreedor, combinado = null) {
       doc.setTextColor(...GRIS);
       doc.text(
         `A la empresa se le cobran ${pesos(sec.informe.aCredito)}. ` +
-        `Los otros ${pesos(sec.informe.deContado)} ya se pagaron de una.`,
+        `Los otros ${pesos(sec.informe.deContado)} ya se pagaron en efectivo.`,
         14, y + 7
       );
       doc.setTextColor(0, 0, 0);
@@ -645,7 +645,7 @@ function tablaDeComandas(doc, comandas, y, alCambiarDeHoja) {
       const forma = formaDe(c);
       cuerpo.push([
         c.producto +
-          (forma === "contado" ? "  (pagó de una)" : "") +
+          (forma === "contado" ? "  (pagó en efectivo)" : "") +
           (forma === "cortesia" ? "  (cortesía)" : "") +
           (c.observacion ? "  — " + c.observacion : ""),
         String(c.cantidad),
@@ -1048,7 +1048,7 @@ export function pdfComandasDelDia(comandas, fecha, nombreEmpresa, acreedor) {
     doc.setFontSize(9.5);
     doc.setTextColor(...GRIS);
     doc.text(
-      `De ese total, ${pesos(deContado)} ya se pagó de una y NO va en la cuenta de la empresa.`,
+      `De ese total, ${pesos(deContado)} ya se pagó en efectivo y NO va en la cuenta de la empresa.`,
       14, fin + 8
     );
   }
@@ -1324,7 +1324,7 @@ export function pdfVentasDelMes(ventas, codigoEmpresa, acreedor) {
     doc.setTextColor(...ACHIOTE);
     doc.setFont("helvetica", "bold");
     doc.text(
-      `Ojo: ${total.sinPrecio} ${total.sinPrecio === 1 ? "plato salió" : "platos salieron"} ` +
+      `Atención: ${total.sinPrecio} ${total.sinPrecio === 1 ? "plato salió" : "platos salieron"} ` +
       `sin precio. Lo vendido es más de lo que dice esta tabla.`, 14, fin);
   }
 

@@ -59,7 +59,7 @@ export function pintarCompartir(raiz) {
         el("h1", { texto: "Compartir con las empresas" }),
         el("p", {
           texto:
-            `Lo de ${nombreMes(estado.mes)} de ${estado.anio}, listo para mandar ` +
+            `Lo de ${nombreMes(estado.mes)} de ${estado.anio}, listo para enviar ` +
             "por WhatsApp o por correo.",
         })
       )
@@ -82,7 +82,7 @@ export function pintarCompartir(raiz) {
 /** La explicación de por qué esto es seguro, en cristiano. */
 function garantiaDePrivacidad() {
   return el("section", { clase: "tarjeta garantia" },
-    el("h2", { texto: "Cada empresa ve lo suyo y nada más" }),
+    el("h2", { texto: "Cada empresa recibe únicamente su información" }),
     el("p", {},
       "Cuando usted baja el archivo de una empresa, ese archivo lleva adentro ",
       el("strong", { texto: "únicamente" }),
@@ -135,7 +135,7 @@ function tarjetaDeEmpresa(empresa) {
     !hayAlgo
       ? el("p", { clase: "nota", texto: "No hay nada registrado de esta empresa en este mes." })
       : el("div", {},
-          el("h3", { texto: "Para mandar por WhatsApp: el informe completo" }),
+          el("h3", { texto: "Para enviar por WhatsApp: el informe completo" }),
           el("p", { clase: "nota" },
             "Un PDF con todo el mes, con la misma pinta de la app: los totales " +
             "de las dos quincenas, cada plato, cada persona y el día a día. " +
@@ -262,7 +262,7 @@ function verAntesDeMandar(empresa, anio, mes) {
     cuerpo: el("div", {},
       el("p", { clase: coladas.length ? "nota malo" : "nota bien" },
         coladas.length
-          ? `Ojo: aparecen las empresas ${coladas.join(", ")}. Avísele a quien hizo la app.`
+          ? `Atención: aparecen las empresas ${coladas.join(", ")}. Informe al soporte técnico.`
           : `Revisado: en este archivo solo aparece ${empresa.codigo}. ` +
             `Lleva ${resultado.renglones} renglones y suma ${pesos(resultado.total)}.`),
       marco
@@ -270,7 +270,7 @@ function verAntesDeMandar(empresa, anio, mes) {
     botones: [
       { texto: "Cerrar" },
       {
-        texto: "Bajarlo para mandar",
+        texto: "Descargar para enviar",
         clase: "principal",
         alHacerClic: () => {
           descargarReporteEmpresa(estado.datos, empresa.codigo, anio, mes);

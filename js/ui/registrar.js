@@ -29,6 +29,7 @@ import {
   limpiarNombre, parecidasEnEmpresa, tocayosEnOtrasEmpresas,
 } from "../nucleo/nombres.js";
 import { leerElDictado, apodosDe, aprenderApodo, olvidarApodo } from "../nucleo/dictado.js";
+import { conClavePara } from "./clave.js";
 import {
   pedidoHabitual, tieneCostumbre, platosFrecuentes, loDelDiaAnterior,
   yaAnotadasHoy, cuantoValdria,
@@ -119,7 +120,9 @@ function faltanLosPrecios(raiz) {
 
   if (!faltan && !enCero) return null;
 
-  const copiar = () => {
+  const copiar = async () => {
+    // Copia precios al catálogo: es lo mismo que cambiarlos en Platos.
+    if (!(await conClavePara("catalogo", "copiar los precios"))) return;
     const r = heredarPrecios(estado.datos, cod);
     cambio();
     if (r.quedanSinPrecio.length) {
@@ -178,32 +181,32 @@ function faltanLosPrecios(raiz) {
  */
 function botonDePegarElDictado(raiz) {
   return el("button", { clase: "chico", alHacerClic: () => pedirElDictado(raiz) },
-            "Pegar el pedido del señor");
+            "Pegar el pedido del audio");
 }
 
 function pedirElDictado(raiz) {
   const caja = el("textarea", {
     rows: 10,
     estilo: "width:100%;font-size:var(--t-base);min-height:11rem",
-    placeholder: "Pegue aquí lo que mandó el señor...",
+    placeholder: "Pegue aquí el texto del audio transcrito...",
   });
 
   ventana({
-    titulo: "Pegar el pedido del señor",
+    titulo: "Pegar el pedido del audio",
     cuerpo: el("div", { clase: "rejilla" },
       el("p", { clase: "nota", estilo: "margin:0" },
         `Va a quedar anotado en ${estado.empresa}, el ${fechaLarga(estado.fecha)}. `,
         el("strong", { texto: "Nada se guarda todavía: " }),
-        "primero le muestro lo que entendí."),
+        "primero se muestra lo que se reconoció."),
       caja),
     botones: [
       { texto: "Cancelar" },
       {
-        texto: "Ver qué entendí",
+        texto: "Ver lo reconocido",
         clase: "principal",
         alHacerClic: () => {
           const texto = caja.value.trim();
-          if (!texto) { mensaje("Pegue primero el texto del señor.", "ojo", 5); return false; }
+          if (!texto) { mensaje("Pegue primero el texto del audio.", "ojo", 5); return false; }
           // La ventana se cierra y se abre la otra: dos pantallas cortas se
           // entienden mejor que una larga con todo encima.
           setTimeout(() => mostrarLoQueEntendi(raiz, texto), 50);
@@ -370,7 +373,7 @@ function mostrarLoQueEntendi(raiz, texto) {
   );
 
   ventana({
-    titulo: "Lo que entendí",
+    titulo: "Lo que se reconoció del pedido",
     cuerpo,
     botones: [
       { texto: "Cancelar" },
@@ -1347,6 +1350,8 @@ async function borrarRenglon(renglon, raiz) {
 }
 
 async function ponerPrecio(renglon, raiz) {
+  // Es plata y puede ir al catálogo: pide la clave igual que Platos.
+  if (!(await conClavePara("catalogo", "asignar precio a un plato"))) return;
   const datos = await pedirDatos({
     titulo: `Precio de ${renglon.producto}`,
     campos: [
@@ -1511,7 +1516,7 @@ async function crearPersona(nombreEscrito, raiz) {
   if (tocayos.length) {
     const donde = [...new Set(tocayos.map((t) => t.empresa))].join(" y ");
     mensaje(
-      `${personaActiva} quedó en ${estado.empresa}. Ojo: hay otra persona con ` +
+      `${personaActiva} quedó en ${estado.empresa}. Atención: hay otra persona con ` +
       `ese mismo nombre en ${donde}, y son distintas.`,
       "ojo", 8
     );
@@ -1521,6 +1526,9 @@ async function crearPersona(nombreEscrito, raiz) {
 }
 
 async function crearPlato(plato, laEmpresa, raiz) {
+  // Un plato nuevo con su precio es un cambio al catálogo: pide la clave.
+  // Crear una PERSONA nueva no la pide: eso pasa todas las mañanas.
+  if (!(await conClavePara("catalogo", "crear un plato nuevo"))) return;
   const lista = empresas();
   const datos = await pedirDatos({
     titulo: `Crear el plato "${plato}"`,
@@ -1570,8 +1578,8 @@ const COMO_SE_PAGA = [
   },
   {
     forma: DE_CONTADO,
-    titulo: "Pagó de una",
-    corto: "Pagó de una",
+    titulo: "Pagó en efectivo",
+    corto: "Pagó en efectivo",
     explica: "La persona ya pagó de su bolsillo. NO se le cobra a la empresa, " +
              "pero sí cuenta como venta del día y tiene que estar en la caja.",
   },

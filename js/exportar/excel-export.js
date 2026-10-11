@@ -136,7 +136,7 @@ export async function exportarEmpresaAExcel(datos, codigoEmpresa, anio, mes) {
       .map((c) => [
         c.fecha, Number(c.fecha.slice(8, 10)), c.persona, c.producto, c.cantidad,
         c.precioUnitario, subtotal(c), quincenaDe(c.fecha, empresa) || "",
-        { empresa: "SÍ", contado: "NO, pagó de una", cortesia: "NO, cortesía" }[formaDeCobro(c)],
+        { empresa: "SÍ", contado: "NO, pagó en efectivo", cortesia: "NO, cortesía" }[formaDeCobro(c)],
       ]),
   ];
 

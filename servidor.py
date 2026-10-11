@@ -21,12 +21,18 @@
 
 import http.server
 import mimetypes
+import time
 import os
 import socketserver
 import sys
 import webbrowser
 
 PUERTO = 8000
+
+# Un PNG de un pixel transparente: lo que contesta /espera.
+PIXEL = (b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+         b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\x9cc\xf8\x0f\x00"
+         b"\x01\x01\x01\x00\x18\xdd\x8d\xb4\x00\x00\x00\x00IEND\xaeB`\x82")
 
 # Python no conoce estos dos, y sin ellos el navegador rechaza los archivos:
 #  - .mjs  son módulos de JavaScript. Si no llegan como JavaScript, Chrome los
@@ -38,6 +44,30 @@ mimetypes.add_type("font/woff2", ".woff2")
 
 
 class Manejador(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        """
+        /espera?ms=N contesta una imagen de un pixel DESPUÉS de N milisegundos.
+
+        Es para sacarle foto a la app ENTERA con Chrome sin ventana. Chrome
+        toma la foto (--screenshot) cuando la página termina de cargar, y
+        --virtual-time-budget no espera a IndexedDB, así que la foto salía
+        siempre antes de que la app arrancara. Una <img> apuntando aquí
+        retrasa el "load" de la página los milisegundos que haga falta, y en
+        ese rato la app arranca de verdad y la prueba hace lo suyo.
+        Lo usan tests/foto-app.html y tests/probar-app.html.
+        """
+        if self.path.startswith("/espera"):
+            from urllib.parse import urlparse, parse_qs
+            ms = int(parse_qs(urlparse(self.path).query).get("ms", ["3000"])[0])
+            time.sleep(min(ms, 120000) / 1000.0)
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.send_header("Content-Length", str(len(PIXEL)))
+            self.end_headers()
+            self.wfile.write(PIXEL)
+            return
+        return super().do_GET()
+
     def do_POST(self):
         """
         Un buzón para la página de diagnóstico.

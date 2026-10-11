@@ -322,7 +322,7 @@ function tarjetaImportar(raiz) {
       "todo se registra aquí."),
     hayDatos
       ? el("p", { clase: "nota ojo" },
-          `Ojo: ya hay ${estado.datos.consumos.length} renglones guardados. ` +
+          `Atención: ya hay ${estado.datos.consumos.length} renglones guardados. ` +
           "Importar los reemplaza. Antes de importar, baje un respaldo.")
       : null,
     acciones(
@@ -438,7 +438,7 @@ function tarjetaPeligro(raiz) {
         const dos = await confirmar({
           titulo: "Última pregunta",
           mensaje:
-            "Le acabo de bajar un respaldo por si acaso. ¿De verdad borro todo?",
+            "Se descargó un respaldo por seguridad. ¿Confirma que desea borrar todo?",
           siTexto: "Sí, borrar todo", peligroso: true,
         });
         if (!dos) return;

@@ -71,7 +71,8 @@ export function mensaje(texto, tipo = "bien", segundos = 4) {
   if (!caja) return;
 
   const irse = (m) => {
-    if (!m.isConnected) return;
+    if (!m.isConnected || m.dataset.yendose) return;
+    m.dataset.yendose = "si";
     m.style.transition = "opacity .25s, transform .25s";
     m.style.opacity = "0";
     m.style.transform = "translateY(8px)";
@@ -92,7 +93,14 @@ export function mensaje(texto, tipo = "bien", segundos = 4) {
 
   // Si se acumulan, los mas viejos se van. Lo ultimo que paso es lo que
   // importa; lo de hace diez segundos ya no.
-  while (caja.children.length > MAXIMO_MENSAJES) irse(caja.firstElementChild);
+  //
+  // OJO: irse() quita el nodo 280 ms DESPUES (deja salir la animacion), asi
+  // que no se puede mirar children.length en un while: nunca baja. Era un
+  // bucle infinito y congelaba la app ENTERA al cuarto aviso seguido -- sin
+  // error, sin nada: la pagina simplemente dejaba de responder. Lo destapo
+  // la prueba de la app entera, que saca cuatro avisos en dos segundos.
+  const vivos = [...caja.children].filter((n) => !n.dataset.yendose);
+  for (const viejo of vivos.slice(0, Math.max(0, vivos.length - MAXIMO_MENSAJES))) irse(viejo);
 
   setTimeout(() => irse(m), segundos * 1000);
 }

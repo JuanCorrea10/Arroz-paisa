@@ -60,7 +60,16 @@ está en `.gitignore`. Sin ellos esas fallan; las demás corren igual.
   nuevo. Es lo único que prueba el arranque de verdad (IndexedDB, el ruteo por
   `#hash`, los 25 módulos) y que todos lleguen con su versión. Hay que abrirla
   a velocidad normal — `--virtual-time-budget` no espera a IndexedDB — con un
-  servidor que reciba el POST del veredicto en `/veredicto`.
+  servidor que reciba el POST del veredicto en `/veredicto`. Sin ventana:
+  `timeout 80 chrome --headless=new --user-data-dir=<carpeta nueva> <url>`; el
+  veredicto llega LÍNEA POR LÍNEA a `tests/ultimo-veredicto.txt`, así que si
+  se cuelga a mitad se ve hasta dónde llegó (así se encontró un bucle
+  infinito en `mensaje()`). Un perfil ocupado por un Chrome anterior hace que
+  el nuevo se salga sin hacer nada: perfil nuevo cada vez.
+- `tests/foto-app.html?ver=<pantalla>&clave=1234&abierta=1` saca FOTO de la
+  app entera (con IndexedDB, menú y portada) con `--screenshot`: usa
+  `/espera?ms=N` de `servidor.py`, que retrasa el `load` de la página para
+  que Chrome tome la foto cuando la app ya arrancó e hizo lo suyo.
 - Chrome sin ventana:
   `chrome --headless=new --virtual-time-budget=25000 --dump-dom <url>` y sacar
   el texto de `<pre id="salida">`. Ojo: `--virtual-time-budget` no espera a
@@ -157,6 +166,11 @@ prueba; la pantalla solo la llama y la pinta.
   comentario falso es peor que ninguno.
 - Los textos que ve la usuaria van en su idioma, sin palabras técnicas, y
   diciendo qué hacer ("Póngale precio", no "Error: precio inválido").
+- **Y en tono formal.** Desde octubre de 2026 la app la usa el personal del
+  negocio, no solo ella: de usted, sin coloquialismos ("de una", "ojo",
+  "plata", "por si se le olvida algo") y sin nombres propios ("avísele a
+  Juan" es "informe al soporte técnico"). Formal no es técnico: "sesión",
+  "configurar" y "restablecer" sí; "hash", "token" y "login" no.
 - Sin framework y sin paso de compilación: módulos ES nativos que el navegador
   carga directo. `vendor/` trae jsPDF, autoTable y SheetJS ya bajados.
 - **La versión va en la dirección de TODO lo que se carga.** El `index.html`

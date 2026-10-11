@@ -97,7 +97,7 @@ export function pintarPagos(raiz) {
       // pero callarla dejaría el giro corto sin que nada lo dijera.
       pago.total.sinValor
         ? el("p", { clase: "aviso-ojo" },
-            el("strong", { texto: `Ojo: ${pago.total.sinValor} ` +
+            el("strong", { texto: `Atención: ${pago.total.sinValor} ` +
               (pago.total.sinValor === 1 ? "factura llegó" : "facturas llegaron") + " sin valor. " }),
             "No están sumando, así que hay que pagar más de lo que dice aquí.")
         : null,
@@ -388,7 +388,7 @@ function avisoDeParecidos() {
 
   return el("div", { clase: "aviso-ojo" },
     el("p", { estilo: "margin:0 0 var(--e2)" },
-      el("strong", { texto: "Ojo: hay proveedores escritos de dos formas. " }),
+      el("strong", { texto: "Atención: hay proveedores escritos de dos formas. " }),
       "Si son el mismo, le va a girar dos veces."),
     el("ul", { clase: "avisos", estilo: "max-height:none" },
       ...pares.slice(0, 6).map((p) =>
@@ -483,7 +483,7 @@ async function traerElExcelDeFacturas(raiz, archivo) {
       leido.avisos.length
         ? el("div", { clase: "aviso-ojo" },
             el("p", { estilo: "margin:0 0 var(--e2)" },
-              el("strong", { texto: `Ojo: ${leido.avisos.length} ` +
+              el("strong", { texto: `Atención: ${leido.avisos.length} ` +
                 (leido.avisos.length === 1 ? "renglon no se pudo leer" : "renglones no se pudieron leer") + ". " }),
               "Esos hay que anotarlos a mano, o arreglarlos en el Excel y volver a traerlo."),
             el("ul", { clase: "avisos" },

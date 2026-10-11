@@ -23,15 +23,34 @@
 <p>
   Hay que abrirla a velocidad normal (nada de
   <code>--virtual-time-budget</code>: no espera a IndexedDB) y con un servidor
-  que reciba el POST del veredicto.
+  que reciba el POST del veredicto. Sin ventana:
+  <code>chrome --headless=new --screenshot=veredicto.png http://localhost:8000/tests/probar-app.html</code>
+  y la foto sale cuando la prueba ya terminó.
 </p>
 <pre id="salida">probando…</pre>
-<iframe id="app" src="../index.html#registrar"></iframe>
+<iframe id="app"></iframe>
+<!--
+  La imagen lenta. El servidor la contesta 45 segundos después, y mientras
+  no llegue la página no termina de "cargar". Chrome sin ventana con
+  --screenshot espera a esa carga, así que la foto sale con el veredicto ya
+  escrito en el <pre> de arriba, y el POST ya mandado. Sin esto tocaba abrir
+  la página a ojo, o dejar Chrome corriendo y adivinar cuándo matarlo.
+  En un navegador normal no se nota: la prueba arranca al cargar el marco.
+-->
+<img src="/espera?ms=45000" alt="" hidden>
 
 <script type="module">
 const lineas = [];
 const salida = document.getElementById("salida");
-const anotar = (t) => { lineas.push(t); salida.textContent = lineas.join("\n"); };
+// Cada línea se manda al servidor apenas se escribe, no solo al final. Si la
+// prueba se queda colgada a mitad -- un botón que ya no existe, una ventana
+// que no abre -- el veredicto dice hasta dónde llegó, en vez de un silencio
+// que se lee igual que "todo bien".
+const anotar = (t) => {
+  lineas.push(t);
+  salida.textContent = lineas.join("\n");
+  try { fetch("/veredicto", { method: "POST", body: lineas.join(" · ") }).catch(() => {}); } catch { /* sin servidor */ }
+};
 const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function esperarA(condicion, cuanto = 20000) {
@@ -52,6 +71,13 @@ marco.addEventListener("load", async () => {
     try { await fetch("/veredicto", { method: "POST", body: lineas.join(" · ") }); } catch {}
   }
 });
+
+// El src se pone DESPUÉS de colgar el oyente de "load". Estaba en el HTML, y
+// servido desde localhost el marco alcanzaba a cargar antes de que corriera
+// este guion: el oyente llegaba tarde, la prueba no arrancaba nunca y no
+// había veredicto -- que se lee igual que "todo bien". En Chrome sin ventana
+// pasaba siempre.
+marco.src = "../index.html#registrar";
 
 async function probar() {
   const doc = marco.contentDocument;
@@ -201,6 +227,95 @@ async function probar() {
   anotar(suyo
     ? "OK   la persona nueva quedó creada y con su apartado de pedidos"
     : "MAL  se creó la persona pero NO salió el apartado de pedidos");
+
+  // --- 3b. Cinco avisos seguidos no congelan la app -----------------------
+  //
+  //  mensaje() quitaba los avisos viejos con un while que esperaba a que
+  //  children.length bajara, pero irse() quita el nodo 280 ms después: al
+  //  cuarto aviso seguido la página entera se quedaba en un bucle infinito.
+  //  Sin error, sin nada. Si vuelve a pasar, el veredicto se corta justo
+  //  después de "voy a sacar cinco avisos" y ahí está la pista.
+  anotar("...  voy a sacar cinco avisos seguidos");
+  const guion = doc.createElement("script");
+  guion.type = "module";
+  guion.textContent = `
+    const { mensaje } = await import("./js/ui/componentes.js");
+    for (let i = 1; i <= 5; i++) mensaje("Aviso de prueba " + i, "bien", 3);
+    window.__cincoAvisos = true;
+  `;
+  doc.head.append(guion);
+  // Se cuentan los que se QUEDAN: los que se están yendo siguen en la página
+  // 280 ms más, mientras sale la animación.
+  const vivos = () => [...doc.querySelectorAll("#mensajes .mensaje")].filter((m) => !m.dataset.yendose).length;
+  const avisos = await esperarA(() => ven.__cincoAvisos && vivos(), 4000);
+  anotar(avisos && avisos <= 3
+    ? "OK   cinco avisos seguidos: la app sigue viva y quedan " + avisos
+    : "MAL  cinco avisos seguidos: " + (avisos ? "quedan " + avisos + " (el tope son 3)" : "la app no respondió"));
+
+  // --- 4. La clave de la dueña, de punta a punta --------------------------
+  //
+  //  Ponerla desde su pantalla, ver que Platos la pide, que la equivocada no
+  //  pasa y la buena sí, y quitarla al final para que la siguiente corrida
+  //  arranque igual que esta. Si algo de esto se daña, o cualquiera cambia
+  //  precios, o ella no puede entrar: las dos cosas son graves.
+  const botonQueDiga = (re) => [...doc.querySelectorAll("button")].find((b) => re.test(b.textContent));
+  const delPie = (re) => [...doc.querySelectorAll("dialog .ventana-pie button")].find((b) => re.test(b.textContent));
+
+  ven.location.hash = "#clave";
+  await esperar(400);
+  const ponerla = botonQueDiga(/Configurar la clave/);
+  if (!ponerla) {
+    anotar("MAL  la pantalla de la clave no tiene el botón de ponerla (¿quedó una clave puesta de otra corrida?)");
+  } else {
+    ponerla.click();
+    const una = await esperarA(() => doc.getElementById("campo-clave-una"), 3000);
+    teclear(una, "1234");
+    teclear(doc.getElementById("campo-clave-otra"), "1234");
+    delPie(/Guardar la clave/).click();
+    const abierta = await esperarA(
+      () => !doc.getElementById("clave-abierta").classList.contains("oculto"), 4000);
+    anotar(abierta
+      ? "OK   la clave quedó puesta y la barra dice que está abierta"
+      : "MAL  se puso la clave pero la barra no dice que está abierta");
+
+    // "Cerrar" y entrar a Platos: tiene que pedirla.
+    const cerrarArriba = doc.querySelector("#clave-abierta button");
+    if (cerrarArriba) cerrarArriba.click();
+    await esperar(300);
+    ven.location.hash = "#catalogo";
+    const campo = await esperarA(() => doc.getElementById("campo-la-clave"), 3000);
+    anotar(campo ? "OK   Platos pide la clave" : "MAL  Platos abrió sin pedir la clave");
+
+    if (campo) {
+      teclear(campo, "9999");
+      delPie(/Ingresar/).click();
+      await esperar(500);
+      const sigue = doc.getElementById("campo-la-clave");
+      anotar(sigue ? "OK   la clave equivocada no pasa" : "MAL  la clave equivocada abrió Platos");
+      if (sigue) { teclear(sigue, "1234"); delPie(/Ingresar/).click(); }
+      const platos = await esperarA(() =>
+        !doc.getElementById("campo-la-clave") &&
+        /Platos|Cat[aá]logo/i.test((doc.querySelector("#pantalla h1") || {}).textContent || ""), 5000);
+      anotar(platos
+        ? "OK   con la clave buena abre Platos"
+        : "MAL  con la clave buena NO abrió Platos: " +
+          ((doc.querySelector("#pantalla h1") || {}).textContent || "sin título"));
+    }
+
+    // Quitarla, para dejar la app como estaba.
+    ven.location.hash = "#clave";
+    await esperar(500);
+    const quitar = botonQueDiga(/Quitar la clave/);
+    if (quitar) {
+      quitar.click();
+      const si = await esperarA(() => delPie(/quitarla/i), 3000);
+      if (si) si.click();
+      await esperar(500);
+    }
+    anotar(botonQueDiga(/Configurar la clave/)
+      ? "OK   la clave se quitó y la app quedó como estaba"
+      : "MAL  la clave NO se pudo quitar: quedó puesta en este navegador (es 1234)");
+  }
 
   await mandar();
 

@@ -21,6 +21,8 @@
 // ============================================================================
 
 import { el, poner, vaciar } from "./componentes.js";
+import { estado } from "./estado.js";
+import { pideClave } from "../nucleo/clave.js";
 
 /**
  * Pinta la portada.
@@ -143,6 +145,10 @@ function botonDePantalla(pantalla, cual) {
     pantalla.dice ? el("span", { texto: pantalla.dice }) : null,
     pendientes
       ? el("span", { clase: "etiqueta pendiente", texto: pendientes + " por revisar" })
+      : null,
+    // Que se sepa aquí, antes de tocar, y no al chocar con el diálogo.
+    pideClave(estado.datos, cual)
+      ? el("span", { clase: "etiqueta candado", texto: "🔒 Requiere clave" })
       : null
   );
 }

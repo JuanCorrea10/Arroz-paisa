@@ -225,7 +225,7 @@ export function pintarCobro(raiz) {
           texto: propio
             ? `Escogidas solo para esta cuenta. La quincena ${quincena} va ${diceElRango(empresa, quincena)}.`
             : `Es la quincena ${quincena} completa. Puede ampliarla hasta donde necesite ` +
-              `-- sirve para cobrar varios meses de una -- y solo cambia esta cuenta.`,
+              `-- sirve para cobrar varios meses en una sola cuenta -- y solo cambia esta cuenta.`,
         })
       )
     )
@@ -538,7 +538,7 @@ function tarjetaDeTodasLasEmpresas() {
     contado > 0
       ? el("p", { clase: "nota ojo", estilo: "margin:var(--e3) 0 0" },
           el("div", {},
-            el("strong", { texto: `Además hay ${pesos(contado)} que se pagaron de una` }),
+            el("strong", { texto: `Además hay ${pesos(contado)} que se pagaron en efectivo` }),
             el("p", { texto: "Eso ya está en la caja y NO va en ninguna cuenta de cobro." })))
       : null
   );
@@ -700,7 +700,7 @@ function documentoDeCobro(cuenta, acreedor) {
 
 function paraElCliente(empresa) {
   return el("div", { clase: "tarjeta no-imprimir", estilo: "margin-top:var(--e6)" },
-    el("h3", { texto: `Mandarle la información a ${empresa.codigo}` }),
+    el("h3", { texto: `Enviar la información a ${empresa.codigo}` }),
     el("p", { estilo: "color:var(--tinta-media)" },
       "Estos archivos traen ",
       el("strong", { texto: "únicamente" }),
@@ -712,7 +712,7 @@ function paraElCliente(empresa) {
         alHacerClic: () => {
           try {
             descargarReporteEmpresa(estado.datos, empresa.codigo, estado.anio, estado.mes);
-            mensaje("Reporte descargado. Mándelo por WhatsApp o por correo.", "bien", 6);
+            mensaje("Reporte descargado. Puede enviarlo por WhatsApp o por correo.", "bien", 6);
           } catch (e) { mensaje(e.message, "malo", 8); }
         },
       }, "Reporte del mes (para ver en el celular)"),
@@ -735,7 +735,7 @@ function paraElCliente(empresa) {
                   rangoDeCobro(estado.datos, empresaCobro, estado.anio, estado.mes, q)),
                 acreedor);
             }
-            mensaje("Bajé las dos cuentas de cobro del mes.", "bien");
+            mensaje("Se descargaron las dos cuentas de cobro del mes.", "bien");
           } catch (e) { mensaje(e.message, "malo", 8); }
         },
       }, "Las dos cuentas de cobro en PDF")
