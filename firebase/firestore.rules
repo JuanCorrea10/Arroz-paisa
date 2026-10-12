@@ -1,19 +1,23 @@
+rules_version = '2';
+
 // Reglas de Firestore para Arroz Paisa.
 //
-// Se pegan en la consola de Firebase: Firestore Database > Reglas > Publicar.
+// Se pegan en la consola de Firebase: Firestore Database > Reglas. Primero
+// borrar TODO lo que haya en el editor, pegar esto completo y Publicar.
+// La linea "rules_version" tiene que ser la primera del archivo.
+//
 // Son lo que de verdad protege los datos: la app esconde pantallas, pero
 // esto es lo que impide que una cuenta de personal cambie un precio aunque
-// sepa cómo.
+// sepa como.
 //
-// Roles: cada cuenta tiene un documento usuarios/{uid} con { rol, nombre }.
+// Roles: cada cuenta tiene un documento usuarios/{uid} con rol y nombre.
 //   administrador   todo.
 //   personal        anota pedidos (consumos), crea y corrige personas, y
-//                   enseña apodos del dictado. No toca precios, platos,
-//                   empresas, compras ni la configuración.
+//                   ensena apodos del dictado. No toca precios, platos,
+//                   empresas, compras ni la configuracion.
 // Sin documento de usuario, la cuenta no ve nada: nadie es administrador por
 // accidente.
 
-rules_version = '2';
 service cloud.firestore {
   match /databases/{base}/documents {
 
@@ -21,16 +25,13 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function miRol() {
-      return get(/databases/$(base)/documents/usuarios/$(request.auth.uid)).data.rol;
-    }
-
     function tieneCuenta() {
       return entro() && exists(/databases/$(base)/documents/usuarios/$(request.auth.uid));
     }
 
     function esAdministrador() {
-      return tieneCuenta() && miRol() == "administrador";
+      return tieneCuenta()
+        && get(/databases/$(base)/documents/usuarios/$(request.auth.uid)).data.rol == "administrador";
     }
 
     // Cada quien lee su propio documento de usuario; el administrador, todos.
@@ -39,7 +40,7 @@ service cloud.firestore {
       allow write: if esAdministrador();
     }
 
-    // Lo del día a día: cualquiera con cuenta.
+    // Lo del dia a dia: cualquiera con cuenta.
     match /consumos/{id} {
       allow read, write: if tieneCuenta();
     }
