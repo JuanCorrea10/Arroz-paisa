@@ -14,6 +14,8 @@ import { el, vaciar, mensaje, poner } from "./ui/componentes.js";
 import { estado, alCambiar, sincronizarPeriodo, asegurarEmpresa, cambiarPeriodo } from "./ui/estado.js";
 import { nombreMes } from "./nucleo/formato.js";
 import * as almacen from "./datos/almacen.js";
+import * as nube from "./datos/nube.js";
+import { pintarEntrar } from "./ui/entrar.js";
 
 import { pintarRegistrar } from "./ui/registrar.js";
 import { pintarCocina, pintarResumenDia, pintarPorPersona, pintarVentasDelMes } from "./ui/informes.js";
@@ -447,7 +449,22 @@ function enReposo(hayDatos) {
   luz.dataset.estado = "bien";
   luz.textContent = !hayDatos
     ? "Sin datos todavía"
-    : (almacen.hayCarpeta() ? "Guardado en la carpeta" : "Guardado");
+    : dondeQuedo();
+}
+
+/**
+ * Qué dice la lucecita cuando todo está bien. Con la nube, lo que importa es
+ * si lo de este computador ya llegó allá: "3 por subir" es "sin internet",
+ * y hay que verlo sin abrir nada.
+ */
+function dondeQuedo() {
+  const n = nube.estado();
+  if (n.activa) {
+    return n.pendientes > 0
+      ? `Guardado aquí · ${n.pendientes} por subir`
+      : "Guardado en la nube";
+  }
+  return almacen.hayCarpeta() ? "Guardado en la carpeta" : "Guardado";
 }
 
 function semaforoDeGuardado() {
@@ -464,10 +481,18 @@ function semaforoDeGuardado() {
       mensaje(info.detalle || "No se pudo guardar. Baje un respaldo.", "malo", 12);
     } else {
       luz.dataset.estado = "bien";
-      luz.textContent = almacen.hayCarpeta() ? "Guardado en la carpeta" : "Guardado";
+      luz.textContent = dondeQuedo();
       luz.title = "";
     }
   });
+
+  // Cuando la nube confirma (o deja de confirmar) lo pendiente.
+  nube.alCambiarEstado(() => {
+    if (luz.dataset.estado === "bien") luz.textContent = dondeQuedo();
+  });
+  // Lo que la nube rechaza se dice aquí, en rojo. Callarlo sería dejar a
+  // alguien creyendo que cambió un precio que no cambió.
+  nube.alFallar((texto) => mensaje(texto, "malo", 12));
 }
 
 // ---------------------------------------------------------------------------
@@ -568,6 +593,74 @@ function nadaFallaCallado() {
   window.addEventListener("unhandledrejection", (e) => avisar(e.reason));
 }
 
+/**
+ * Arrancar con la nube: cargar la librería, pedir la cuenta si no hay sesión,
+ * y traer los datos de allá.
+ *
+ * Si la librería no carga (sin internet y sin copia), se sigue con lo de
+ * este computador y se dice en rojo: trabajar a ciegas es malo, pero no poder
+ * anotar los almuerzos de hoy es peor. Si la nube está VACÍA (primera vez),
+ * también se carga lo local, para que la administradora lo suba desde
+ * Datos y respaldos; mientras tanto no se manda nada.
+ */
+async function cargarDeLaNube() {
+  try {
+    await nube.iniciar();
+  } catch (error) {
+    console.error(error);
+    const local = await almacen.cargar();
+    return { ...local, sinNube: String(error.message || error) };
+  }
+
+  if (!nube.usuario()) {
+    construirMenu("inicio");
+    await pintarEntrar(raiz());
+  }
+
+  let deLaNube;
+  try {
+    deLaNube = await nube.cargar();
+  } catch (error) {
+    console.error(error);
+    const local = await almacen.cargar();
+    return { ...local, sinNube: String(error.message || error) };
+  }
+
+  if (deLaNube.vacia) {
+    const local = await almacen.cargar();
+    estado.nubeVacia = true;
+    nube.pausar(true);
+    return { ...local, origen: "nube", vacia: true };
+  }
+  // La carpeta del computador sigue recibiendo su copia: la nube no quita el
+  // respaldo local, lo suma. Sin esto el permiso de la carpeta no se
+  // recuperaba y guardarYa() la saltaba callado.
+  const carpeta = await almacen.recuperarCarpeta();
+  return { datos: deLaNube.datos, origen: "nube", carpeta };
+}
+
+let repintadoPendiente = null;
+
+function repintarCuandoSePueda() {
+  if (repintadoPendiente) return;
+  const intentar = () => {
+    repintadoPendiente = null;
+    const activo = document.activeElement;
+    const escribiendo = activo && /^(INPUT|TEXTAREA|SELECT)$/.test(activo.tagName) &&
+      activo.type !== "checkbox" && activo.type !== "date" && String(activo.value || "").trim() !== "";
+    const conVentana = document.querySelector("dialog[open]");
+    if (escribiendo || conVentana) {
+      repintadoPendiente = setTimeout(intentar, 3000);
+      return;
+    }
+    almacen.guardar(estado.datos);   // la copia local se pone al día con lo que llegó
+    construirPeriodo();
+    refrescarContadores();
+    pintar();
+  };
+  repintadoPendiente = setTimeout(intentar, 300);
+}
+
 async function arrancar() {
   nadaFallaCallado();
   revisarLaVersion();
@@ -577,7 +670,7 @@ async function arrancar() {
 
   let cargado;
   try {
-    cargado = await almacen.cargar();
+    cargado = nube.configurada() ? await cargarDeLaNube() : await almacen.cargar();
   } catch (error) {
     console.error(error);
     cargado = { datos: null, origen: "dañado", problemas: [String(error.message || error)] };
@@ -657,6 +750,23 @@ async function arrancar() {
   pintar();
   enReposo(estado.datos.consumos.length > 0);
 
+  // Lo que anotan en el otro computador llega aquí solo. Se guarda la copia
+  // local y se repinta la pantalla, pero NO encima de alguien escribiendo:
+  // si hay una ventana abierta o un cursor en una casilla, se espera.
+  nube.alLlegarCambios(() => repintarCuandoSePueda());
+
+  if (cargado.origen === "nube") {
+    const quien = nube.usuario();
+    if (cargado.vacia) {
+      mensaje(nube.esAdministrador()
+        ? "La nube está vacía. Entre a Datos y respaldos y suba los datos de este computador."
+        : "La nube está vacía todavía: la administradora tiene que subir los datos desde su computador.",
+        "ojo", 20);
+    } else if (quien) {
+      mensaje(`En la nube como ${quien.nombre || quien.email}.`, "bien", 4);
+    }
+  }
+
   // Al cerrar la ventana, guardamos de una sin esperar el medio segundo.
   window.addEventListener("beforeunload", () => { almacen.guardarYa(); });
   // En el celular, "cerrar" muchas veces es solo cambiar de app.
@@ -666,6 +776,13 @@ async function arrancar() {
 
   if (cargado.origen === "carpeta") {
     mensaje("Datos cargados de la carpeta del computador.", "bien", 5);
+  }
+  if (cargado.sinNube) {
+    mensaje(
+      "No se pudo conectar con la nube: " + cargado.sinNube + " Se está trabajando con la " +
+      "copia de este computador; lo que anote aquí no lo ven los demás hasta que vuelva.",
+      "malo", 25
+    );
   }
   // Ojo con el nombre exacto: almacen.js devuelve "necesita-permiso".
   if (cargado.carpeta && cargado.carpeta.estado === "necesita-permiso") {

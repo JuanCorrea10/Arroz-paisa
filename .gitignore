@@ -29,7 +29,10 @@ tests/datos/
 # nombres de 562 personas y lo que comio cada una, asi que NO sube a internet.
 # Sin este archivo la app abre vacia y ella importa el Excel una vez, que es
 # el comportamiento correcto para la version publicada.
-datos/
+#
+# Con barra ADELANTE: es la carpeta de la raiz y solo esa. Sin la barra el
+# patron tapaba tambien js/datos/, y un modulo nuevo ahi no subia nunca.
+/datos/
 
 # --- Respaldos y datos guardados por la app --------------------------------
 datos.json

@@ -19,6 +19,8 @@ export const estado = {
   /** Mes y año de los informes. */
   anio: new Date().getFullYear(),
   mes: new Date().getMonth() + 1,
+  /** Con la nube: todavía no hay nada allá y hay que subir lo de aquí. */
+  nubeVacia: false,
 };
 
 const oyentes = new Set();

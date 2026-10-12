@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20261010-2146";
+  --version: "20261011-2030";
 }
 
 /* ===========================================================================
@@ -2432,3 +2432,19 @@ td.plata-fila { font-weight: 600; }
 }
 .lista-clave strong { display: block; }
 .lista-clave small { color: var(--tinta-media); }
+
+/* ---------------------------------------------------------------------
+/*  Entrar con la cuenta (solo con la nube)
+/* --------------------------------------------------------------------- */
+/* Con id para ganarle a las reglas de .hoja .tarjeta, que la estiran a todo
+   el ancho: una pantalla de entrar de un metro de ancho se ve abandonada. */
+#pantalla .tarjeta.entrar {
+  max-width: 28rem;
+  margin: var(--e6) auto;
+  padding: var(--e5) var(--e5) var(--e4);
+}
+.entrar .campo-clave { max-width: none; }
+.entrar h1 { margin-bottom: var(--e2); }
+.entrar-formulario { display: grid; gap: var(--e3); margin-top: var(--e4); }
+.entrar-formulario .acciones { margin-bottom: 0; }
+.entrar-formulario .acciones button { width: 100%; }

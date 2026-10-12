@@ -61,6 +61,8 @@ const PANTALLAS = {
   revisar:   ["../js/ui/errores.js", "pintarErrores"],
   nombres:   ["../js/ui/nombres.js", "pintarNombres"],
   clave:     ["../js/ui/clave.js", "pintarClave"],
+  // Devuelve una promesa que no se cumple (nadie entra): se pinta y ya.
+  entrar:    ["../js/ui/entrar.js", "pintarEntrar"],
 };
 
 // La pantalla de la clave recibe el mapa de pantallas de app.js, que aqui no
@@ -305,7 +307,8 @@ try {
 
   const [ruta, fn] = PANTALLAS[cual] || PANTALLAS.catalogo;
   const modulo = await import(ruta);
-  await (cual === "clave" ? modulo[fn](raiz, TITULOS_DE_PRUEBA) : modulo[fn](raiz));
+  if (cual === "entrar") modulo[fn](raiz);
+  else await (cual === "clave" ? modulo[fn](raiz, TITULOS_DE_PRUEBA) : modulo[fn](raiz));
 
   // "&forzar=con-clave+pedir-clave": el diálogo que sale al entrar a una
   // pantalla cerrada. "&forzar=con-clave+cerrada": la tarjeta que queda si

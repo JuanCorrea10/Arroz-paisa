@@ -1,0 +1,76 @@
+// Reglas de Firestore para Arroz Paisa.
+//
+// Se pegan en la consola de Firebase: Firestore Database > Reglas > Publicar.
+// Son lo que de verdad protege los datos: la app esconde pantallas, pero
+// esto es lo que impide que una cuenta de personal cambie un precio aunque
+// sepa cómo.
+//
+// Roles: cada cuenta tiene un documento usuarios/{uid} con { rol, nombre }.
+//   administrador   todo.
+//   personal        anota pedidos (consumos), crea y corrige personas, y
+//                   enseña apodos del dictado. No toca precios, platos,
+//                   empresas, compras ni la configuración.
+// Sin documento de usuario, la cuenta no ve nada: nadie es administrador por
+// accidente.
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{base}/documents {
+
+    function entro() {
+      return request.auth != null;
+    }
+
+    function miRol() {
+      return get(/databases/$(base)/documents/usuarios/$(request.auth.uid)).data.rol;
+    }
+
+    function tieneCuenta() {
+      return entro() && exists(/databases/$(base)/documents/usuarios/$(request.auth.uid));
+    }
+
+    function esAdministrador() {
+      return tieneCuenta() && miRol() == "administrador";
+    }
+
+    // Cada quien lee su propio documento de usuario; el administrador, todos.
+    match /usuarios/{uid} {
+      allow read: if entro() && (request.auth.uid == uid || esAdministrador());
+      allow write: if esAdministrador();
+    }
+
+    // Lo del día a día: cualquiera con cuenta.
+    match /consumos/{id} {
+      allow read, write: if tieneCuenta();
+    }
+    match /personas/{id} {
+      allow read, create, update: if tieneCuenta();
+      allow delete: if esAdministrador();
+    }
+    match /apodos/{id} {
+      allow read, write: if tieneCuenta();
+    }
+
+    // Lo que se tira el funcionamiento: solo el administrador.
+    match /productos/{id} {
+      allow read: if tieneCuenta();
+      allow write: if esAdministrador();
+    }
+    match /precios/{id} {
+      allow read: if tieneCuenta();
+      allow write: if esAdministrador();
+    }
+    match /empresas/{id} {
+      allow read: if tieneCuenta();
+      allow write: if esAdministrador();
+    }
+    match /compras/{id} {
+      allow read: if tieneCuenta();
+      allow write: if esAdministrador();
+    }
+    match /config/{id} {
+      allow read: if tieneCuenta();
+      allow write: if esAdministrador();
+    }
+  }
+}

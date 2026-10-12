@@ -17,6 +17,7 @@
 // ============================================================================
 
 import { datosVacios, completarDatos, validarDatos } from "../nucleo/modelo.js";
+import * as nube from "./nube.js";
 
 const BASE = "arroz-paisa";
 const ALMACEN = "todo";
@@ -371,12 +372,24 @@ export async function guardarYa() {
     }
   }
 
+  // 3) La nube, si este computador está conectado a ella. Solo va lo que
+  //    cambió desde la última vez (ver sincronia.js); el objeto entero ya
+  //    quedó arriba, en el navegador y en la carpeta, como respaldo local.
+  let enLaNube = 0;
+  if (nube.activa()) {
+    try {
+      enLaNube = nube.guardar(datos);
+    } catch (e) {
+      huboProblema = "No se pudo mandar a la nube: " + e.message;
+    }
+  }
+
   guardando = false;
   pendiente = null;
   avisar(
     huboProblema
-      ? { estado: "problema", mensaje: huboProblema, hayCarpeta: hayCarpeta() }
-      : { estado: "guardado", cuando: new Date(), hayCarpeta: hayCarpeta() }
+      ? { estado: "problema", mensaje: huboProblema, hayCarpeta: hayCarpeta(), nube: nube.estado() }
+      : { estado: "guardado", cuando: new Date(), hayCarpeta: hayCarpeta(), nube: nube.estado(), enLaNube }
   );
 }
 

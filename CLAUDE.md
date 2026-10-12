@@ -112,6 +112,36 @@ prueba; la pantalla solo la llama y la pinta.
   `pedirDatos()`, `confirmar()`, `mensaje()`. No inventar widgets nuevos si ya
   hay uno.
 
+### La nube (dos computadores, un solo juego de datos)
+
+Desde octubre de 2026 el negocio tiene dos computadores. Los datos viven en
+**Firestore** (Firebase, plan gratis) y cada computador tiene copia local:
+
+- `js/datos/nube-config.js`: las señas del proyecto. Con `null`, la app
+  trabaja sola en el computador, como siempre, y **no carga ni un byte de
+  Firebase** (así corren las pruebas y la app publicada de muestra).
+- `js/datos/sincronia.js`: lo PURO y probado en Node. Convierte "el objeto
+  entero cambió" en escrituras renglón por renglón (`diferencias`) y aplica
+  lo que llega sin pisar el resto (`aplicar`). Las pantallas no cambian: siguen
+  mutando `estado.datos` y llamando `cambio()`.
+- `js/datos/nube.js`: lo que habla con Firebase (cuenta, oyentes, lotes,
+  sellos `_por`/`_en`). `almacen.guardarYa()` lo llama después de guardar la
+  copia local; `app.js` arranca por `cargarDeLaNube()` y pide la cuenta con
+  `js/ui/entrar.js`.
+- `vendor/firebase/`: la librería, con el `import` de app vuelto relativo.
+- `firebase/firestore.rules` y `firebase/COMO-CREAR-EL-PROYECTO.md`: las
+  reglas (son lo que de verdad protege los datos) y los pasos para Juan.
+- Roles: `usuarios/{uid}` con `rol: administrador | personal`. Sin documento,
+  la cuenta no ve nada.
+
+Gana el último, renglón por renglón. Lo que se escribe sin internet se sube
+solo al volver (Firestore lo guarda). El mes que se está mirando
+(`config.anio/mes`) NO se sube: es de cada computador.
+
+**Ojo con `.gitignore`:** `datos/` es la carpeta privada de la raíz; el patrón
+tiene que ser `/datos/` con barra adelante, o se traga también `js/datos/` y
+un módulo nuevo ahí no sube nunca (pasó).
+
 ### Los módulos del núcleo
 
 | Archivo | Qué resuelve |

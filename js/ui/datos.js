@@ -22,6 +22,7 @@ import { hojasDesdeArchivo } from "../datos/excel.js";
 import { importar } from "../nucleo/importador.js";
 import { exportarTodoAExcel } from "../exportar/excel-export.js";
 import * as almacen from "../datos/almacen.js";
+import * as nube from "../datos/nube.js";
 
 export function pintarDatos(raiz) {
   vaciar(raiz);
@@ -40,11 +41,95 @@ export function pintarDatos(raiz) {
       cifra("Platos", String(datos.productos.length)),
       cifra("Empresas", String(datos.empresas.length))
     ),
+    nube.configurada() ? tarjetaNube(raiz) : null,
     tarjetaCarpeta(raiz),
     tarjetaRespaldos(raiz),
     tarjetaProblemas(raiz),
     tarjetaImportar(raiz),
     tarjetaPeligro(raiz)
+  );
+}
+
+// ---------------------------------------------------------------------------
+//  La nube: lo que comparten los computadores del negocio
+// ---------------------------------------------------------------------------
+
+function tarjetaNube(raiz) {
+  const n = nube.estado();
+  const quien = n.usuario;
+
+  if (!n.activa) {
+    return el("section", { clase: "tarjeta con-problemas" },
+      el("h2", { texto: "La nube" }),
+      el("p", { texto: "Este computador no está conectado a la nube en este momento. Lo que anote queda solo aquí." }),
+      el("div", { clase: "acciones" },
+        el("button", { clase: "principal", alHacerClic: () => location.reload() }, "Volver a intentar"))
+    );
+  }
+
+  const subir = el("button", {
+    clase: "principal",
+    alHacerClic: async (e) => {
+      const boton = e.currentTarget;
+      const seguro = await confirmar({
+        titulo: "Subir los datos a la nube",
+        mensaje:
+          `Se van a subir ${estado.datos.consumos.length} renglones, ${estado.datos.personas.length} ` +
+          `personas, ${estado.datos.productos.length} platos y ${estado.datos.empresas.length} empresas. ` +
+          "Desde ese momento los demás computadores verán exactamente esto.",
+        siTexto: "Sí, subirlos",
+      });
+      if (!seguro) return;
+      boton.disabled = true;
+      boton.textContent = "Subiendo…";
+      try {
+        const cuantos = await nube.subirTodo(estado.datos);
+        estado.nubeVacia = false;
+        mensaje(`Listo: ${cuantos} renglones en la nube.`, "bien", 8);
+        pintarDatos(raiz);
+      } catch (ex) {
+        boton.disabled = false;
+        boton.textContent = "Subir los datos de este computador";
+        mensaje("No se pudo subir: " + ex.message, "malo", 12);
+      }
+    },
+  }, "Subir los datos de este computador");
+
+  return el("section", { clase: "tarjeta" },
+    el("h2", { texto: "La nube" }),
+    el("p", {},
+      "Conectado como ",
+      el("strong", { texto: quien.nombre || quien.email }),
+      ` (${quien.rol === "administrador" ? "administrador" : "personal"}). `,
+      n.pendientes > 0
+        ? `Hay ${n.pendientes} ${n.pendientes === 1 ? "cambio" : "cambios"} por subir: se suben solos cuando vuelva el internet.`
+        : "Todo lo de este computador ya está en la nube."),
+
+    estado.nubeVacia
+      ? el("div", { clase: "nota ojo" },
+          el("div", { estilo: "flex:1 1 auto;min-width:0" },
+            el("strong", { texto: "La nube está vacía." }),
+            el("p", { texto: nube.esAdministrador()
+              ? "Suba los datos de este computador una sola vez. Después, todos los computadores trabajan sobre los mismos datos."
+              : "La administradora tiene que subir los datos desde su computador. Mientras tanto, lo que anote aquí queda solo en este computador." })),
+          nube.esAdministrador() ? el("div", { clase: "acciones" }, subir) : null)
+      : null,
+
+    el("div", { clase: "acciones" },
+      el("button", {
+        clase: "plano chico",
+        alHacerClic: async () => {
+          const seguro = await confirmar({
+            titulo: "Salir de la cuenta",
+            mensaje: "La app volverá a pedir el correo y la clave. Los datos no se pierden.",
+            siTexto: "Sí, salir",
+          });
+          if (!seguro) return;
+          await almacen.guardarYa();
+          await nube.salir();
+          location.reload();
+        },
+      }, "Salir de la cuenta"))
   );
 }
 
