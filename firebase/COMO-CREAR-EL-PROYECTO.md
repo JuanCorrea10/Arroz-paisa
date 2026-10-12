@@ -34,9 +34,18 @@ En **Firestore Database → Datos → Iniciar colección**:
 
 - ID de la colección: `usuarios`
 - ID del documento: el **UID** de la administradora (copiado del paso 3).
-- Campos: `rol` (string) = `administrador`, `nombre` (string) = su nombre.
-- Guardar. Después **Agregar documento** con el UID del personal:
-  `rol` = `personal`, `nombre` = `Lagos` (o como se llame el puesto).
+- Dos campos, cada uno con **Agregar campo** (escribir solo lo que va en la
+  columna Valor, sin comillas ni comas):
+
+  | Campo    | Tipo   | Valor                      |
+  |----------|--------|----------------------------|
+  | `rol`    | string | `administrador`            |
+  | `nombre` | string | el nombre de ella          |
+
+- Guardar. Después **Agregar documento** con el UID del personal, igual pero
+  con `rol` = `personal` y `nombre` = `Lagos` (o como se llame el puesto).
+- El valor de `rol` tiene que ser exactamente `administrador` o `personal`,
+  en minúscula: cualquier otra cosa cuenta como personal.
 
 Sin este documento la cuenta puede entrar pero no ve nada: así nadie queda
 de administrador por accidente.
