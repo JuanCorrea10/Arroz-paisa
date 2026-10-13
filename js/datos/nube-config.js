@@ -1,26 +1,39 @@
 // ============================================================================
-//  nube-config.js  -  Las señas del proyecto de Firebase
+//  nube-config.js  -  Las señas del proyecto de Firebase, y el interruptor
 //
-//  Con esto en null la app trabaja como siempre: sola en este computador.
-//  Con las señas puestas, pide cuenta al entrar y comparte los datos entre
-//  los computadores del negocio (ver nube.js).
+//  Con la nube APAGADA la app trabaja como siempre: sola en este computador,
+//  sin pedir cuenta y sin cargar ni un byte de Firebase.
+//
+//  Está apagada a propósito mientras no estén las dos cuentas (la de ella y la
+//  de Lagos) y los datos subidos: prenderla le cambia la app a ella apenas
+//  recarga -- le pide correo y clave. Para probar sin tocarle nada a nadie, se
+//  abre la app con "?probar-nube" al final de la dirección: así se prende solo
+//  en ESA pestaña.
 //
 //  Estas señas NO son un secreto: identifican el proyecto, no abren nada. Lo
-//  que protege los datos son las reglas del servidor (firebase/firestore.rules)
-//  y las cuentas. Por eso pueden ir aquí, en un archivo público.
-//
-//  Se sacan de la consola de Firebase: Configuración del proyecto > Tus apps >
-//  la app web > "Configuración del SDK". Ver firebase/COMO-CREAR-EL-PROYECTO.md.
+//  que protege los datos son las reglas (firebase/firestore.rules) y las
+//  cuentas. Por eso pueden ir aquí, en un archivo público.
 // ============================================================================
 
-export const CONFIG_NUBE = null;
+/** El interruptor. Se pone en true el día que se pasa todo a la nube. */
+const ENCENDIDA = false;
 
-// Así se ve cuando está puesta:
-// export const CONFIG_NUBE = {
-//   apiKey: "AIza...",
-//   authDomain: "arroz-paisa.firebaseapp.com",
-//   projectId: "arroz-paisa",
-//   storageBucket: "arroz-paisa.appspot.com",
-//   messagingSenderId: "123456789",
-//   appId: "1:123456789:web:abcdef",
-// };
+const SENAS = {
+  apiKey: "AIzaSyBcVLZdOpvCcKtzf1Zc6YCKGcLfy7fc6b0",
+  authDomain: "arros-paisa.firebaseapp.com",
+  projectId: "arros-paisa",
+  storageBucket: "arros-paisa.firebasestorage.app",
+  messagingSenderId: "852537927134",
+  appId: "1:852537927134:web:da83a3714f52f186d1e94f",
+};
+
+function seProbaraEnEstaPestana() {
+  try {
+    return typeof location !== "undefined" &&
+      new URLSearchParams(location.search).has("probar-nube");
+  } catch {
+    return false;
+  }
+}
+
+export const CONFIG_NUBE = ENCENDIDA || seProbaraEnEstaPestana() ? SENAS : null;
