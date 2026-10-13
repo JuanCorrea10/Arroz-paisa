@@ -1033,22 +1033,26 @@ function tituloDeEmpresa(doc, codigo, razonSocial, apunte, y) {
   return y + (abajo ? 18 : 13) + (nombre.renglones.length - 1) * nombre.tam * ALTO_RENGLON;
 }
 
-export function pdfComandasDelDia(comandas, fecha, nombreEmpresa, acreedor) {
+export function pdfComandasDelDia(comandas, fecha, nombreEmpresa, acreedor, esCasa = false) {
   const doc = nuevoDocumento();
   const rotulo = () => encabezado(doc, "PEDIDOS DEL DÍA", `${fechaLarga(fecha)} · ${nombreEmpresa}`, acreedor);
   const y = rotulo();
 
   const fin = tablaDeComandas(doc, comandas, y, rotulo);
 
-  // Si alguien pagó de una, se dice aparte: ese dinero está en la caja, no en
-  // la cuenta de la empresa, y quien recibe el papel tiene que saberlo.
+  // Si alguien pagó en efectivo, se dice aparte: ese dinero está en la caja,
+  // no en la cuenta de la empresa, y quien recibe el papel tiene que saberlo.
+  // En la casa sí va en su cuenta (entraEnLaCuentaDe), así que ahí se dice
+  // solo lo que es cierto: que está en la caja.
   const deContado = comandas.reduce((a, c) => a + c.deContado, 0);
   if (deContado > 0) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9.5);
     doc.setTextColor(...GRIS);
     doc.text(
-      `De ese total, ${pesos(deContado)} ya se pagó en efectivo y NO va en la cuenta de la empresa.`,
+      esCasa
+        ? `De ese total, ${pesos(deContado)} se pagó en efectivo y está en la caja.`
+        : `De ese total, ${pesos(deContado)} ya se pagó en efectivo y NO va en la cuenta de la empresa.`,
       14, fin + 8
     );
   }

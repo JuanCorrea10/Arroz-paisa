@@ -15,7 +15,7 @@ import { nombreMes, sedeDeEmpresa, razonSocialDe } from "../nucleo/formato.js";
 import {
   indicePorCodigo, quincenaDe, subtotal, delMes, deQuincena, sumar,
   contarFacturas, informePorPersona, clavePrecio,
-  loPagaLaEmpresa, formaDeCobro, sumarLoDeLaEmpresa,
+  entraEnLaCuentaDe, formaDeCobro, sumarLoDeLaEmpresa,
 } from "../nucleo/calculos.js";
 
 /** Exporta TODO: es el respaldo completo en formato Excel. */
@@ -140,8 +140,8 @@ export async function exportarEmpresaAExcel(datos, codigoEmpresa, anio, mes) {
       ]),
   ];
 
-  const q1 = mios.filter((c) => loPagaLaEmpresa(c) && quincenaDe(c.fecha, empresa) === 1);
-  const q2 = mios.filter((c) => loPagaLaEmpresa(c) && quincenaDe(c.fecha, empresa) === 2);
+  const q1 = mios.filter((c) => entraEnLaCuentaDe(c, empresa) && quincenaDe(c.fecha, empresa) === 1);
+  const q2 = mios.filter((c) => entraEnLaCuentaDe(c, empresa) && quincenaDe(c.fecha, empresa) === 2);
 
   const portada = [
     ["CONSUMO DE ALMUERZOS"],

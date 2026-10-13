@@ -18,8 +18,8 @@ import { pesos, nombreMes, fechaCorta, fechaLarga, normalizar,
   razonSocialDe } from "../nucleo/formato.js";
 import {
   cuentaDeCobro, deQuincena, sumar, fechaDeCobro, ponerFechaDeCobro,
-  esCortesia, sumarLoDeLaEmpresa, sumarLoDeContado, loPagaLaEmpresa,
-  contarFacturas, fueraDelRango, deRango, esLaCasa,
+  esCortesia, sumarLoDeEstaEmpresa, sumarLoDeContado, entraEnLaCuentaDe,
+  contarFacturas, fueraDelRango, deRango,
   rangoQuincena, rangoDeCobro, ponerRangoDeCobro, rangoEnFechas,
 } from "../nucleo/calculos.js";
 import { ponerlePrecio } from "../nucleo/modelo.js";
@@ -392,7 +392,7 @@ function seccionDeCobro(raiz, empresa, quincena, acreedor, repintar, conTitulo) 
     poner(raiz,
       el("div", { clase: "nota malo no-imprimir" },
         el("div", {},
-          el("strong", { texto: `${pesos(sumarLoDeLaEmpresa(afuera))} de esta quincena no entran en la cuenta` }),
+          el("strong", { texto: `${pesos(sumarLoDeEstaEmpresa(afuera, empresa))} de esta quincena no entran en la cuenta` }),
           el("p", { texto:
             `La cuenta cubre ${rangoEnPalabras(cubre.desde, cubre.hasta).toLowerCase()}, así que ` +
             `${dias.length === 1 ? "el día" : "los días"} ${dias.join(", ")} ` +
@@ -414,29 +414,12 @@ function seccionDeCobro(raiz, empresa, quincena, acreedor, repintar, conTitulo) 
   }
 
   if (!cuenta.personas.length) {
-    // Una cuenta vacía tiene DOS causas distintas, y confundirlas cuesta.
-    //
-    // En una fábrica quiere decir "ese periodo no comió nadie". En la casa
-    // casi siempre quiere decir otra cosa: que sus platos nacen marcados
-    // "pagó de una" -- porque la cocinera paga de su bolsillo -- y la cuenta
-    // de cobro solo recoge lo que esté a crédito. Sin explicarlo, ella ve un
-    // $ 0 mudo y cree que la app no sirve.
-    poner(raiz, esLaCasa(empresa)
-      ? vacio(
-          `No hay nada a crédito en ${empresaCobro} en este periodo`,
-          el("p", {},
-            "En su propio restaurante los platos nacen marcados como ",
-            el("strong", { texto: "“Pagó de una”" }),
-            ", porque su gente paga de su bolsillo, y la cuenta de cobro solo " +
-            "recoge lo que esté a crédito. Si a alguien de aquí sí hay que " +
-            "cobrarle, marque sus platos como ",
-            el("strong", { texto: "“A crédito”" }),
-            " en ",
-            el("a", { href: "#registrar", texto: "Registrar el día" }),
-            " y vuelva: salen solos."))
-      : vacio(
-          `No hay nada que cobrarle a ${empresaCobro} en la quincena ${quincena} de ${nombreMes(estado.mes)}`,
-          "Pruebe con la otra quincena, con otro mes o con otra empresa."));
+    // Vacía quiere decir "ese periodo no comió nadie", también en la casa:
+    // su cuenta recoge todo lo que comió su gente (entraEnLaCuentaDe), así
+    // que ya no sale en $ 0 por nacer "pagó en efectivo".
+    poner(raiz, vacio(
+      `No hay nada que cobrarle a ${empresaCobro} en la quincena ${quincena} de ${nombreMes(estado.mes)}`,
+      "Pruebe con la otra quincena, con otro mes o con otra empresa."));
   } else {
     poner(raiz, documentoDeCobro(cuenta, acreedor));
   }
@@ -766,15 +749,21 @@ export function totalesDelMes() {
   return empresas().map((e) => {
     const q1 = deQuincena(estado.datos.consumos, estado.anio, estado.mes, 1, e);
     const q2 = deQuincena(estado.datos.consumos, estado.anio, estado.mes, 2, e);
-    const cobraQ1 = sumarLoDeLaEmpresa(q1);
-    const cobraQ2 = sumarLoDeLaEmpresa(q2);
+    const cobraQ1 = sumarLoDeEstaEmpresa(q1, e);
+    const cobraQ2 = sumarLoDeEstaEmpresa(q2, e);
     return {
       empresa: e,
       q1: cobraQ1,
       q2: cobraQ2,
       total: cobraQ1 + cobraQ2,
-      facturas: contarFacturas(q1.filter(loPagaLaEmpresa)) + contarFacturas(q2.filter(loPagaLaEmpresa)),
-      deContado: sumarLoDeContado(q1) + sumarLoDeContado(q2),
+      facturas: contarFacturas(q1.filter((c) => entraEnLaCuentaDe(c, e))) +
+                contarFacturas(q2.filter((c) => entraEnLaCuentaDe(c, e))),
+      // Lo que "no va en ninguna cuenta": lo de contado de las fábricas. Lo
+      // de la casa sí va en la suya, así que no se puede contar aquí o el
+      // aviso de abajo diría que $ 36.000 no van en ninguna cuenta estando
+      // en la de la casa, un renglón más arriba.
+      deContado: sumarLoDeContado(q1.filter((c) => !entraEnLaCuentaDe(c, e))) +
+                 sumarLoDeContado(q2.filter((c) => !entraEnLaCuentaDe(c, e))),
     };
   });
 }

@@ -568,6 +568,15 @@ try {
     }
   }
 
+  // "&forzar=casa+cobro:CASA" pone el selector de la cuenta de cobro en esa
+  // empresa. Hace falta para MIRAR la cuenta de la casa, que es la que salía
+  // en $ 0 con las facturas contadas al lado.
+  if (forzar.includes("cobro:")) {
+    const cual = forzar.split("cobro:")[1].split("+")[0];
+    const sel = document.getElementById("cobro-empresa");
+    if (sel) { sel.value = cual; sel.dispatchEvent(new Event("change", { bubbles: true })); }
+  }
+
   // "&forzar=todas-las-empresas" pone el selector de la cuenta de cobro en
   // Todas. Esa eleccion vive dentro de cobro.js y no se puede poner por URL.
   if (forzar === "todas-las-empresas") {

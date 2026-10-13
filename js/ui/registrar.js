@@ -463,7 +463,8 @@ function botonDePedidosEnPDF() {
       pdfComandasDelDia(
         comandas, estado.fecha,
         emp.codigo || estado.empresa,
-        estado.datos.config.acreedor
+        estado.datos.config.acreedor,
+        esLaCasa(emp)
       );
       mensaje("PDF descargado.", "bien");
     } catch (e) {

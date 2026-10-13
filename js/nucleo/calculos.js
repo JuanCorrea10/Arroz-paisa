@@ -234,6 +234,33 @@ export function subtotalAcreditoDeEmpresa(consumo) {
   return loPagaLaEmpresa(consumo) ? subtotal(consumo) : 0;
 }
 
+/**
+ * ¿Este renglón entra en la cuenta de ESTA empresa?
+ *
+ * En una fábrica, solo lo que está a crédito: lo de contado ya lo pagó la
+ * persona en la caja, y cobrárselo a la empresa sería cobrarlo dos veces.
+ *
+ * En la casa (el restaurante mismo), TODO lo que comió su gente menos las
+ * cortesías. Su gente paga en efectivo -- por eso sus platos nacen "pagó en
+ * efectivo" y van a la caja -- y no hay ninguna empresa a la que se le pueda
+ * cobrar dos veces. Con la regla de las fábricas, todas las cuentas de la
+ * casa salían en $ 0 con las facturas contadas al lado; fue lo que ella vio:
+ * "el total de Arroz Paisa no suma".
+ */
+export function entraEnLaCuentaDe(consumo, empresa) {
+  if (esLaCasa(empresa)) return !esCortesia(consumo);
+  return loPagaLaEmpresa(consumo);
+}
+
+export function subtotalParaLaEmpresa(consumo, empresa) {
+  return entraEnLaCuentaDe(consumo, empresa) ? subtotal(consumo) : 0;
+}
+
+/** Suma lo que va en la cuenta de ESTA empresa (ver entraEnLaCuentaDe). */
+export function sumarLoDeEstaEmpresa(consumos, empresa) {
+  return consumos.reduce((acc, c) => acc + subtotalParaLaEmpresa(c, empresa), 0);
+}
+
 /** Lo que de este renglón entró en efectivo. */
 export function subtotalDeContado(consumo) {
   return yaLoPago(consumo) ? subtotal(consumo) : 0;
@@ -349,7 +376,7 @@ export function fueraDelRango(consumos, anio, mes, quincena, empresa, rangoEscog
   const { desde, hasta } = rangoEnFechas(
     anio, mes, rangoEscogido || rangoQuincena(anio, mes, quincena, empresa));
   return deQuincena(consumos, anio, mes, quincena, empresa)
-    .filter(loPagaLaEmpresa)
+    .filter((c) => entraEnLaCuentaDe(c, empresa))
     .filter((c) => esFechaISO(c.fecha) && (c.fecha < desde || c.fecha > hasta));
 }
 
@@ -715,7 +742,9 @@ export function informePorPersona(consumos, anio, mes, empresasPorCodigo, codigo
     const fila = porPersona.get(llave);
     const empresa = empresasPorCodigo[normalizar(c.empresa)];
     const q = quincenaDe(c.fecha, empresa);
-    const alaEmpresa = subtotalAcreditoDeEmpresa(c);
+    // Para la casa, "lo de la empresa" es todo lo que comió (ver
+    // entraEnLaCuentaDe); la columna de efectivo sigue diciendo cómo lo pagó.
+    const alaEmpresa = subtotalParaLaEmpresa(c, empresa);
     if (q === 1) fila.q1 += alaEmpresa;
     else if (q === 2) fila.q2 += alaEmpresa;
     fila.mes += alaEmpresa;
@@ -767,7 +796,8 @@ export function informePorPersona(consumos, anio, mes, empresasPorCodigo, codigo
 /**
  * CUENTA DE COBRO: el documento que se le entrega a la empresa.
  * Un renglón por plato, con cantidad, valor unitario y total.
- * Solo entra lo que paga la empresa: ni lo de contado ni las cortesías.
+ * Solo entra lo que paga la empresa: ni lo de contado ni las cortesías. En la
+ * casa, todo lo que comió su gente (ver entraEnLaCuentaDe).
  */
 export function cuentaDeCobro(consumos, anio, mes, quincena, empresa, fechaCuenta = null, rango = null) {
   // A la casa TAMBIÉN se le puede hacer cuenta de cobro.
@@ -777,13 +807,14 @@ export function cuentaDeCobro(consumos, anio, mes, quincena, empresa, fechaCuent
   // tiene, porque ella lo pidió: al restaurante propio también hay a quién
   // cobrarle.
   //
-  // No hace falta ningún trato especial: la cuenta solo recoge lo que esté
-  // marcado "a crédito", y en la casa los platos nacen "pagó de una". Así
-  // que la cuenta de una casa sale vacía mientras ella no marque a crédito
-  // lo que sí va a cobrar -- que es justo lo correcto, y la pantalla lo
-  // explica en vez de mostrar un $ 0 mudo.
-  // Lo de contado NO puede entrar aquí. Si entrara, se le cobraría a la
-  // empresa un almuerzo que la persona ya pagó en la caja: cobrado dos veces.
+  // Y en la casa entra TODO lo que comió su gente. Primero se dejó como en
+  // las fábricas (solo lo a crédito) y, como sus platos nacen "pagó en
+  // efectivo", la cuenta salía siempre en $ 0 con las facturas contadas al
+  // lado. Ella lo vio de una: "el total de Arroz Paisa no suma". En la casa
+  // no hay a quién cobrarle dos veces; la regla está en entraEnLaCuentaDe.
+  //
+  // En una fábrica lo de contado NO puede entrar. Si entrara, se le cobraría
+  // a la empresa un almuerzo que la persona ya pagó en la caja: dos veces.
   // El rango escogido MANDA. Si ella dijo "esta cuenta va del 3 al 20", la
   // cuenta lleva esos días y no los que le tocarían a la quincena: es ella la
   // que sabe qué periodo le está pasando a la fábrica. Sin rango escogido,
@@ -792,7 +823,7 @@ export function cuentaDeCobro(consumos, anio, mes, quincena, empresa, fechaCuent
   const lista = (rango
     ? deRango(consumos, anio, mes, rango, empresa)
     : deQuincena(consumos, anio, mes, quincena, empresa)
-  ).filter(loPagaLaEmpresa);
+  ).filter((c) => entraEnLaCuentaDe(c, empresa));
 
   // Por PERSONA y, dentro de cada una, DÍA POR DÍA.
   //
@@ -1310,7 +1341,7 @@ export function informeCompletoDeEmpresa(datos, codigoEmpresa, anio, mes) {
   const cod = normalizar(codigoEmpresa);
   const mios = delMes(datos.consumos, anio, mes).filter(
     (c) => normalizar(c.empresa) === cod);
-  const cobrables = mios.filter(loPagaLaEmpresa);
+  const cobrables = mios.filter((c) => entraEnLaCuentaDe(c, empresa));
 
   const q1 = cobrables.filter((c) => quincenaDe(c.fecha, empresa) === 1);
   const q2 = cobrables.filter((c) => quincenaDe(c.fecha, empresa) === 2);
@@ -1333,7 +1364,7 @@ export function informeCompletoDeEmpresa(datos, codigoEmpresa, anio, mes) {
       fecha,
       renglones,
       facturas: contarFacturas(renglones),
-      total: sumarLoDeLaEmpresa(renglones),
+      total: sumarLoDeEstaEmpresa(renglones, empresa),
       notas: notasDelDia(mios, fecha, [codigoEmpresa]),
     };
   });

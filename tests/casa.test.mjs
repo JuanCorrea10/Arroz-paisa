@@ -5,18 +5,24 @@
 //  UNA, de su bolsillo. O sea que sí es una venta y esa plata sí entra a la
 //  caja -- pero NO son un cliente al que se le pasa una cuenta a fin de mes.
 //
-//  Lo de la cuenta de cobro cambió: ella pidió que al restaurante propio
-//  también se le pueda pasar una, y ahora se puede. Lo que NO cambia es lo
-//  otro: que cada plato de la casa entrara "a crédito" -- o sea como plata que
-//  alguien debe, cuando ya la pagaron -- haría que esa plata nunca apareciera
-//  en la caja y el cuadre no diera nunca. Por eso nacen "pagó de una".
+//  Lo de la cuenta de cobro cambió dos veces. Primero ella pidió que al
+//  restaurante propio también se le pueda pasar una. Después vio que salía en
+//  $ 0 con las facturas contadas al lado: la cuenta solo recogía lo a crédito
+//  y los platos de la casa nacen "pagó en efectivo". Ahora, en la casa, la
+//  cuenta recoge TODO lo que comió su gente (menos cortesías): no hay a quién
+//  cobrarle dos veces. En una fábrica sigue igual: lo de contado no entra.
+//
+//  Lo que NO cambia: cada plato de la casa nace "pagó en efectivo" y entra a
+//  la caja. Si entrara "a crédito" -- plata que alguien debe, cuando ya la
+//  pagaron -- esa plata nunca aparecería en la caja y el cuadre no daría.
 // ============================================================================
 
 import { grupo, prueba, igual, cierto } from "./probar.mjs";
 import {
   esLaCasa, empresasClientes, cuentaDeCobro, ventasEnRango,
-  sumarLoDeContado, sumarLoDeLaEmpresa, formaDeCobro,
-  A_CREDITO, DE_CONTADO,
+  sumarLoDeContado, sumarLoDeLaEmpresa, formaDeCobro, entraEnLaCuentaDe,
+  informeCompletoDeEmpresa, informePorPersona, indicePorCodigo,
+  A_CREDITO, DE_CONTADO, CORTESIA,
 } from "../js/nucleo/calculos.js";
 import { datosVacios, agregarEmpresa, nuevoConsumo } from "../js/nucleo/modelo.js";
 
@@ -53,14 +59,53 @@ prueba("a la casa TAMBIÉN se le puede hacer cuenta de cobro", () => {
   igual(cuenta.personas.length, 1);
 });
 
-prueba("pero solo entra lo que esté a crédito, como en cualquier empresa", () => {
-  // En la casa los platos nacen "pagó de una", así que la cuenta sale vacía
-  // mientras ella no marque a crédito lo que sí va a cobrar. Es correcto, y
-  // la pantalla lo explica en vez de mostrar un $ 0 mudo.
+prueba("y en la casa entra TODO lo que comió su gente, aunque lo pagó en efectivo", () => {
+  // Sus platos nacen "pagó en efectivo". Con la regla de las fábricas la
+  // cuenta salía en $ 0 con las facturas contadas al lado, y ella lo vio de
+  // una: "el total de Arroz Paisa no suma". No hay a quién cobrarle dos veces.
   const d = negocio();
   const casa = d.empresas.find((e) => e.codigo === "CASA");
   const cuenta = cuentaDeCobro([almuerzoDeLaCasa(DE_CONTADO)], 2026, 8, 1, casa);
-  igual(cuenta.total, 0, "lo que ya se pagó no se cobra otra vez");
+  igual(cuenta.total, 12000);
+  igual(cuenta.facturas, 1, "y las facturas cuadran con la plata");
+});
+
+prueba("menos las cortesías: un regalo no es plata, ni en la casa", () => {
+  const d = negocio();
+  const casa = d.empresas.find((e) => e.codigo === "CASA");
+  igual(cuentaDeCobro([almuerzoDeLaCasa(CORTESIA)], 2026, 8, 1, casa).total, 0);
+  igual(entraEnLaCuentaDe(almuerzoDeLaCasa(CORTESIA), casa), false);
+  igual(entraEnLaCuentaDe(almuerzoDeLaCasa(DE_CONTADO), casa), true);
+});
+
+prueba("en una fábrica lo de contado SIGUE por fuera: cobrarlo sería cobrarlo dos veces", () => {
+  const d = negocio();
+  const mgp = d.empresas.find((e) => e.codigo === "MGP");
+  const pagado = nuevoConsumo({
+    fecha: "2026-08-03", empresa: "MGP", persona: "PEDRO", producto: "ALMUERZO",
+    cantidad: 1, precioUnitario: 12000, cobro: DE_CONTADO,
+  });
+  igual(entraEnLaCuentaDe(pagado, mgp), false);
+  igual(cuentaDeCobro([pagado], 2026, 8, 1, mgp).total, 0);
+});
+
+prueba("el informe que se comparte y Por persona suman lo de la casa igual que la cuenta", () => {
+  // Era donde más se veía: "Total del mes $ 0" al lado de "Facturas del mes 3".
+  const d = negocio();
+  d.consumos.push(almuerzoDeLaCasa(DE_CONTADO));
+  d.consumos.push(nuevoConsumo({
+    fecha: "2026-08-04", empresa: "CASA", persona: "ROSA", producto: "ALMUERZO",
+    cantidad: 1, precioUnitario: 12000, cobro: DE_CONTADO,
+  }));
+  const informe = informeCompletoDeEmpresa(d, "CASA", 2026, 8);
+  igual(informe.totales.mes, 24000);
+  igual(informe.totales.facturas, 2);
+  igual(informe.dias.map((x) => x.total), [12000, 12000]);
+
+  const rosa = informePorPersona(d.consumos, 2026, 8, indicePorCodigo(d.empresas))
+    .find((f) => f.persona === "ROSA" && f.empresa === "CASA");
+  igual(rosa.mes, 24000, "lo que comió");
+  igual(rosa.contado, 24000, "y cómo lo pagó, que es otra pregunta");
 });
 
 /** Un almuerzo de la casa, para las dos pruebas de arriba. */

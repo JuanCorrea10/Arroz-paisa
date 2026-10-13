@@ -952,7 +952,9 @@ export function pintarPorPersona(raiz) {
         // Lo que la persona pagó de su bolsillo NO va en las otras columnas:
         // esas son lo que se le cobra a la empresa, y meterlo ahí se lo
         // descontaría dos veces. Pero si no sale en ninguna parte, alguien que
-        // pagó todo de una aparece en $ 0 -- como si no hubiera comido.
+        // pagó todo en efectivo aparece en $ 0 -- como si no hubiera comido.
+        // (En la casa sí va en las otras columnas, porque su cuenta es todo lo
+        // que comió su gente; esta columna sigue diciendo cómo lo pagó.)
         //
         // La columna sale solo cuando hay: el resto del tiempo sería una
         // columna de rayas que hay que leer todos los días para nada.
