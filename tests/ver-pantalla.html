@@ -131,6 +131,17 @@ try {
   // Una cuenta de cobro con los días escogidos a mano, y a propósito más
   // cortos que la quincena: así se ve el aviso de la plata que se queda por
   // fuera, que es el que no se puede probar con los datos tal como vienen.
+  // La quincena 1 ampliada hasta fin de mes: se cruza con la quincena 2 y
+  // tiene que salir el aviso de cobro doble. Con "+cambiando" se ven
+  // también los calendarios abiertos.
+  if (forzar.includes("cobro-doble") && datos.empresas.length) {
+    const { ponerRangoDeCobro } = await import("../js/nucleo/calculos.js");
+    const dos = (n) => String(n).padStart(2, "0");
+    ponerRangoDeCobro(datos, datos.empresas[0].codigo, estado.anio, estado.mes, 1, {
+      desde: `${estado.anio}-${dos(estado.mes)}-01`,
+      hasta: `${estado.anio}-${dos(estado.mes)}-28`,
+    });
+  }
   if (forzar === "rango-corto" && datos.empresas.length) {
     const { ponerRangoDeCobro } = await import("../js/nucleo/calculos.js");
     ponerRangoDeCobro(datos, datos.empresas[0].codigo, estado.anio, estado.mes, 1,

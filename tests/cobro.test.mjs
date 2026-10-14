@@ -19,7 +19,7 @@ import {
   subtotal, sumar, sumarLoDeLaEmpresa, sumarLoDeContado,
   cuentaDeCobro, informeDia, informePorPersona, informeCompletoDeEmpresa,
   indicePorCodigo, deRango, rangoDeCobro, ponerRangoDeCobro, historialDePersona,
-  precioDe,
+  precioDe, cuentasQueSeCruzan, fechasDeLaCuenta,
 } from "../js/nucleo/calculos.js";
 import { ponerlePrecio } from "../js/nucleo/modelo.js";
 
@@ -685,4 +685,79 @@ prueba("una fecha que no es fecha tampoco se guarda", () => {
   const datos = negocio([]);
   ponerRangoDeCobro(datos, "MGP", 2026, 8, 1, { desde: "el lunes", hasta: "2026-12-31" });
   igual(rangoDeCobro(datos, "MGP", 2026, 8, 1), null);
+});
+
+// ---------------------------------------------------------------------------
+grupo("Dos cuentas no cobran lo mismo sin que se diga");
+
+// Un almuerzo el 5 (quincena 1) y otro el 20 (quincena 2), los dos a crédito.
+const DOS_QUINCENAS = [
+  renglon(A_CREDITO, { fecha: "2026-08-05" }),
+  renglon(A_CREDITO, { fecha: "2026-08-20" }),
+];
+
+prueba("las dos quincenas normales no se cruzan", () => {
+  const datos = negocio(DOS_QUINCENAS);
+  igual(cuentasQueSeCruzan(datos, datos.empresas[0], 2026, 8, 1), []);
+  igual(cuentasQueSeCruzan(datos, datos.empresas[0], 2026, 8, 2), []);
+});
+
+prueba("ampliar la quincena 1 hasta el 31 se cruza con la quincena 2, y dice cuánto", () => {
+  const datos = negocio(DOS_QUINCENAS);
+  ponerRangoDeCobro(datos, "MGP", 2026, 8, 1, { desde: "2026-08-01", hasta: "2026-08-31" });
+  const cruces = cuentasQueSeCruzan(datos, datos.empresas[0], 2026, 8, 1);
+  igual(cruces.length, 1, "una sola cuenta más cobra lo mismo");
+  igual(cruces[0].quincena, 2);
+  igual(cruces[0].plata, PRECIO, "el almuerzo del 20 se cobraría dos veces");
+  igual(cruces[0].fechas, ["2026-08-20"]);
+  igual(cruces[0].escogida, false, "la quincena 2 sigue en sus días normales");
+});
+
+prueba("y desde la quincena 2 también se ve, señalando la que se escogió a mano", () => {
+  const datos = negocio(DOS_QUINCENAS);
+  ponerRangoDeCobro(datos, "MGP", 2026, 8, 1, { desde: "2026-08-01", hasta: "2026-08-31" });
+  const cruces = cuentasQueSeCruzan(datos, datos.empresas[0], 2026, 8, 2);
+  igual(cruces.length, 1);
+  igual(cruces[0].quincena, 1);
+  igual(cruces[0].escogida, true);
+  igual([cruces[0].desde, cruces[0].hasta], ["2026-08-01", "2026-08-31"]);
+});
+
+prueba("si en los días repetidos no hay nada cobrado, no avisa", () => {
+  // Un aviso sin plata detrás enseña a no leer los avisos.
+  const datos = negocio([renglon(A_CREDITO, { fecha: "2026-08-05" })]);
+  ponerRangoDeCobro(datos, "MGP", 2026, 8, 1, { desde: "2026-08-01", hasta: "2026-08-31" });
+  igual(cuentasQueSeCruzan(datos, datos.empresas[0], 2026, 8, 1), []);
+});
+
+prueba("lo pagado de contado en los días repetidos no cuenta como cobro doble", () => {
+  // A la fábrica no se le cobra lo de contado en ninguna de las dos cuentas.
+  const datos = negocio([
+    renglon(A_CREDITO, { fecha: "2026-08-05" }),
+    renglon(DE_CONTADO, { fecha: "2026-08-20" }),
+  ]);
+  ponerRangoDeCobro(datos, "MGP", 2026, 8, 1, { desde: "2026-08-01", hasta: "2026-08-31" });
+  igual(cuentasQueSeCruzan(datos, datos.empresas[0], 2026, 8, 1), []);
+});
+
+prueba("una cuenta de enero que cubre el año se cruza con las de agosto", () => {
+  const datos = negocio(DOS_QUINCENAS);
+  ponerRangoDeCobro(datos, "MGP", 2026, 1, 1, { desde: "2026-01-01", hasta: "2026-12-31" });
+  const cruces = cuentasQueSeCruzan(datos, datos.empresas[0], 2026, 8, 1);
+  igual(cruces.map((c) => [c.mes, c.quincena]), [[1, 1]]);
+  igual(cruces[0].plata, PRECIO, "solo el almuerzo del 5, que es el de esta cuenta");
+});
+
+prueba("sin nada que cobrar, no hay con qué cruzarse", () => {
+  const datos = negocio([]);
+  igual(cuentasQueSeCruzan(datos, datos.empresas[0], 2026, 8, 1), []);
+});
+
+prueba("las fechas de una cuenta: las escogidas o, si no hay, las de la quincena", () => {
+  const datos = negocio([]);
+  igual(fechasDeLaCuenta(datos, datos.empresas[0], 2026, 8, 2),
+        { desde: "2026-08-16", hasta: "2026-08-31" });
+  ponerRangoDeCobro(datos, "MGP", 2026, 8, 2, { desde: "2026-08-16", hasta: "2026-09-10" });
+  igual(fechasDeLaCuenta(datos, datos.empresas[0], 2026, 8, 2),
+        { desde: "2026-08-16", hasta: "2026-09-10" });
 });

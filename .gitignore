@@ -70,3 +70,7 @@ node_modules/
 *.oiv
 *.rtf
 Untitled-*.png
+
+# Restos de herramientas del editor y de Firebase: no son del proyecto.
+firebase-debug.log
+.kilo/

@@ -1003,6 +1003,84 @@ export function ponerRangoDeCobro(datos, codigoEmpresa, anio, mes, quincena, ran
 }
 
 /**
+ * Los días que cobra UNA cuenta, en fechas: los escogidos a mano o, si no hay,
+ * los de la quincena de la empresa. Es lo que dice el papel.
+ */
+export function fechasDeLaCuenta(datos, empresa, anio, mes, quincena) {
+  return rangoDeCobro(datos, empresa.codigo, anio, mes, quincena)
+    || rangoEnFechas(anio, mes, rangoQuincena(anio, mes, quincena, empresa));
+}
+
+/** Los renglones que cobra UNA cuenta: exactamente los que van a su papel. */
+function renglonesDeLaCuenta(datos, empresa, anio, mes, quincena) {
+  const propio = rangoDeCobro(datos, empresa.codigo, anio, mes, quincena);
+  return (propio
+    ? deRango(datos.consumos, anio, mes, propio, empresa)
+    : deQuincena(datos.consumos, anio, mes, quincena, empresa)
+  ).filter((c) => entraEnLaCuentaDe(c, empresa));
+}
+
+/**
+ * Las OTRAS cuentas de la misma empresa que cobran algo que esta también cobra.
+ *
+ * Existe porque las fechas escogidas a mano se guardan DENTRO de una quincena.
+ * Si ella amplía la quincena 1 de agosto hasta el 31, la quincena 2 de agosto
+ * sigue ahí, cobrando del 14 al 31 por su cuenta: entregar las dos es cobrarle
+ * a la fábrica esos días dos veces, y la pantalla no lo decía. Es el error de
+ * plata que no se ve, el mismo que vino a arreglar esta app.
+ *
+ * Compara RENGLONES, no fechas. Sin fechas escogidas, una cuenta no cobra
+ * "del 1 al 13" sino "lo de antes del corte" (deQuincena), y ese día 1 que el
+ * papel no nombra también se cobra. Comparar fechas se equivocaría justo ahí;
+ * comparar los renglones que va a cobrar cada una, no.
+ *
+ * No impide nada: a veces es a propósito (una fábrica atrasada a la que se le
+ * pasa una sola cuenta por todo el año, y las demás no se entregan). Solo
+ * avisa cuánto y con cuál, para que no pase sin que nadie se entere. Sin plata
+ * en común no hay nada que cobrar dos veces, y no sale.
+ *
+ * Devuelve [{ anio, mes, quincena, escogida, desde, hasta, plata, fechas }],
+ * de la más vieja a la más nueva.
+ */
+export function cuentasQueSeCruzan(datos, empresa, anio, mes, quincena) {
+  if (!empresa) return [];
+  const estos = new Set(renglonesDeLaCuenta(datos, empresa, anio, mes, quincena));
+  if (!estos.size) return [];
+
+  // Las candidatas: las dos quincenas de cada mes que tocan los renglones de
+  // esta cuenta, y cualquier cuenta de la empresa con fechas escogidas a mano,
+  // que puede venir de cualquier mes (la de enero que cubre todo el año).
+  const candidatas = new Map();
+  const agregar = (a, m, q) => candidatas.set(`${a}|${m}|${q}`, { anio: a, mes: m, quincena: q });
+  for (const c of estos) {
+    const [a, m] = c.fecha.split("-").map(Number);
+    agregar(a, m, 1);
+    agregar(a, m, 2);
+  }
+  const codigo = normalizar(empresa.codigo);
+  for (const llave of Object.keys(datos.rangosDeCobro || {})) {
+    const [cod, a, m, q] = llave.split("|");
+    if (cod === codigo) agregar(Number(a), Number(m), Number(q));
+  }
+  candidatas.delete(`${anio}|${mes}|${quincena}`);
+
+  const cruces = [];
+  for (const { anio: a, mes: m, quincena: q } of candidatas.values()) {
+    const comunes = renglonesDeLaCuenta(datos, empresa, a, m, q).filter((c) => estos.has(c));
+    const plata = sumarLoDeEstaEmpresa(comunes, empresa);
+    if (plata <= 0) continue;
+    const { desde, hasta } = fechasDeLaCuenta(datos, empresa, a, m, q);
+    cruces.push({
+      anio: a, mes: m, quincena: q,
+      escogida: !!rangoDeCobro(datos, empresa.codigo, a, m, q),
+      desde, hasta, plata,
+      fechas: [...new Set(comunes.map((c) => c.fecha))].sort(),
+    });
+  }
+  return cruces.sort((x, y) => x.anio - y.anio || x.mes - y.mes || x.quincena - y.quincena);
+}
+
+/**
  * TODO lo que ha pedido una persona, día por día.
  *
  * No es "el mes que se está mirando": es el historial completo, del día más

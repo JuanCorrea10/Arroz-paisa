@@ -15,12 +15,13 @@ import {
 } from "./estado.js";
 import { pesos, nombreMes, fechaCorta, fechaLarga, normalizar,
   esFechaISO, rangoEnPalabras, diasDichos, sedeDeEmpresa,
-  razonSocialDe } from "../nucleo/formato.js";
+  razonSocialDe, hoyISO } from "../nucleo/formato.js";
 import {
   cuentaDeCobro, deQuincena, sumar, fechaDeCobro, ponerFechaDeCobro,
   esCortesia, sumarLoDeEstaEmpresa, sumarLoDeContado, entraEnLaCuentaDe,
   contarFacturas, fueraDelRango, deRango,
   rangoQuincena, rangoDeCobro, ponerRangoDeCobro, rangoEnFechas,
+  fechasDeLaCuenta, cuentasQueSeCruzan,
 } from "../nucleo/calculos.js";
 import { ponerlePrecio } from "../nucleo/modelo.js";
 import { diceElRango } from "./mantenimiento.js";
@@ -30,6 +31,9 @@ import { exportarEmpresaAExcel } from "../exportar/excel-export.js";
 
 let quincena = 1;
 let empresaCobro = null;
+// Los calendarios de "Cambiar estas fechas" estan abiertos. Se cierran al
+// cambiar de empresa, de mes o de quincena: eran para otra cuenta.
+let cambiandoFechas = false;
 
 // "" quiere decir TODAS. Cadena vacia y no null porque es el value de la
 // opcion en el <select>, y un <select> solo sabe de texto.
@@ -68,20 +72,23 @@ export function pintarCobro(raiz) {
   const susFechas = enJuego.map(
     (e) => fechaDeCobro(estado.datos, e.codigo, estado.anio, estado.mes, quincena) || "");
   const laFecha = susFechas.every((f) => f === susFechas[0]) ? susFechas[0] : "";
+  const ponerLaFecha = (fecha) => {
+    for (const emp of enJuego) {
+      ponerFechaDeCobro(estado.datos, emp.codigo, estado.anio, estado.mes, quincena, fecha);
+    }
+    cambio();
+    repintar();
+  };
 
   // El rango de ESTA cuenta. Si no hay ninguno escogido, manda la quincena de
   // la empresa; si lo hay, manda él y no se toca la empresa -- cambiarle los
   // días a la empresa cambiaría todas las cuentas del año, las ya entregadas
   // incluidas.
-  // El rango va en FECHAS completas, no en días sueltos: una cuenta puede
-  // cubrir "del 1 de enero al 31 de diciembre" cuando una fábrica se atrasa,
-  // y dos números de día no dicen de qué mes son.
   const propio = empresa
     ? rangoDeCobro(estado.datos, empresaCobro, estado.anio, estado.mes, quincena)
     : null;
   const cubre = empresa
-    ? rangoEnFechas(estado.anio, estado.mes,
-        propio || rangoQuincena(estado.anio, estado.mes, quincena, empresa))
+    ? fechasDeLaCuenta(estado.datos, empresa, estado.anio, estado.mes, quincena)
     : null;
 
   const ponerElRango = (desde, hasta) => {
@@ -91,7 +98,7 @@ export function pintarCobro(raiz) {
       return;
     }
     if (desde > hasta) {
-      mensaje("La primera fecha no puede ser después de la última.", "malo", 6);
+      mensaje("La primera fecha no puede ser posterior a la última.", "malo", 6);
       repintar();
       return;
     }
@@ -101,13 +108,26 @@ export function pintarCobro(raiz) {
     repintar();
   };
 
+  // Cambiar de mes, de quincena o de empresa cierra los calendarios: lo que
+  // estaba abierto era para OTRA cuenta.
+  const irAlMes = (cuanto) => {
+    let mes = estado.mes + cuanto;
+    let anio = estado.anio;
+    if (mes < 1) { mes = 12; anio -= 1; }
+    if (mes > 12) { mes = 1; anio += 1; }
+    estado.mes = mes;
+    estado.anio = anio;
+    cambiandoFechas = false;
+    repintar();
+  };
+
   poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
         el("h1", { texto: "Cuenta de cobro" }),
         el("p", { texto: empresa
-          ? "Elija la empresa y las fechas que cubre. El documento sale listo para entregar."
-          : "Las cuentas de las cuatro empresas, una detras de otra. Imprimir las saca en hojas aparte." })
+          ? "Elija la empresa y la quincena. El documento sale listo para entregar."
+          : "Las cuentas de las cuatro empresas, una detrás de otra. Imprimir las saca en hojas aparte." })
       ),
       acciones(
         el("button", { clase: "chico", alHacerClic: () => window.print() },
@@ -123,111 +143,30 @@ export function pintarCobro(raiz) {
           : null
       )
     ),
+    // El cuadro de arriba, en el orden en que ella piensa: a quién, de qué
+    // periodo, y qué fecha lleva el papel.
+    //
+    // Antes eran cinco controles de fecha en fila -- fecha de la cuenta,
+    // quincena, mes, año y "del... al..." -- y tres de ellos decían lo mismo
+    // por caminos distintos: el selector podía decir "Quincena 1 (del 1 al
+    // 13)" mientras la cuenta cobraba "del 5 al 9". Ella lo dijo: "no le
+    // entiendo". Ahora el periodo se dice UNA vez, en una frase, y esa frase
+    // es la misma que sale en el papel.
     el("div", { clase: "mando" },
       el("div", { clase: "campo" },
         el("label", { for: "cobro-empresa", texto: "Empresa" }),
-        el("select", { id: "cobro-empresa", alCambiar: (e) => { empresaCobro = e.target.value; repintar(); } },
+        el("select", { id: "cobro-empresa", alCambiar: (e) => {
+            empresaCobro = e.target.value;
+            cambiandoFechas = false;
+            repintar();
+          } },
           // Va de primera, como en Resumen del dia y en Cuanto vendi: las tres
           // pantallas se eligen igual, y asi no hay que aprenderse cada una.
           el("option", { value: TODAS, selected: empresaCobro === TODAS }, "Todas las empresas"),
           ...empresas().map((e) => el("option", { value: e.codigo, selected: e.codigo === empresaCobro }, `${e.codigo} — ${e.razonSocial}`)))
       ),
-      el("div", { clase: "campo" },
-        el("label", { for: "cobro-fecha", texto: "Fecha de la cuenta" }),
-        el("input", {
-          type: "date",
-          id: "cobro-fecha",
-          value: laFecha || "",
-          alCambiar: (e) => {
-            for (const emp of enJuego) {
-              ponerFechaDeCobro(estado.datos, emp.codigo, estado.anio, estado.mes,
-                                quincena, e.target.value);
-            }
-            cambio();
-            repintar();
-          },
-        }),
-        el("small", { estilo: "color:var(--tinta-suave)",
-          texto: laFecha ? fechaLarga(laFecha)
-            : (empresa ? "Sin poner: no sale en el documento"
-                       : `Sin poner: no sale en el documento. Lo que ponga aqui va en las ${enJuego.length}.`) })
-      ),
-      el("div", { clase: "campo" },
-        el("label", { for: "cobro-quincena", texto: "Quincena" }),
-        el("select", { id: "cobro-quincena", alCambiar: (e) => { quincena = Number(e.target.value); repintar(); } },
-          // Con Todas no se dicen los dias porque cada empresa corta distinto
-          // (MGP el 13, las demas el 14): un solo rango seria falso para tres.
-          el("option", { value: 1, selected: quincena === 1 },
-             empresa ? `Quincena 1 (${diceElRango(empresa, 1)})` : "Quincena 1"),
-          el("option", { value: 2, selected: quincena === 2 },
-             empresa ? `Quincena 2 (${diceElRango(empresa, 2)})` : "Quincena 2"))
-      ),
-
-      el("div", { clase: "campo" },
-        el("label", { for: "cobro-mes", texto: "Mes" }),
-        el("select", { id: "cobro-mes", alCambiar: (e) => { estado.mes = Number(e.target.value); repintar(); } },
-          ...Array.from({ length: 12 }, (_, i) => i + 1).map((m) => el("option", { value: m, selected: m === estado.mes }, nombreMes(m))))
-      ),
-      el("div", { clase: "campo" },
-        el("label", { for: "cobro-anio", texto: "Año" }),
-        el("select", { id: "cobro-anio", alCambiar: (e) => { estado.anio = Number(e.target.value); repintar(); } },
-          ...Array.from({ length: 5 }, (_, i) => estado.anio - 3 + i).map((a) => el("option", { value: a, selected: a === estado.anio }, String(a))))
-      ),
-      // De qué fecha a qué fecha va ESTA cuenta.
-      //
-      // Está aquí y no en Empresas a propósito: los días de la empresa son la
-      // regla ("cortamos el 14"), pero una cuenta suelta puede cubrir otra
-      // cosa, y el momento en que ella se da cuenta es este -- con la cuenta
-      // en pantalla y a punto de entregarla.
-      //
-      // Va en su propio renglón y de último: dos calendarios no caben en una
-      // columna de 210 px, se apilaban y dejaban un hueco al lado que hacía
-      // ver la barra rota.
-      !empresa
-        // Con Todas no hay un rango que valga para las cuatro: cada empresa
-        // corta la quincena en su dia. Se dice, y se dice como cambiarlo, en
-        // vez de dejar dos casillas que mentirian para tres de ellas.
-        ? el("div", { clase: "campo campo-rango no-imprimir" },
-            el("label", { texto: "Fechas que cubre" }),
-            el("small", { estilo: "color:var(--tinta-suave)",
-              texto: `Cada empresa va por su quincena ${quincena}. Para cambiarle las ` +
-                     `fechas a una, escojala aqui arriba.` }))
-        : el("div", { clase: "campo campo-rango no-imprimir" },
-        el("label", { for: "cobro-desde", texto: "Fechas que cubre" }),
-        el("div", { clase: "rango-fechas" },
-          el("span", { clase: "rango-palabra", texto: "del" }),
-          el("input", {
-            type: "date", id: "cobro-desde", value: cubre.desde,
-            alCambiar: (e) => ponerElRango(e.target.value, cubre.hasta),
-          }),
-          el("span", { clase: "rango-palabra", texto: "al" }),
-          el("input", {
-            type: "date", id: "cobro-hasta", value: cubre.hasta,
-            alCambiar: (e) => ponerElRango(cubre.desde, e.target.value),
-          }),
-          // En palabras al lado, porque el calendario muestra 01/01/2026 y a
-          // ella le cuesta leer eso de un vistazo. Es lo mismo que va a decir
-          // el papel, así que lo ve antes de imprimir.
-          el("strong", { clase: "rango-dice", texto: rangoEnPalabras(cubre.desde, cubre.hasta) }),
-          propio
-            ? el("button", {
-                clase: "plano chico",
-                alHacerClic: () => {
-                  ponerRangoDeCobro(estado.datos, empresaCobro, estado.anio, estado.mes, quincena, null);
-                  cambio();
-                  repintar();
-                },
-              }, "Volver a la quincena")
-            : null
-        ),
-        el("small", {
-          estilo: "color:var(--tinta-suave)",
-          texto: propio
-            ? `Escogidas solo para esta cuenta. La quincena ${quincena} va ${diceElRango(empresa, quincena)}.`
-            : `Es la quincena ${quincena} completa. Puede ampliarla hasta donde necesite ` +
-              `-- sirve para cobrar varios meses en una sola cuenta -- y solo cambia esta cuenta.`,
-        })
-      )
+      elPeriodo(empresa, enJuego, propio, cubre, irAlMes, ponerElRango, repintar),
+      laFechaDelPapel(empresa, enJuego, laFecha, ponerLaFecha)
     )
   );
 
@@ -251,6 +190,201 @@ export function pintarCobro(raiz) {
   // Los archivos que se le mandan al cliente van por empresa. Con Todas no se
   // repiten cuatro veces: para eso esta Compartir, que es donde ella los busca.
   if (empresa) poner(raiz, paraElCliente(empresa));
+}
+
+// ---------------------------------------------------------------------------
+
+/** "Del 1 al 13 de agosto" -> "del 1 al 13 de agosto", para seguir una frase. */
+function enMinuscula(frase) {
+  return frase.charAt(0).toLowerCase() + frase.slice(1);
+}
+
+/** "la quincena 2 de agosto", y el año solo si no es el que se está mirando. */
+function nombreDeCuenta(cuenta) {
+  const anio = cuenta.anio !== estado.anio ? ` de ${cuenta.anio}` : "";
+  return `la quincena ${cuenta.quincena} de ${nombreMes(cuenta.mes).toLowerCase()}${anio}`;
+}
+
+/**
+ * Lleva la pantalla a OTRA cuenta (otro mes o quincena).
+ *
+ * Vive aquí afuera y no dentro de seccionDeCobro porque allá "quincena" es
+ * un parámetro y tapa a la del módulo: asignarla allá no movería la pantalla.
+ */
+function irALaCuenta(cuenta, repintar) {
+  estado.anio = cuenta.anio;
+  estado.mes = cuenta.mes;
+  quincena = cuenta.quincena;
+  cambiandoFechas = false;
+  repintar();
+}
+
+/**
+ * El periodo de la cuenta: el mes, la quincena, y una frase con lo que cobra.
+ *
+ * El mes va con flechas y las dos quincenas como botones a la vista: ella no
+ * abre listas para ver qué hay adentro, así que lo que se elige tiene que
+ * estar a la vista. Y lo que cobra se dice UNA vez, en la frase de abajo, con
+ * las mismas palabras que salen en el papel.
+ */
+function elPeriodo(empresa, enJuego, propio, cubre, irAlMes, ponerElRango, repintar) {
+  const elegirQuincena = (q) => {
+    quincena = q;
+    cambiandoFechas = false;
+    repintar();
+  };
+
+  const mes = el("div", { clase: "periodo-mes" },
+    el("button", {
+      clase: "periodo-flecha", "aria-label": "Mes anterior", title: "Mes anterior",
+      alHacerClic: () => irAlMes(-1),
+    }, "◀"),
+    el("strong", { clase: "periodo-mes-nombre", texto: `${nombreMes(estado.mes)} de ${estado.anio}` }),
+    el("button", {
+      clase: "periodo-flecha", "aria-label": "Mes siguiente", title: "Mes siguiente",
+      alHacerClic: () => irAlMes(1),
+    }, "▶"));
+
+  const quincenas = el("div", { clase: "periodo-quincenas" },
+    ...[1, 2].map((q) => el("button", {
+        clase: "periodo-quincena" + (quincena === q ? " puesta" : ""),
+        "aria-pressed": quincena === q ? "true" : "false",
+        alHacerClic: () => elegirQuincena(q),
+      },
+      el("span", { texto: `Quincena ${q}` }),
+      // Con Todas no se dicen los días: cada empresa corta distinto (MGP el
+      // 13, las demás el 14) y un solo rango sería falso para tres.
+      empresa ? el("small", { texto: diceElRango(empresa, q) }) : null)));
+
+  return el("div", { clase: "periodo" },
+    el("span", { clase: "etiqueta", texto: "Periodo" }),
+    el("div", { clase: "periodo-elegir" }, mes, quincenas),
+    empresa
+      ? loQueCobraLaCuenta(empresa, propio, cubre, ponerElRango, repintar)
+      : loQueCobranTodas(enJuego));
+}
+
+/** La frase de UNA cuenta, y el camino (aparte) para cambiarle los días. */
+function loQueCobraLaCuenta(empresa, propio, cubre, ponerElRango, repintar) {
+  // Los calendarios solo salen cuando ella pide cambiar los días, con un
+  // botón que dice lo que hace. Lo de siempre -- la quincena completa -- no
+  // los necesita, y verlos ahí todo el tiempo era lo que la hacía dudar de
+  // cuál de las dos cosas mandaba.
+  const calendarios = el("div", { clase: "rango-fechas" },
+    el("label", { for: "cobro-desde", clase: "rango-palabra", texto: "Del" }),
+    el("input", {
+      type: "date", id: "cobro-desde", value: cubre.desde,
+      alCambiar: (e) => ponerElRango(e.target.value, cubre.hasta),
+    }),
+    el("label", { for: "cobro-hasta", clase: "rango-palabra", texto: "al" }),
+    el("input", {
+      type: "date", id: "cobro-hasta", value: cubre.hasta,
+      alCambiar: (e) => ponerElRango(cubre.desde, e.target.value),
+    }));
+
+  return el("div", { clase: "periodo-dice" + (propio ? " a-mano" : "") },
+    el("p", { clase: "periodo-frase" },
+      "Esta cuenta cobra ",
+      el("strong", { texto: enMinuscula(rangoEnPalabras(cubre.desde, cubre.hasta)) })),
+    propio
+      ? el("p", { clase: "periodo-nota", texto:
+          `Fechas escogidas a mano solo para esta cuenta. ` +
+          `La quincena ${quincena} normal va ${diceElRango(empresa, quincena)}.` })
+      : null,
+    cambiandoFechas ? calendarios : null,
+    cambiandoFechas
+      ? el("p", { clase: "periodo-nota", texto:
+          "Esto cambia solo esta cuenta, no la quincena de la empresa. " +
+          "Sirve, por ejemplo, para cobrar varios meses en una sola cuenta." })
+      : null,
+    el("div", { clase: "periodo-botones" },
+      cambiandoFechas
+        ? el("button", { clase: "chico", alHacerClic: () => { cambiandoFechas = false; repintar(); } },
+            "Listo")
+        : el("button", { clase: "chico", alHacerClic: () => { cambiandoFechas = true; repintar(); } },
+            "Cambiar estas fechas"),
+      propio
+        ? el("button", {
+            clase: "plano chico",
+            alHacerClic: () => {
+              ponerRangoDeCobro(estado.datos, empresa.codigo, estado.anio, estado.mes, quincena, null);
+              cambiandoFechas = false;
+              cambio();
+              repintar();
+            },
+          }, `Volver a la quincena ${quincena} (${diceElRango(empresa, quincena)})`)
+        : null));
+}
+
+/** Con Todas: lo que cobra cada una, porque cada empresa corta en su día. */
+function loQueCobranTodas(enJuego) {
+  return el("div", { clase: "periodo-dice" },
+    el("p", { clase: "periodo-frase", texto:
+      `Cada empresa cobra su quincena ${quincena} de ${nombreMes(estado.mes).toLowerCase()}:` }),
+    el("ul", { clase: "periodo-lista" },
+      ...enJuego.map((e) => {
+        const f = fechasDeLaCuenta(estado.datos, e, estado.anio, estado.mes, quincena);
+        const aMano = !!rangoDeCobro(estado.datos, e.codigo, estado.anio, estado.mes, quincena);
+        return el("li", {},
+          el("strong", { texto: e.codigo }),
+          ` ${enMinuscula(rangoEnPalabras(f.desde, f.hasta))}${aMano ? " (fechas escogidas a mano)" : ""}`);
+      })),
+    el("p", { clase: "periodo-nota", texto:
+      "Para cambiar las fechas de una sola empresa, elíjala en «Empresa»." }));
+}
+
+/**
+ * La fecha que va escrita en el papel.
+ *
+ * Es OTRA cosa que el periodo -- el día en que se pasa la cuenta, no los días
+ * que cobra -- y por eso va en su propio renglón, debajo, y no mezclada con
+ * los controles del periodo, que es como estaba cuando ella dijo que no le
+ * entendía.
+ */
+function laFechaDelPapel(empresa, enJuego, laFecha, ponerLaFecha) {
+  return el("div", { clase: "campo campo-papel" },
+    el("label", { for: "cobro-fecha", texto: "Fecha escrita en el papel" }),
+    el("div", { clase: "papel-fecha" },
+      el("input", {
+        type: "date", id: "cobro-fecha", value: laFecha || "",
+        alCambiar: (e) => ponerLaFecha(e.target.value),
+      }),
+      el("button", { clase: "chico", alHacerClic: () => ponerLaFecha(hoyISO()) }, "Usar la de hoy")),
+    el("small", { texto: laFecha
+      ? fechaLarga(laFecha)
+      : (empresa
+          ? "Sin poner: el documento sale sin fecha."
+          : `Sin poner: los documentos salen sin fecha. La que ponga aquí va en las ${enJuego.length}.`) }));
+}
+
+/**
+ * Lo que esta cuenta cobra y OTRA cuenta de la misma empresa también.
+ *
+ * Ver cuentasQueSeCruzan: las fechas escogidas a mano se guardan dentro de
+ * una quincena, y la otra quincena sigue cobrando sus días por su cuenta. No
+ * se impide (a veces es a propósito), pero no puede pasar callado.
+ */
+function avisoDeCobroDoble(empresa, cruces, repintar) {
+  const primeras = cruces.slice(0, 3);
+  return el("div", { clase: "nota malo no-imprimir" },
+    el("div", { estilo: "flex:1 1 auto;min-width:0" },
+      el("strong", { texto: cruces.length === 1
+        ? `${pesos(cruces[0].plata)} de esta cuenta también se cobran en la cuenta de ${nombreDeCuenta(cruces[0])}`
+        : `Parte de esta cuenta también se cobra en otras ${cruces.length} cuentas de ${empresa.codigo}` }),
+      el("p", { texto:
+        "Si entrega las dos, la empresa paga esos días dos veces. Entregue solo una, " +
+        "o deje cada cuenta con sus propios días." }),
+      el("ul", { clase: "lista-arreglable" },
+        ...primeras.map((c) => el("li", {},
+          el("div", { clase: "quien" },
+            el("strong", { texto: `Cuenta de ${nombreDeCuenta(c)}` }),
+            el("div", { clase: "apunte", texto:
+              `${rangoEnPalabras(c.desde, c.hasta)}${c.escogida ? " (fechas escogidas a mano)" : ""} · ` +
+              `repite ${pesos(c.plata)} de ${c.fechas.length === 1 ? "1 día" : `${c.fechas.length} días`}` })),
+          el("button", { clase: "chico", alHacerClic: () => irALaCuenta(c, repintar) }, "Ver esa cuenta")))),
+      cruces.length > primeras.length
+        ? el("p", { texto: `Y ${cruces.length - primeras.length} cuentas más.` })
+        : null));
 }
 
 // ---------------------------------------------------------------------------
@@ -412,6 +546,9 @@ function seccionDeCobro(raiz, empresa, quincena, acreedor, repintar, conTitulo) 
       )
     );
   }
+
+  const cruces = cuentasQueSeCruzan(estado.datos, empresa, estado.anio, estado.mes, quincena);
+  if (cruces.length) poner(raiz, avisoDeCobroDoble(empresa, cruces, repintar));
 
   if (!cuenta.personas.length) {
     // Vacía quiere decir "ese periodo no comió nadie", también en la casa:
