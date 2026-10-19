@@ -32,8 +32,9 @@ Lo importante: **los botones se tocan por lo que DICEN**, como lo haría una per
      --screenshot="C:/Users/juanm/Proyectos/arroz-paisa/tests/salida/fotos-trabajador/$N.png" \
      "http://localhost:8000/tests/guion.html?archivo=$N&espera=25000"
    ```
+   Si hay otro trabajador de prueba corriendo, cada uno usa su propio prefijo en los nombres de guiones, fotos y perfiles, y sus propios scripts: no se comparten archivos de trabajo.
    La ruta de `--screenshot` tiene que ser **absoluta de Windows**, como arriba. Con una ruta relativa Chrome dice "bytes written", pero la foto no queda en la carpeta del proyecto.
-   `espera` es cuánto se demora la foto en milisegundos. Necesita alrededor de 1200 ms por paso más 6000; súbela si el guion es largo, porque si la foto sale antes de que termine, la foto miente. Para verla como en un celular, usa `--window-size=420,1400`.
+   `espera` es cuánto se demora la foto en milisegundos. Necesita alrededor de 1200 ms por paso más 6000; súbela si el guion es largo, porque si la foto sale antes de que termine, la foto miente. Para verla como en un celular, usa `--window-size=500,1400`: Chrome sin ventana no baja de 500 px de ancho, y con menos la foto sale recortada y parece que la página se desborda cuando no es así.
 
 4. **Lee el registro** en `tests/salida/guiones/<nombre>.registro.txt` (cada guion tiene el suyo, así que puede haber otro trabajador de prueba corriendo al tiempo sin pisarte). Trae cada paso con OK o MAL, los avisos que salieron, la ventana que quedó abierta y, al final, el texto de la pantalla. **Mira la foto** con Read. Es lo que vio la persona.
 

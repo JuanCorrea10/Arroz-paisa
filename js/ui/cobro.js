@@ -11,7 +11,7 @@ import { el, vaciar, tabla, cifra, cifraPlata, acciones, vacio, mensaje, confirm
   pedirDatos, cinta,
 } from "./componentes.js";
 import {
-  estado, cambio, empresas, empresaPorCodigo, asegurarEmpresa,
+  estado, cambio, empresas, empresaPorCodigo, asegurarEmpresa, cambiarPeriodo,
 } from "./estado.js";
 import { pesos, nombreMes, fechaCorta, fechaLarga, normalizar,
   esFechaISO, rangoEnPalabras, diasDichos, sedeDeEmpresa,
@@ -115,8 +115,10 @@ export function pintarCobro(raiz) {
     let anio = estado.anio;
     if (mes < 1) { mes = 12; anio -= 1; }
     if (mes > 12) { mes = 1; anio += 1; }
-    estado.mes = mes;
-    estado.anio = anio;
+    // Por cambiarPeriodo y no a mano: así el mes de la barra de arriba se
+    // mueve con las flechas. Antes la cuenta decía "octubre" y arriba seguía
+    // "agosto", dos meses distintos en la misma pantalla.
+    cambiarPeriodo(anio, mes);
     cambiandoFechas = false;
     repintar();
   };

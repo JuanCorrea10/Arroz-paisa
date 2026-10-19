@@ -9,7 +9,7 @@ import { el, vaciar, tabla, cifra, cifraPlata, acciones, vacio, mensaje, cinta, 
   pedirDatos, colorDeEmpresa, ventana,
 } from "./componentes.js";
 import {
-  estado, cambio, empresas, empresaPorCodigo,
+  estado, cambio, empresas, empresaPorCodigo, cambiarPeriodo,
 } from "./estado.js";
 import { pesos, fechaLarga, fechaCorta, nombreMes, diasDelMes, hoyISO, coincide, diaDe } from "../nucleo/formato.js";
 import {
@@ -277,7 +277,7 @@ function tablaDePlatosDelDia(informe) {
       )
     ),
     el("tr", {},
-      el("td", { colspan: "3", texto: `TOTAL · ${informe.facturas} facturas` }),
+      el("td", { colspan: "3", texto: `TOTAL · ${informe.facturas} ${informe.facturas === 1 ? "factura" : "facturas"}` }),
       el("td", { clase: "n", texto: pesos(informe.total) })
     )
   );
@@ -303,7 +303,7 @@ function tablaDelDia(secciones, informe) {
       { titulo: "Personas", clase: "n" },
       { titulo: "Platos", clase: "n" },
       ...(hayContado
-        ? [{ titulo: "A crédito", clase: "n" }, { titulo: "De contado", clase: "n" }]
+        ? [{ titulo: "A crédito", clase: "n" }, { titulo: "En efectivo", clase: "n" }]
         : []),
       { titulo: "Total", clase: "n" },
     ],
@@ -474,7 +474,7 @@ export function pintarResumenDia(raiz) {
               texto: [sec.razonSocial, fechaLarga(estado.fecha)].filter(Boolean).join(" · ") })
           ),
           el("span", { clase: "titulo-lista-cuenta plata",
-            texto: `${sec.informe.facturas} facturas · ${pesos(sec.informe.total)}` })
+            texto: `${sec.informe.facturas} ${sec.informe.facturas === 1 ? "factura" : "facturas"} · ${pesos(sec.informe.total)}` })
         ),
 
         // Lo de contado se dice aparte: uno es plata que llega en la quincena
@@ -897,6 +897,15 @@ export function pintarPorPersona(raiz) {
     return;
   }
 
+  // El día que se mira es de OTRO mes (se quedó el de Registrar): la columna
+  // del día sale vacía y el rótulo "Días de agosto: del 19" con la ayuda
+  // "lunes 19 de octubre" se contradicen. Se dice, con la salida de un toque.
+  const mesDelDia = { anio: Number(estado.fecha.slice(0, 4)), mes: Number(estado.fecha.slice(5, 7)) };
+  const diaDeOtroMes = mesDelDia.anio !== estado.anio || mesDelDia.mes !== estado.mes;
+  // Personas con pedidos sin precio: sus totales están incompletos.
+  const sinPrecio = filas.filter((f) => f.sinPrecio > 0);
+  const renglonesSinPrecio = sinPrecio.reduce((a, f) => a + f.sinPrecio, 0);
+
   const tDia = filas.reduce((a, f) => a + f.dia, 0);
   const tEnCurso = filas.reduce((a, f) => a + f.enCurso, 0);
   const tMes = filas.reduce((a, f) => a + f.mes, 0);
@@ -913,6 +922,25 @@ export function pintarPorPersona(raiz) {
   const mezcladas = quincenas.length > 1;
   const rotuloQuincena = mezcladas ? "Quincena en curso" : `Quincena ${quincenas[0]}`;
   const hayContado = filas.some((f) => f.contado > 0);
+
+  if (diaDeOtroMes) {
+    poner(raiz, el("div", { clase: "nota ojo" },
+      el("div", { estilo: "flex:1 1 auto;min-width:0" },
+        el("strong", { texto: `El día que se está mirando (${fechaLarga(estado.fecha)}) no es de ${nombreMes(estado.mes).toLowerCase()}.` }),
+        el("p", { texto: "Por eso la columna de ese día sale vacía. Escoja un día del mes arriba, o mire el mes de ese día." })),
+      el("div", { clase: "acciones" },
+        el("button", { clase: "chico", alHacerClic: () => { cambiarPeriodo(mesDelDia.anio, mesDelDia.mes); repintar(); } },
+          `Mirar ${nombreMes(mesDelDia.mes).toLowerCase()} de ${mesDelDia.anio}`))));
+  }
+  if (sinPrecio.length) {
+    poner(raiz, el("div", { clase: "nota malo" },
+      el("div", { estilo: "flex:1 1 auto;min-width:0" },
+        el("strong", { texto: `${renglonesSinPrecio} ${renglonesSinPrecio === 1 ? "pedido está" : "pedidos están"} en $ 0 por falta de precio` }),
+        el("p", { texto: `${sinPrecio.length === 1 ? "Una persona tiene" : `${sinPrecio.length} personas tienen`} el total incompleto: ` +
+          "lo que se ve abajo es menos de lo que comieron. Van marcadas en rojo." })),
+      el("div", { clase: "acciones" },
+        el("a", { clase: "boton chico", href: "#revisar", texto: "Ponerles precio en Revisar" }))));
+  }
 
   poner(raiz,
     el("dl", { clase: "cifras", estilo: "margin-bottom:var(--e5)" },
@@ -977,6 +1005,10 @@ export function pintarPorPersona(raiz) {
             f.platos.length
               ? el("div", { clase: "que-pidio" },
                   f.platos.map((x) => `${x.cantidad}× ${x.producto}`).join(",  "))
+              : null,
+            f.sinPrecio
+              ? el("div", { clase: "falta-precio-persona",
+                  texto: `${f.sinPrecio} ${f.sinPrecio === 1 ? "pedido" : "pedidos"} sin precio: el total está incompleto` })
               : null
           ),
           el("td", {}, cinta(f.empresa)),

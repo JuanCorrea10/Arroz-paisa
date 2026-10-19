@@ -217,3 +217,16 @@ prueba("viajan como una colección más, y llegan iguales al otro computador", (
   igual(rapidosDe(alla, "2026-10-19").validos, ["SANCOCHO"]);
   igual(rapidosDe(alla, SIEMPRE).validos, ["JUGO"]);
 });
+
+prueba("los más pedidos no se reordenan con lo que se anota HOY", () => {
+  // Quien se aprende "Alt + 3" no puede encontrarse otro plato ahí después de
+  // anotar una gaseosa: los más pedidos se cuentan con lo de antes de hoy.
+  const d = conHistoria();
+  const antes = botonesDelPedido(d, "MGP", "2026-10-19").map((x) => x.producto);
+  for (let i = 0; i < 20; i++) {
+    d.consumos.push(nuevoConsumo({ fecha: "2026-10-19", empresa: "MGP", persona: "HOY" + i, producto: "GASEOSA", cantidad: 1, precioUnitario: 1000 }));
+  }
+  igual(botonesDelPedido(d, "MGP", "2026-10-19").map((x) => x.producto), antes);
+  // Y mañana sí cuentan.
+  igual(botonesDelPedido(d, "MGP", "2026-10-20")[0].producto, "GASEOSA");
+});

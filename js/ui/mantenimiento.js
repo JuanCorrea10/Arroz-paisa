@@ -77,7 +77,7 @@ export function pintarEmpresas(raiz) {
             e.esCasa
               ? el("p", { clase: "nota", estilo: "margin:var(--e1) 0 0" },
                   el("strong", { texto: "Es su propio restaurante. " }),
-                  "Sus platos nacen marcados “Pagó de una” y entran a la caja. " +
+                  "Sus platos nacen marcados “Pagó en efectivo” y entran a la caja. " +
                   "Si a alguien de aquí hay que cobrarle, márquele el plato " +
                   "“A crédito” y sale en la cuenta de cobro.")
               : null),
@@ -174,7 +174,7 @@ const CAMPOS_EMPRESA = (e = {}) => [
     nombre: "esCasa", etiqueta: "Es mi propio restaurante", tipo: "casilla",
     valor: e.esCasa === true,
     ayuda: "Márquela para anotarle el almuerzo a SU gente (la cocinera, el que " +
-           "reparte). Sus platos nacen marcados “Pagó de una”, porque ellos " +
+           "reparte). Sus platos nacen marcados “Pagó en efectivo”, porque ellos " +
            "pagan de su bolsillo y ese dinero ingresa a la caja. Si a alguno sí hay " +
            "que cobrarle, márquele el plato “A crédito” y sale en la cuenta.",
   },

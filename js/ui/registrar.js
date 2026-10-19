@@ -18,7 +18,7 @@ import { pesos, fechaLarga, normalizar, hoyISO } from "../nucleo/formato.js";
 import {
   delDia, subtotal, contarFacturas, personasDe, precioDe, clavePersona, comandasDelDia,
   A_CREDITO, DE_CONTADO, CORTESIA, formaDeCobro, esCortesia, yaLoPago, esLaCasa,
-  comoPagaLaPersona,
+  comoPagaLaPersona, sumarLoDeLaEmpresa, sumarLoDeContado,
 } from "../nucleo/calculos.js";
 import { pdfComandasDelDia } from "../exportar/pdf.js";
 import {
@@ -38,6 +38,23 @@ import { rapidosDe, ponerRapidos, ultimosDeHoy, SIEMPRE, MAXIMO } from "../nucle
 
 /** La persona cuya comanda se está llenando ahora mismo. */
 let personaActiva = null;
+
+/**
+ * Cómo paga alguien que TODAVÍA no tiene platos: lo que tocó en "Cómo paga"
+ * antes del primero. Con platos, la forma vive en los platos mismos; sin
+ * platos no había dónde guardarla, y el botón decía "lo que le anote entra
+ * en efectivo" mientras el plato nacía a crédito y se le cobraba a la
+ * empresa. Va por persona, empresa y día, así que no se le pega a otro.
+ */
+let formaAntesDelPrimerPlato = { llave: null, forma: null };
+
+/** El valor del select "¿Qué pidió?" cuando ella escoge "Lo de siempre". */
+const LO_DE_SIEMPRE = "\u0000lo-de-siempre";
+const llaveDelPago = (empresa, persona, fecha) => `${clavePersona(empresa, persona)}|${fecha}`;
+function formaEscogidaSinPlatos(empresa, persona, fecha) {
+  return formaAntesDelPrimerPlato.llave === llaveDelPago(empresa, persona, fecha)
+    ? formaAntesDelPrimerPlato.forma : null;
+}
 
 // Por cómo se paga, cuáles tarjetas se están mirando. "" es todas.
 //
@@ -192,6 +209,14 @@ function pedirElDictado(raiz) {
     estilo: "width:100%;font-size:var(--t-base);min-height:11rem",
     placeholder: "Pegue aquí el texto del audio transcrito...",
   });
+  // Enter en la casilla es un salto de línea (el texto puede venir en
+  // renglones); Ctrl + Enter es "Ver lo reconocido", sin soltar el teclado.
+  caja.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || !e.ctrlKey) return;
+    e.preventDefault();
+    const ver = caja.closest("dialog")?.querySelector(".ventana-pie button.principal");
+    if (ver) ver.click();
+  });
 
   ventana({
     titulo: "Pegar el pedido del audio",
@@ -200,7 +225,9 @@ function pedirElDictado(raiz) {
         `Va a quedar anotado en ${estado.empresa}, el ${fechaLarga(estado.fecha)}. `,
         el("strong", { texto: "Nada se guarda todavía: " }),
         "primero se muestra lo que se reconoció."),
-      caja),
+      caja,
+      el("p", { clase: "atajos-teclado", estilo: "margin:0" },
+        el("kbd", { texto: "Ctrl" }), " + ", el("kbd", { texto: "Enter" }), " para ver lo reconocido")),
     botones: [
       { texto: "Cancelar" },
       {
@@ -258,6 +285,11 @@ function mostrarLoQueEntendi(raiz, texto) {
   // preguntarle dos veces quién es la misma persona es hacerla trabajar doble.
   const escogidos = new Map();
   const yaSePregunto = new Set();
+  // Y qué plato era, en los que la app no supo: va por RENGLÓN, porque una
+  // misma persona puede tener un plato claro y otro dudoso.
+  const platosEscogidos = new Map();
+  // Los que tenían todo pero algo sobraba en el texto, y ella dijo "así está bien".
+  const confirmados = new Set();
 
   const preguntaQuien = (p) => {
     if (!p.soloFaltaElNombre) return null;
@@ -310,6 +342,42 @@ function mostrarLoQueEntendi(raiz, texto) {
 
   const recortada = (linea) => (linea.length > 90 ? linea.slice(0, 90) + "…" : linea);
 
+  // Qué pidió, cuando la app no supo o dudó entre dos ("¿COCA COLA 1.5 o
+  // COCA COLA PERSONAL?"). Si la persona tiene costumbre, se ofrece también
+  // "Lo de siempre": el señor lo dice así ("el de siempre para Juan").
+  const preguntaQue = (p) => {
+    if (p.producto.nombre && p.producto.seguro) return null;
+    const opciones = [...new Set([
+      ...(p.producto.nombre ? [p.producto.nombre] : []),
+      ...(p.producto.opciones || []),
+    ])];
+    const quien = p.persona.segura ? p.persona.elegida : null;
+    const habito = quien ? pedidoHabitual(estado.datos, estado.empresa, quien, estado.fecha) : null;
+    const resumenHabito = habito && tieneCostumbre(habito)
+      ? habito.platos.map((x) => (x.cantidad > 1 ? `${x.cantidad} ${x.producto}` : x.producto)).join(" + ")
+      : null;
+    if (!opciones.length && !resumenHabito) return null;
+    return el("div", { clase: "fila", estilo: "align-items:center;gap:var(--e2);margin-top:var(--e2)" },
+      el("span", { clase: "apunte", texto: "¿Qué pidió?" }),
+      el("select", { alCambiar: (e) => {
+        if (e.target.value) platosEscogidos.set(p, e.target.value);
+        else platosEscogidos.delete(p);
+      } },
+        el("option", { value: "" }, "No lo anote todavía"),
+        resumenHabito ? el("option", { value: LO_DE_SIEMPRE }, `Lo de siempre: ${resumenHabito}`) : null,
+        ...opciones.map((n) => el("option", { value: n }, `${p.cantidad}× ${n}`))));
+  };
+
+  // Tenía persona y plato, y solo sobraba alguna palabra: se puede anotar así.
+  const anotarloAsi = (p) => {
+    if (!(p.persona.segura && p.persona.elegida && p.producto.nombre && p.producto.seguro)) return null;
+    const casilla = el("input", { type: "checkbox", alCambiar: (e) => {
+      if (e.target.checked) confirmados.add(p); else confirmados.delete(p);
+    } });
+    return el("label", { clase: "casilla-ver", estilo: "margin-top:var(--e2)" },
+      casilla, " Está bien así: anotarlo");
+  };
+
   const tarjeta = (p) => {
     const aQuien = p.persona.elegida
       || (p.persona.escrito ? `«${p.persona.escrito.toLowerCase()}»` : "?");
@@ -340,7 +408,9 @@ function mostrarLoQueEntendi(raiz, texto) {
               }, "No es"))
           : null,
 
-        preguntaQuien(p)),
+        preguntaQuien(p),
+        p.listo ? null : preguntaQue(p),
+        p.listo ? null : anotarloAsi(p)),
     );
   };
 
@@ -360,16 +430,17 @@ function mostrarLoQueEntendi(raiz, texto) {
 
     dudosos.length
       ? el("div", {},
-          el("h3", { estilo: "margin:var(--e4) 0 var(--e2)", texto: "Estos no los anoto todavía" }),
+          el("h3", { estilo: "margin:var(--e4) 0 var(--e2)", texto: "Pendientes de revisar" }),
           el("p", { clase: "apunte", estilo: "margin:0 0 var(--e2)",
-            texto: "Si sabe quién es, dígamelo aquí y la próxima vez ya lo sé. " +
-                   "Lo demás, pregúnteselo al señor y anótelo a mano." }),
+            texto: "Escoja aquí lo que falte (quién es, qué pidió) y se anota con los demás; " +
+                   "los nombres que escoja se recuerdan para la próxima vez. " +
+                   "Lo que no sepa, confírmelo con el señor y anótelo a mano." }),
           ...dudosos.map(tarjeta))
       : null,
 
     buenos.length
       ? el("div", {},
-          el("h3", { estilo: "margin:var(--e4) 0 var(--e2)", texto: "Estos sí" }),
+          el("h3", { estilo: "margin:var(--e4) 0 var(--e2)", texto: "Listos para anotar" }),
           ...buenos.map(tarjeta))
       : null,
   );
@@ -386,15 +457,30 @@ function mostrarLoQueEntendi(raiz, texto) {
         // cifras de arriba, y el mensaje de después dice cuántos entraron.
         texto: "Anotar lo que está bien",
         clase: "principal",
+        foco: true,
         alHacerClic: () => {
           const paraAnotar = [...buenos];
           const aprendidos = [];
           const yaAprendi = new Set();
 
           for (const p of dudosos) {
-            const nombre = p.soloFaltaElNombre ? escogidos.get(p.tramo) : "";
-            if (!nombre) continue;
-            paraAnotar.push({ ...p, persona: { ...p.persona, elegida: nombre } });
+            // Un pendiente entra solo si ELLA lo resolvió en su tarjeta:
+            // quién es, qué pidió, o "anotarlo así". Nada se anota adivinando.
+            const nombre = escogidos.get(p.tramo) || (p.persona.segura ? p.persona.elegida : "");
+            const plato = platosEscogidos.get(p) || (p.producto.seguro ? p.producto.nombre : "");
+            const loResolvio = Boolean(escogidos.get(p.tramo)) || platosEscogidos.has(p) || confirmados.has(p);
+            if (!nombre || !plato || !loResolvio) continue;
+            if (plato === LO_DE_SIEMPRE) {
+              const habito = pedidoHabitual(estado.datos, estado.empresa, nombre, estado.fecha);
+              for (const h of (habito && habito.platos) || []) {
+                paraAnotar.push({ ...p, cantidad: h.cantidad, persona: { ...p.persona, elegida: nombre },
+                  producto: { ...p.producto, nombre: h.producto } });
+              }
+            } else {
+              paraAnotar.push({ ...p, persona: { ...p.persona, elegida: nombre },
+                producto: { ...p.producto, nombre: plato } });
+            }
+            if (!escogidos.get(p.tramo) || !p.persona.escrito) continue;
             // Lo que ella acaba de decir se recuerda: mañana el señor va a
             // volver a decirlo igual, y ya no habrá que preguntar.
             if (!yaAprendi.has(p.tramo)) {
@@ -600,12 +686,12 @@ function tiraDeRapidos(raiz) {
         : null,
       el("button", { type: "button", clase: hoy.validos.length ? "chico" : "principal chico",
         alHacerClic: () => ventanaDeRapidos(raiz) },
-        hoy.validos.length || fijos.validos.length ? "Cambiar los botones" : "Escoger los platos de hoy")
+        hoy.validos.length || fijos.validos.length ? "Cambiar los platos de hoy" : "Escoger los platos de hoy")
     ),
     perdidos.length
       ? el("p", { clase: "nota ojo tira-rapidos-perdidos" },
           perdidos.map((p) => `${p.producto} ${p.porque}`).join(" · ") +
-          ". No sale como botón: quítelo en “Cambiar los botones”.")
+          ". No sale como botón: quítelo en “Cambiar los platos de hoy”.")
       : null
   );
 }
@@ -706,7 +792,7 @@ function ventanaDeRapidos(raiz) {
 
   repintar();
   ventana({
-    titulo: "Botones rápidos",
+    titulo: "Platos de hoy y de siempre",
     cuerpo,
     botones: [{ texto: "Listo", clase: "principal" }],
     alCerrar: () => pintarRegistrar(raiz),
@@ -815,8 +901,14 @@ function elegirComoPagaLaPersona(raiz, com, quien, puesta) {
  */
 function controlDeComoPaga(raiz, laEmpresa) {
   const quien = { empresa: laEmpresa, persona: personaActiva, fecha: estado.fecha };
-  const puesta = comoPagaLaPersona(estado.datos.consumos, quien);
   const cuantos = renglonesDe(personaActiva).length;
+  // Sin platos todavía, se marca lo que va a pasar con el primero: lo que
+  // ella escogió, o lo normal (a crédito; en la casa, en efectivo). Antes no
+  // se marcaba ninguno y no se sabía cómo iba a entrar.
+  const esCasa = esLaCasa(empresaPorCodigo(laEmpresa));
+  const puesta = cuantos
+    ? comoPagaLaPersona(estado.datos.consumos, quien)
+    : formaEscogidaSinPlatos(laEmpresa, personaActiva, estado.fecha) || (esCasa ? DE_CONTADO : A_CREDITO);
 
   return el("div", { clase: "como-paga" },
     el("span", { clase: "como-paga-rotulo", texto: "Cómo paga:" }),
@@ -826,6 +918,9 @@ function controlDeComoPaga(raiz, laEmpresa) {
         title: x.explica,
         alHacerClic: () => {
           const cambiados = ponerComoPagaLaPersona(estado.datos, quien, x.forma);
+          if (cuantos === 0) {
+            formaAntesDelPrimerPlato = { llave: llaveDelPago(laEmpresa, personaActiva, estado.fecha), forma: x.forma };
+          }
           cambio();
           pintarRegistrar(raiz);
           // Si todavía no ha pedido nada, no hay nada que cambiar: lo que pasa
@@ -876,6 +971,8 @@ function comandaEnCurso(raiz) {
     alElegir: (plato, _opcion, cuantos) => { agregarPlato(plato, raiz, cuantos); },
     alCrear: (plato) => crearPlato(plato, laEmpresa, raiz),
     textoCrear: (t) => `Crear el plato "${t}"`,
+    aproximado: true,
+    enterCrea: false,
   });
 
   const mios = renglonesDe(personaActiva);
@@ -921,9 +1018,9 @@ function comandaEnCurso(raiz) {
   caja.addEventListener("keydown", (e) => {
     // Alt + número: el botón rápido con ese número. Se mira e.code y no e.key
     // porque con Alt algunos teclados cambian el carácter que sale.
-    const n = /^(Digit|Numpad)([1-9])$/.exec(e.code || "");
+    const n = /^(Digit|Numpad)([0-9])$/.exec(e.code || "");
     if (e.altKey && n) {
-      const boton = caja.querySelector(`.ficha-plato[data-rapido="${n[2]}"]`);
+      const boton = caja.querySelector(`[data-rapido="${n[2]}"]`);
       if (boton) { e.preventDefault(); boton.click(); }
       return;
     }
@@ -1015,13 +1112,27 @@ function resumenEnVivo() {
   const deLaEmpresa = delDiaTodas.filter((c) => c.empresa === estado.empresa);
   const total = deLaEmpresa.reduce((a, c) => a + subtotal(c), 0);
   const totalTodas = delDiaTodas.reduce((a, c) => a + subtotal(c), 0);
+  const aLaEmpresa = sumarLoDeLaEmpresa(deLaEmpresa);
+  const enEfectivo = sumarLoDeContado(deLaEmpresa);
 
-  return el("dl", { clase: "cifras", estilo: "margin:0 0 var(--e5)" },
+  // Si alguien pagó en efectivo, lo vendido NO es lo que se le cobra a la
+  // empresa. Se dice partido, igual que en el Resumen del día: si no, "MGP
+  // $ 55.000" se lee como lo que debe MGP, y debe $ 36.000.
+  const partido = enEfectivo > 0
+    ? el("p", { clase: "nota", estilo: "margin:calc(-1 * var(--e3)) 0 var(--e5)" },
+        `De lo vendido en ${estado.empresa}: `,
+        el("strong", { texto: `se le cobra a la empresa ${pesos(aLaEmpresa)}` }),
+        ` · se pagó en efectivo ${pesos(enEfectivo)} (tiene que estar en la caja).`)
+    : null;
+
+  return el("div", {}, el("dl", { clase: "cifras", estilo: "margin:0 0 var(--e5)" },
     cifra(`Comandas de ${estado.empresa}`, String(contarFacturas(deLaEmpresa)), true),
-    cifraPlata(`Suma de ${estado.empresa}`, total, true),
+    // "Vendido", no "Suma": incluye lo pagado en efectivo, así que NO es lo
+    // que debe la empresa. Con "Suma de MGP" se leía como la deuda de MGP.
+    cifraPlata(`Vendido ${estado.fecha === hoyISO() ? "hoy" : "ese día"} en ${estado.empresa}`, total, true),
     cifra("Comandas del día (todas)", String(contarFacturas(delDiaTodas))),
-    cifraPlata("Suma del día (todas)", totalTodas)
-  );
+    cifraPlata(`Vendido ${estado.fecha === hoyISO() ? "hoy" : "ese día"} (todas)`, totalTodas)
+  ), partido);
 }
 
 // ---------------------------------------------------------------------------
@@ -1073,7 +1184,7 @@ function tituloDeLaLista(cuantas, totalDia, deCuantas = null) {
     ),
     cuantas
       ? el("span", { clase: "titulo-lista-cuenta plata" },
-          `${cuantas} comandas · ${pesos(totalDia)}`)
+          `${cuantas} ${cuantas === 1 ? "comanda" : "comandas"} · ${pesos(totalDia)}`)
       : null
   );
 }
@@ -1107,8 +1218,12 @@ function listaDeComandas(raiz) {
     const total = com.total;
     const hayProblema = platos.some((c) => c.revisar && c.revisar.length);
 
+    const formas = formasDe(com);
+    const todoEnEfectivo = formas.size === 1 && formas.has(DE_CONTADO);
     return el("article", {
-      clase: "comanda",
+      // De lejos: ella no ve bien de cerca, y una pastillita verde no basta
+      // para saber cuál tarjeta NO va en la cuenta de la empresa.
+      clase: "comanda" + (todoEnEfectivo ? " pagada" : ""),
       datos: { revisar: hayProblema ? "si" : "no" },
       estilo: `--cinta:${colorDeEmpresa(platos[0].empresa)}`,
     },
@@ -1117,6 +1232,9 @@ function listaDeComandas(raiz) {
         el("h4", { clase: "comanda-nombre", texto: nombre }),
         cinta(com.empresa)
       ),
+      todoEnEfectivo
+        ? el("p", { clase: "comanda-pagada-franja", texto: "Pagó en efectivo · no va en la cuenta de la empresa" })
+        : null,
       el("ul", { clase: "comanda-platos" },
         ...platos.map((c) =>
           el("li", { clase: esCortesia(c) ? "gratis" : yaLoPago(c) ? "pagado" : "" },
@@ -1166,7 +1284,7 @@ function listaDeComandas(raiz) {
         el("button", {
           clase: "chico",
           alHacerClic: () => { personaActiva = nombre; pintarRegistrar(raiz); window.scrollTo({ top: 0, behavior: "smooth" }); },
-        }, "Abrir"),
+        }, "Agregar o corregir"),
         el("span", { clase: "comanda-total", texto: pesos(total) })
       )
     );
@@ -1227,11 +1345,7 @@ function filtrosDePago(comandas, raiz) {
         "aria-pressed": filtroDePago === o.forma ? "true" : "false",
         alHacerClic: () => { filtroDePago = o.forma; pintarRegistrar(raiz); },
       }, `${o.titulo} (${o.cuantas})`)
-    ),
-    // "Efectivo" es la palabra de ella; el botón de la tarjeta dice "Pagó
-    // de una". Se dice aquí una vez para que no queden dos nombres sueltos.
-    el("small", { clase: "filtro-pago-nota",
-      texto: "Efectivo es lo que en las tarjetas dice “Pagó de una”." })
+    )
   );
 }
 
@@ -1393,6 +1507,8 @@ function atajosDePedido(raiz, laEmpresa, yaTieneAlgo) {
       poner(caja,
         el("button", {
           clase: "principal lo-de-siempre",
+          datos: { rapido: "0" },
+          title: "Alt + 0",
           alHacerClic: () => {
             for (const p of habito.platos) {
               for (let i = 0; i < p.cantidad; i++) agregarPlato(p.producto, raiz);
@@ -1402,9 +1518,9 @@ function atajosDePedido(raiz, laEmpresa, yaTieneAlgo) {
           el("strong", { texto: "Lo de siempre" }),
           el("small", { texto: resumen + (faltaPrecio ? "  ·  falta un precio" : `  ·  ${pesos(total)}`) })
         ),
-        el("span", { clase: "nota atajo-porque" },
+        el("span", { clase: "atajo-porque" },
           habito.veces === habito.dias
-            ? `es lo que ha pedido las ${habito.dias} veces`
+            ? (habito.dias === 1 ? "es lo que pidió la única vez" : `es lo que ha pedido las ${habito.dias} veces`)
             : `${habito.veces} de sus ${habito.dias} días`)
       );
     }
@@ -1435,7 +1551,13 @@ function atajosDePedido(raiz, laEmpresa, yaTieneAlgo) {
             el("small", { texto: b.precio === null ? `sin precio en ${laEmpresa}` : pesos(b.precio) })
           )
         )
-      )
+      ),
+      // A la vista y no escondido en el "title": quien usa el teclado no pasa
+      // el mouse por encima de nada, así que nunca se enteraba.
+      el("p", { clase: "atajos-teclado" },
+        "Con el teclado: ", el("kbd", { texto: "Alt" }), " + el número anota ese plato",
+        caja.querySelector(".lo-de-siempre") ? [" · ", el("kbd", { texto: "Alt" }), " + ", el("kbd", { texto: "0" }), " lo de siempre"] : null,
+        " · ", el("kbd", { texto: "Esc" }), " termina con esta persona")
     );
   }
 
@@ -1518,7 +1640,7 @@ function agregarPlato(plato, raiz, cuantos = 1) {
   // empresa una gaseosa que la persona ya había pagado: cobrada dos veces.
   const comoViene = comoPagaLaPersona(estado.datos.consumos, {
     empresa: laEmpresa, persona: personaActiva, fecha: estado.fecha,
-  });
+  }) || formaEscogidaSinPlatos(laEmpresa, personaActiva, estado.fecha);
 
   const renglon = nuevoConsumo({
     fecha: estado.fecha,

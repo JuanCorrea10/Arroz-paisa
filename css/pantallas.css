@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20261019-1508";
+  --version: "20261019-1542";
 }
 
 /* ===========================================================================
@@ -44,6 +44,9 @@
   flex: none;
 }
 .periodo select {
+  /* Sin esto heredaba el "width: 100%" de todas las listas y quedaba del
+     ancho de la más angosta: "Septiembre" salía cortado en "Septiem". */
+  width: auto;
   min-height: 40px;
   padding: 0 var(--e2);
   border-radius: var(--radio);
@@ -1966,7 +1969,7 @@ html { scroll-behavior: smooth; }
    Faltaba el de "a credito" -- el caso de todos los dias -- asi que en el
    control de la persona no se marcaba ninguno y no habia forma de saber cual
    estaba. Es discreto a proposito: es lo normal, no una excepcion. */
-button.marcado-empresa { background: var(--papel-hueso); border-color: var(--tinta-media); font-weight: 700; }
+button.marcado-empresa { background: var(--papel-hueso); border: 2px solid var(--tinta); font-weight: 700; }
 button.marcado-contado { background: #dcefe4; border-color: #9ccbb2; color: #145a3c; }
 button.marcado-cortesia { background: var(--beige); color: var(--tinta-suave); }
 
@@ -1977,6 +1980,10 @@ button.marcado-cortesia { background: var(--beige); color: var(--tinta-suave); }
 .lista-cobro { display: grid; gap: var(--e2); }
 .opcion-cobro {
   display: block;
+  /* Los botones no parten renglón (estilos.css), y aquí la explicación de
+     cada opción se cortaba: "pero sí cuenta como ve…". */
+  white-space: normal;
+  min-width: 0;
   width: 100%;
   text-align: left;
   padding: var(--e3);
@@ -2490,7 +2497,7 @@ td.plata-fila { font-weight: 600; }
 .pantalla-cerrada { text-align: center; padding: var(--e6) var(--e4); }
 .pantalla-cerrada .candado-grande { font-size: 3rem; line-height: 1; margin-bottom: var(--e3); }
 .pantalla-cerrada p { max-width: 48ch; margin: 0 auto var(--e4); }
-.pantalla-cerrada .acciones { justify-content: center; }
+.pantalla-cerrada .acciones { display: flex; justify-content: center; gap: var(--e2); }
 
 .lista-clave label {
   display: flex;
@@ -2654,4 +2661,54 @@ td.plata-fila { font-weight: 600; }
 @media (max-width: 720px) {
   .boton-empresa { flex: 1 1 calc(33% - var(--e2)); }
   .tira-rapidos { margin-top: 0; }
+}
+
+/* ---------------------------------------------------------------------
+/*  Lo que encontró el trabajador de prueba
+/* --------------------------------------------------------------------- */
+/* Los atajos del teclado, a la vista y sin estorbar. */
+.atajos-teclado {
+  margin: var(--e1) 0 0;
+  font-size: var(--t-xs);
+  color: var(--tinta-suave);
+}
+kbd {
+  display: inline-block;
+  min-width: 1.4em;
+  padding: 0 0.35em;
+  border: 1px solid var(--borde-fuerte);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--papel);
+  font-family: var(--dato);
+  font-size: 0.92em;
+  line-height: 1.45;
+  text-align: center;
+  color: var(--tinta-media);
+}
+/* "7 de sus 10 días" ya no va en caja: era una caja que parecía vacía. */
+.atajo-porque { display: block; padding-left: var(--e1); }
+/* Enter sobre "Crear el plato" no crea: el renglón parpadea para decirlo. */
+.buscador-lista li.avisar { animation: avisar-crear 0.6s ease-in-out 2; }
+@keyframes avisar-crear { 50% { background: var(--amarillo-claro); } }
+
+/* La tarjeta de quien pagó todo en efectivo: se distingue de lejos. */
+.comanda.pagada { background: #eef7f1; border-color: #9ccbb2; }
+.comanda-pagada-franja {
+  margin: 0;
+  padding: var(--e1) var(--e3);
+  background: #dcefe4;
+  color: #145a3c;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: var(--t-xs);
+  letter-spacing: 0.02em;
+}
+/* La pastillita de cómo pagó no se pega al nombre del plato. */
+.marca-cobro { margin-left: var(--e2); }
+/* Por persona: quien tiene pedidos sin precio. */
+.falta-precio-persona { color: var(--rojo); font-size: var(--t-xs); font-weight: 700; margin-top: 2px; }
+/* En el celular, las empresas de a dos por fila y no una sola estirada. */
+@media (max-width: 720px) {
+  .boton-empresa { flex: 1 1 calc(50% - var(--e2)); }
 }

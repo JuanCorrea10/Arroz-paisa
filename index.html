@@ -15,12 +15,12 @@
   nueva y el navegador no tiene de donde sacar el viejo. Lo cambia solo el
   script de publicar; a mano no se toca.
 -->
-<meta name="version" content="20261019-1508">
+<meta name="version" content="20261019-1542">
 <title>Arroz Paisa — Control de almuerzos</title>
 
-<link rel="stylesheet" href="css/fuentes.css?v=20261019-1508">
-<link rel="stylesheet" href="css/estilos.css?v=20261019-1508">
-<link rel="stylesheet" href="css/pantallas.css?v=20261019-1508">
+<link rel="stylesheet" href="css/fuentes.css?v=20261019-1542">
+<link rel="stylesheet" href="css/estilos.css?v=20261019-1542">
+<link rel="stylesheet" href="css/pantallas.css?v=20261019-1542">
 
 <!-- El logo del restaurante como icono de la pestaña. Es el mismo que hay
      en el aviso del local, asi que ella lo reconoce de una entre veinte
@@ -117,58 +117,84 @@
 <!-- MAPA:INICIO --><script type="importmap">
 {
   "imports": {
-    "./js/app.js": "./js/app.js?v=20261019-1508",
-    "./js/datos/almacen.js": "./js/datos/almacen.js?v=20261019-1508",
-    "./js/datos/excel.js": "./js/datos/excel.js?v=20261019-1508",
-    "./js/datos/nube.js": "./js/datos/nube.js?v=20261019-1508",
-    "./js/datos/nube-config.js": "./js/datos/nube-config.js?v=20261019-1508",
-    "./js/datos/sincronia.js": "./js/datos/sincronia.js?v=20261019-1508",
-    "./js/exportar/excel-export.js": "./js/exportar/excel-export.js?v=20261019-1508",
-    "./js/exportar/pdf.js": "./js/exportar/pdf.js?v=20261019-1508",
-    "./js/exportar/reporte-empresa.js": "./js/exportar/reporte-empresa.js?v=20261019-1508",
-    "./js/nucleo/calculos.js": "./js/nucleo/calculos.js?v=20261019-1508",
-    "./js/nucleo/clave.js": "./js/nucleo/clave.js?v=20261019-1508",
-    "./js/nucleo/compras.js": "./js/nucleo/compras.js?v=20261019-1508",
-    "./js/nucleo/dictado.js": "./js/nucleo/dictado.js?v=20261019-1508",
-    "./js/nucleo/formato.js": "./js/nucleo/formato.js?v=20261019-1508",
-    "./js/nucleo/habitos.js": "./js/nucleo/habitos.js?v=20261019-1508",
-    "./js/nucleo/importador.js": "./js/nucleo/importador.js?v=20261019-1508",
-    "./js/nucleo/importar-compras.js": "./js/nucleo/importar-compras.js?v=20261019-1508",
-    "./js/nucleo/modelo.js": "./js/nucleo/modelo.js?v=20261019-1508",
-    "./js/nucleo/nombres.js": "./js/nucleo/nombres.js?v=20261019-1508",
-    "./js/nucleo/personal.js": "./js/nucleo/personal.js?v=20261019-1508",
-    "./js/nucleo/rapidos.js": "./js/nucleo/rapidos.js?v=20261019-1508",
-    "./js/nucleo/sueltos.js": "./js/nucleo/sueltos.js?v=20261019-1508",
-    "./js/ui/ayuda.js": "./js/ui/ayuda.js?v=20261019-1508",
-    "./js/ui/clave.js": "./js/ui/clave.js?v=20261019-1508",
-    "./js/ui/cobro.js": "./js/ui/cobro.js?v=20261019-1508",
-    "./js/ui/compartir.js": "./js/ui/compartir.js?v=20261019-1508",
-    "./js/ui/componentes.js": "./js/ui/componentes.js?v=20261019-1508",
-    "./js/ui/datos.js": "./js/ui/datos.js?v=20261019-1508",
-    "./js/ui/entrar.js": "./js/ui/entrar.js?v=20261019-1508",
-    "./js/ui/errores.js": "./js/ui/errores.js?v=20261019-1508",
-    "./js/ui/estado.js": "./js/ui/estado.js?v=20261019-1508",
-    "./js/ui/familias.js": "./js/ui/familias.js?v=20261019-1508",
-    "./js/ui/informes.js": "./js/ui/informes.js?v=20261019-1508",
-    "./js/ui/inicio.js": "./js/ui/inicio.js?v=20261019-1508",
-    "./js/ui/mantenimiento.js": "./js/ui/mantenimiento.js?v=20261019-1508",
-    "./js/ui/nombres.js": "./js/ui/nombres.js?v=20261019-1508",
-    "./js/ui/proveedores.js": "./js/ui/proveedores.js?v=20261019-1508",
-    "./js/ui/registrar.js": "./js/ui/registrar.js?v=20261019-1508",
-    "./js/ui/ventas.js": "./js/ui/ventas.js?v=20261019-1508"
+    "./js/app.js": "./js/app.js?v=20261019-1542",
+    "./js/datos/almacen.js": "./js/datos/almacen.js?v=20261019-1542",
+    "./js/datos/excel.js": "./js/datos/excel.js?v=20261019-1542",
+    "./js/datos/nube.js": "./js/datos/nube.js?v=20261019-1542",
+    "./js/datos/nube-config.js": "./js/datos/nube-config.js?v=20261019-1542",
+    "./js/datos/sincronia.js": "./js/datos/sincronia.js?v=20261019-1542",
+    "./js/exportar/excel-export.js": "./js/exportar/excel-export.js?v=20261019-1542",
+    "./js/exportar/pdf.js": "./js/exportar/pdf.js?v=20261019-1542",
+    "./js/exportar/reporte-empresa.js": "./js/exportar/reporte-empresa.js?v=20261019-1542",
+    "./js/nucleo/calculos.js": "./js/nucleo/calculos.js?v=20261019-1542",
+    "./js/nucleo/clave.js": "./js/nucleo/clave.js?v=20261019-1542",
+    "./js/nucleo/compras.js": "./js/nucleo/compras.js?v=20261019-1542",
+    "./js/nucleo/dictado.js": "./js/nucleo/dictado.js?v=20261019-1542",
+    "./js/nucleo/formato.js": "./js/nucleo/formato.js?v=20261019-1542",
+    "./js/nucleo/habitos.js": "./js/nucleo/habitos.js?v=20261019-1542",
+    "./js/nucleo/importador.js": "./js/nucleo/importador.js?v=20261019-1542",
+    "./js/nucleo/importar-compras.js": "./js/nucleo/importar-compras.js?v=20261019-1542",
+    "./js/nucleo/modelo.js": "./js/nucleo/modelo.js?v=20261019-1542",
+    "./js/nucleo/nombres.js": "./js/nucleo/nombres.js?v=20261019-1542",
+    "./js/nucleo/personal.js": "./js/nucleo/personal.js?v=20261019-1542",
+    "./js/nucleo/rapidos.js": "./js/nucleo/rapidos.js?v=20261019-1542",
+    "./js/nucleo/sueltos.js": "./js/nucleo/sueltos.js?v=20261019-1542",
+    "./js/ui/ayuda.js": "./js/ui/ayuda.js?v=20261019-1542",
+    "./js/ui/clave.js": "./js/ui/clave.js?v=20261019-1542",
+    "./js/ui/cobro.js": "./js/ui/cobro.js?v=20261019-1542",
+    "./js/ui/compartir.js": "./js/ui/compartir.js?v=20261019-1542",
+    "./js/ui/componentes.js": "./js/ui/componentes.js?v=20261019-1542",
+    "./js/ui/datos.js": "./js/ui/datos.js?v=20261019-1542",
+    "./js/ui/entrar.js": "./js/ui/entrar.js?v=20261019-1542",
+    "./js/ui/errores.js": "./js/ui/errores.js?v=20261019-1542",
+    "./js/ui/estado.js": "./js/ui/estado.js?v=20261019-1542",
+    "./js/ui/familias.js": "./js/ui/familias.js?v=20261019-1542",
+    "./js/ui/informes.js": "./js/ui/informes.js?v=20261019-1542",
+    "./js/ui/inicio.js": "./js/ui/inicio.js?v=20261019-1542",
+    "./js/ui/mantenimiento.js": "./js/ui/mantenimiento.js?v=20261019-1542",
+    "./js/ui/nombres.js": "./js/ui/nombres.js?v=20261019-1542",
+    "./js/ui/proveedores.js": "./js/ui/proveedores.js?v=20261019-1542",
+    "./js/ui/registrar.js": "./js/ui/registrar.js?v=20261019-1542",
+    "./js/ui/ventas.js": "./js/ui/ventas.js?v=20261019-1542"
   }
 }
 </script><!-- MAPA:FIN -->
-<script type="module" src="js/app.js?v=20261019-1508"></script>
+<script type="module" src="js/app.js?v=20261019-1542"></script>
 
 <script>
   // Si el navegador es muy viejo y no entiende módulos, el script de arriba ni
   // se ejecuta y la página se queda en "Abriendo…" para siempre. Esto lo
   // detecta y lo explica, en vez de dejarla mirando una pantalla pegada.
+  //
+  // Pero si el navegador SÍ entiende módulos, no es viejo: está lento (un
+  // computador ocupado, la nube despacio) o algo no cargó. Antes salía "su
+  // navegador está muy viejo" en un Chrome nuevo que solo estaba lento.
+  // Entonces primero se dice que está tardando, y solo si a los 30 segundos
+  // sigue igual, qué hacer.
   window.addEventListener("load", function () {
+    var entiendeModulos = "noModule" in document.createElement("script");
+    function cargando() {
+      var main = document.getElementById("pantalla");
+      return main && main.querySelector(".cargando");
+    }
     setTimeout(function () {
       var main = document.getElementById("pantalla");
-      if (main && main.querySelector(".cargando")) {
+      if (cargando() && entiendeModulos) {
+        cargando().textContent =
+          "Está tardando más de lo normal. Espere un momento: sus datos se están abriendo.";
+        setTimeout(function () {
+          if (!cargando()) return;
+          main.innerHTML =
+            '<section class="tarjeta con-problemas">' +
+            '<h1>La aplicación no terminó de abrir</h1>' +
+            '<p>Recargue la página con Ctrl + Shift + R. Sus datos no se pierden.</p>' +
+            '<p>Si vuelve a pasar, revise que la abrió desde su dirección de internet ' +
+            '(no con doble clic sobre un archivo) e informe al soporte técnico.</p>' +
+            '</section>';
+        }, 22000);
+        return;
+      }
+      if (cargando()) {
         main.innerHTML =
           '<section class="tarjeta con-problemas">' +
           '<h1>No se pudo abrir</h1>' +

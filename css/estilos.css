@@ -632,6 +632,9 @@ tfoot td.n { font-family: var(--dato); }
 
 .comanda-pie {
   display: flex;
+  /* Si los botones y el total no caben, el total baja de renglón a la
+     derecha en vez de pegarse al borde o partirse en dos. */
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: var(--e2);
@@ -639,7 +642,7 @@ tfoot td.n { font-family: var(--dato); }
   border-top: 2px dashed var(--borde);
   background: var(--papel-hueso);
 }
-.comanda-total { font-family: var(--dato); font-weight: 600; font-size: var(--t-lg); }
+.comanda-total { font-family: var(--dato); font-weight: 600; font-size: var(--t-lg); white-space: nowrap; margin-left: auto; }
 
 .comanda[data-revisar="si"] { border-color: var(--rojo); background: #fffaf9; }
 
@@ -763,7 +766,8 @@ tfoot td.n { font-family: var(--dato); }
 .cifra dd.plata-cifra.apretada { font-size: var(--t-md); }
 
 .cifra.destacada { background: var(--marca-hondo); border-color: var(--marca-hondo); }
-.cifra.destacada dt { color: #9dc9b0; }
+/* Blanco suave y no verde pálido: sobre el rojo el verde casi no se leía. */
+.cifra.destacada dt { color: rgba(255, 255, 255, 0.86); }
 .cifra.destacada dd { color: #fff; }
 
 /* --------------------------------------------------------------------- */

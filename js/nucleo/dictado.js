@@ -75,6 +75,9 @@ const RELLENO = new Set([
   "DON", "DONA", "SENOR", "SENORA", "SRA", "SR", "BUENOS", "DIAS", "BUENAS",
   "TARDES", "HOY", "AYER", "SOLO", "ELLA", "ELLOS", "ELLAS", "PEDIDO",
   "PEDIDOS",
+  // "y el de siempre para Juan": sin esto, "SIEMPRE" quedaba como palabra que
+  // sobra y se llevaba al revisar el pedido ANTERIOR, que estaba completo.
+  "SIEMPRE", "MISMO", "MISMA",
 ]);
 
 // ---------------------------------------------------------------------------

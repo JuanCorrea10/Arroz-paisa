@@ -2,7 +2,8 @@
 //  componentes.js  -  Los ladrillos con los que se arman todas las pantallas.
 // ============================================================================
 
-import { coincide, pesos } from "../nucleo/formato.js";
+import { coincide, pesos, paraBuscar } from "../nucleo/formato.js";
+import { distancia } from "../nucleo/nombres.js";
 
 /**
  * Crea un elemento. Es la función más usada de todo el proyecto.
@@ -168,7 +169,12 @@ export function ventana({ titulo, cuerpo, botones = [], alCerrar }) {
   // Se busca dentro del CUERPO y no en la ventana entera: si no, el foco se lo
   // llevaría la × y un formulario dejaría de abrir con el cursor en su primera
   // casilla, que es lo que hace que se pueda llenar escribiendo de una.
-  const primero = contenido.querySelector("input, select, textarea, button")
+  // Un botón con "foco: true" se gana el cursor: es el que se quiere con
+  // Enter. Sin esto, en "Lo que se reconoció del pedido" el cursor caía en
+  // Cancelar y Enter cerraba la ventana sin anotar nada.
+  const conFoco = botones.findIndex((b) => b.foco);
+  const primero = (conFoco >= 0 ? pie.children[conFoco] : null)
+    || contenido.querySelector("input, select, textarea, button")
     || pie.querySelector("button");
   if (primero) {
     setTimeout(() => {
@@ -239,12 +245,17 @@ export function pedirDatos({ titulo, campos, textoAceptar = "Guardar" }) {
       }
       entrada.id = "campo-" + c.nombre;
       nodos[c.nombre] = entrada;
+      // La casilla de chulito va AL LADO de su rótulo, no debajo: debajo
+      // quedaba sola en la mitad de la ventana y no se sabía de qué era.
       cuerpo.append(
-        el("div", { clase: "campo" },
-          el("label", { for: entrada.id, texto: c.etiqueta }),
-          entrada,
-          c.ayuda ? el("small", { estilo: "color:var(--tinta-suave)", texto: c.ayuda }) : null
-        )
+        c.tipo === "casilla"
+          ? el("div", { clase: "campo" },
+              el("label", { clase: "casilla-ver", for: entrada.id }, entrada, " ", c.etiqueta),
+              c.ayuda ? el("small", { estilo: "color:var(--tinta-suave)", texto: c.ayuda }) : null)
+          : el("div", { clase: "campo" },
+              el("label", { for: entrada.id, texto: c.etiqueta }),
+              entrada,
+              c.ayuda ? el("small", { estilo: "color:var(--tinta-suave)", texto: c.ayuda }) : null)
       );
     }
 
@@ -286,7 +297,12 @@ export function pedirDatos({ titulo, campos, textoAceptar = "Guardar" }) {
     cuerpo.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") {
         e.preventDefault();
-        cuerpo.parentElement.querySelector(".ventana-pie button:last-child").click();
+        // El pie va FUERA del cuerpo de la ventana (para que no se pierda al
+        // bajar), así que se busca en la ventana entera. Con
+        // cuerpo.parentElement no se encontraba, y Enter reventaba con
+        // "Algo se dañó" en vez de crear a la persona.
+        const aceptar = cuerpo.closest("dialog")?.querySelector(".ventana-pie button:last-child");
+        if (aceptar) aceptar.click();
       }
     });
     void cerrar;
@@ -332,6 +348,14 @@ export function buscador({
   alCrear = null,
   permiteCantidad = false,
   textoCrear = (t) => `Crear "${t}"`,
+  // Para los PLATOS: "almuerzos" encuentra ALMUERZO y "almuerso" lo ofrece
+  // como "¿quiso decir?". Para las PERSONAS no: ofrecer a alguien parecido
+  // cuando escriben a una persona nueva es anotarle el almuerzo a otra.
+  aproximado = false,
+  // Si Enter puede escoger el renglón de "Crear ...". Para los platos no:
+  // un plato nuevo lleva precio, y crearlo por un error de dedo deja un
+  // plato repetido con un precio inventado.
+  enterCrea = true,
   id = "buscador-" + Math.random().toString(36).slice(2, 8),
 }) {
   let lista = opciones;
@@ -367,9 +391,36 @@ export function buscador({
       : { cuantos: 1, resto: escrito };
     const texto = resto;
     ultimaCantidad = cuantos;
-    const encontradas = lista.filter((o) => coincide(o.texto, texto));
-    const hayExacta = lista.some((o) => o.texto.toUpperCase() === texto.toUpperCase());
-    const items = encontradas.slice(0, 60).map((o) => ({ tipo: "opcion", ...o }));
+    const buscado = paraBuscar(texto);
+    let encontradas = lista.filter((o) => coincide(o.texto, texto));
+    let sonParecidas = false;
+    if (aproximado && !encontradas.length && buscado.length >= 3) {
+      const singular = buscado.split(" ").map(sinPlural).join(" ");
+      encontradas = lista.filter((o) => coincide(o.texto, singular));
+      if (!encontradas.length) {
+        encontradas = lista.filter((o) => seParece(paraBuscar(o.texto), buscado));
+        sonParecidas = encontradas.length > 0;
+      }
+    }
+    // Primero la que es IGUAL a lo escrito, después las que EMPIEZAN así, y
+    // al final las demás, cada grupo en su orden. Por abecedario solo, al
+    // escribir "juan orozco" salía primero JUAN MANUEL OROZCO, y Enter le
+    // anotaba el almuerzo a él.
+    if (buscado) {
+      const puesto = (o) => {
+        const t = paraBuscar(o.texto);
+        return t === buscado ? 0 : t.startsWith(buscado) ? 1 : 2;
+      };
+      encontradas = encontradas
+        .map((o, i) => ({ o, i, p: puesto(o) }))
+        .sort((a, b) => a.p - b.p || a.i - b.i)
+        .map((x) => x.o);
+    }
+    const hayExacta = lista.some((o) => paraBuscar(o.texto) === buscado);
+    const items = encontradas.slice(0, 60).map((o) => ({
+      tipo: "opcion", ...o,
+      ...(sonParecidas ? { apunte: (o.apunte ? o.apunte + " · " : "") + "¿quiso decir este?" } : {}),
+    }));
     if (alCrear && texto.length >= 2 && !hayExacta) {
       items.push({ tipo: "crear", texto, valor: texto });
     }
@@ -422,26 +473,76 @@ export function buscador({
     ultimaCantidad = 1;
   }
 
-  entrada.addEventListener("input", () => { resaltado = visibles.length ? 0 : -1; pintar(); });
-  entrada.addEventListener("focus", () => { resaltado = -1; pintar(); });
+  // Lo resaltado se calcula con la lista NUEVA, la de lo que acaba de escribir.
+  // Con la vieja, si la lista no se había abierto antes (el cursor lo puso la
+  // app), no quedaba nada resaltado y Enter no escogía a nadie.
+  entrada.addEventListener("input", () => {
+    visibles = opcionesVisibles();
+    resaltado = visibles.length ? 0 : -1;
+    pintar();
+  });
+  // Cuando la APP pone el cursor aquí (después de anotar, de tocar un filtro)
+  // la lista NO se abre: se abría con los 124 nombres encima de los filtros y
+  // del total, y un clic despistado caía en una persona. Se abre cuando la
+  // persona toca la casilla, escribe o baja con la flecha.
+  let enfocandoCallado = false;
+  entrada.addEventListener("focus", () => {
+    resaltado = -1;
+    if (enfocandoCallado) { enfocandoCallado = false; return; }
+    pintar();
+  });
+  entrada.addEventListener("click", () => { if (ul.classList.contains("oculto")) pintar(); });
   entrada.addEventListener("blur", () => setTimeout(ocultar, 180));
   entrada.addEventListener("keydown", (e) => {
-    if (e.key === "ArrowDown") { e.preventDefault(); resaltado = Math.min(resaltado + 1, visibles.length - 1); pintar(); }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (ul.classList.contains("oculto")) { pintar(); return; }
+      resaltado = Math.min(resaltado + 1, visibles.length - 1); pintar();
+    }
     else if (e.key === "ArrowUp") { e.preventDefault(); resaltado = Math.max(resaltado - 1, 0); pintar(); }
     else if (e.key === "Enter") {
       e.preventDefault();
-      if (resaltado >= 0) elegir(resaltado);
-      else if (visibles.length === 1) elegir(0);
+      const i = resaltado >= 0 ? resaltado : visibles.length === 1 ? 0 : -1;
+      if (i < 0) return;
+      if (visibles[i] && visibles[i].tipo === "crear" && !enterCrea) {
+        // No se crea con Enter, pero tampoco se queda callado.
+        const li = ul.children[i];
+        if (li) { li.classList.remove("avisar"); void li.offsetWidth; li.classList.add("avisar"); }
+        return;
+      }
+      elegir(i);
     } else if (e.key === "Escape") { ocultar(); entrada.blur(); }
   });
 
   return {
     nodo: contenedor,
     entrada,
-    enfocar: () => entrada.focus(),
+    enfocar: () => {
+      enfocandoCallado = true;
+      entrada.focus();
+      if (document.activeElement !== entrada) enfocandoCallado = false;
+    },
     limpiar: () => { entrada.value = ""; ocultar(); },
     cambiarOpciones: (nuevas) => { lista = nuevas; if (document.activeElement === entrada) pintar(); },
   };
+}
+
+/** "ALMUERZOS" -> "ALMUERZO", "LIMONES" -> "LIMON". Basta con que quede
+ *  dentro del nombre: coincide() busca la palabra adentro. */
+function sinPlural(palabra) {
+  if (palabra.length > 4 && palabra.endsWith("ES")) return palabra.slice(0, -2);
+  if (palabra.length > 3 && palabra.endsWith("S")) return palabra.slice(0, -1);
+  return palabra;
+}
+
+/** Cada palabra escrita se parece a alguna del nombre: una letra cambiada
+ *  ("ALMUERSO"), o dos en palabras largas. Las de una o dos letras se saltan. */
+function seParece(nombre, buscado) {
+  const delNombre = nombre.split(" ");
+  return buscado.split(" ").filter((p) => p.length >= 3).every((p) =>
+    delNombre.some((n) => n.includes(p) ||
+      distancia(p, n, 2) <= (p.length >= 7 ? 2 : 1) ||
+      (p.length >= 4 && n.length > p.length && distancia(p, n.slice(0, p.length), 1) <= 1)));
 }
 
 // ---------------------------------------------------------------------------

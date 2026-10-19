@@ -117,7 +117,8 @@ export function pedirLaClave(paraQue) {
         campo),
       el("label", { clase: "casilla-ver" }, ver, " Mostrar la clave"),
       error,
-      el("p", { clase: "nota", texto: "Si no tiene la clave, cancele: el registro diario de pedidos no la requiere." })
+      el("p", { clase: "nota", texto: "Si no tiene la clave, cancele: el registro diario de pedidos no la requiere. " +
+        "Si un precio está mal, informe a la administradora." })
     );
     campo.id = "campo-la-clave";
 
@@ -172,6 +173,9 @@ export function pintarCerrada(raiz, titulo, alAbrir) {
       el("div", { clase: "candado-grande", "aria-hidden": "true", texto: "🔒" }),
       el("h1", { texto: `${titulo} requiere la clave de administrador` }),
       el("p", { texto: "Ingrese la clave para continuar. El registro diario de pedidos no la requiere." }),
+      el("p", { clase: "nota", texto:
+        "Si un precio está mal, anote el pedido normalmente e informe a la administradora " +
+        "para que lo corrija: el pedido se puede ajustar después." }),
       el("div", { clase: "acciones" },
         el("button", {
           clase: "principal",

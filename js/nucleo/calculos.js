@@ -732,6 +732,10 @@ export function informePorPersona(consumos, anio, mes, empresasPorCodigo, codigo
         q2: 0,
         mes: 0,
         contado: 0,
+        // Renglones sin precio (no cortesías): su total está INCOMPLETO. La
+        // cuenta de cobro ya lo avisaba; aquí no, y se le podía decir a
+        // alguien "usted lleva $ 137.000" faltándole $ 18.000.
+        sinPrecio: 0,
         facturas: new Set(),
         // Lo que pidió, junto por plato. Es lo que contesta "¿y esta persona
         // qué come?" sin tener que abrir a nadie: en una lista de 268 nombres,
@@ -750,6 +754,7 @@ export function informePorPersona(consumos, anio, mes, empresasPorCodigo, codigo
     fila.mes += alaEmpresa;
     if (enElRango(c.fecha)) fila.dia += alaEmpresa;
     fila.contado += subtotalDeContado(c);
+    if (!esCortesia(c) && !(Number(c.precioUnitario) > 0)) fila.sinPrecio++;
     fila.facturas.add(claveFactura(c));
 
     if (cuentaEnLaLista(c.fecha)) {

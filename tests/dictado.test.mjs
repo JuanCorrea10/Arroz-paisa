@@ -618,3 +618,18 @@ prueba("y la chuleta sola sigue siendo la chuleta sola", () => {
   });
   igual(r.renglones[0].producto.nombre, "CHULETA DE CERDO");
 });
+
+// ---------------------------------------------------------------------------
+grupo("'El de siempre' no daña el pedido de al lado");
+
+prueba("'y el de siempre para Juan' no deja pendiente el pedido anterior", () => {
+  // Lo encontró el trabajador de prueba: "SIEMPRE" quedaba como palabra que
+  // sobra y se pegaba al pedido de Daniel, que estaba completo.
+  const r = leerElDictado("Daniel Triana dos almuerzos, y el de siempre para Juan Orozco", {
+    gente: ["DANIEL TRIANA", "JUAN OROZCO", "JUAN MANUEL OROZCO"],
+    productos: [{ nombre: "ALMUERZO", activo: true }],
+  });
+  const daniel = r.renglones.find((x) => x.persona.elegida === "DANIEL TRIANA");
+  cierto(daniel && daniel.listo, daniel ? daniel.porque.join("; ") : "no salió Daniel");
+  igual(daniel.cantidad, 2);
+});

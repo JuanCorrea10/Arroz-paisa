@@ -327,3 +327,15 @@ prueba("la quincena en curso nunca es mayor que el mes", () => {
     cierto(filas.every((f) => f.enCurso <= f.mes), "falló el " + dia);
   }
 });
+
+prueba("Por persona cuenta los pedidos sin precio de cada quien (su total está incompleto)", () => {
+  // Lo encontró la prueba como trabajadora: la cuenta de cobro avisaba de los
+  // renglones en $ 0 y Por persona no, así que se le podía decir a alguien
+  // "usted lleva tanto" faltándole plata.
+  const sinPrecio = { id: "z1", fecha: "2026-08-12", empresa: "MGP", persona: "CAMILA", producto: "AGUA CON GAS", cantidad: 1, precioUnitario: 0, revisar: ["SIN_PRECIO"] };
+  const conPrecio = { id: "z2", fecha: "2026-08-12", empresa: "MGP", persona: "CAMILA", producto: "ALMUERZO", cantidad: 1, precioUnitario: 12000, revisar: [] };
+  const regalo = { id: "z3", fecha: "2026-08-13", empresa: "MGP", persona: "CAMILA", producto: "JUGO", cantidad: 1, precioUnitario: 0, cobro: "cortesia", facturable: false, revisar: [] };
+  const [camila] = informePorPersona([sinPrecio, conPrecio, regalo], 2026, 8, { MGP: { codigo: "MGP", ultimoDiaQ1: 13 } });
+  igual(camila.sinPrecio, 1, "la cortesía no cuenta: no tiene precio a propósito");
+  igual(camila.mes, 12000);
+});

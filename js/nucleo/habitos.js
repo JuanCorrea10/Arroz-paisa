@@ -110,6 +110,10 @@ export function tieneCostumbre(habito) {
 export function platosFrecuentes(datos, codigoEmpresa, {
   limite = 6,
   desdeFecha = null,
+  // Solo lo de ANTES de este día. Si contara lo de hoy, los botones se
+  // reordenaban mientras ella anota: el que era Alt + 8 pasaba a ser otro
+  // plato después de una sola coca cola.
+  antesDe = null,
 } = {}) {
   // Antes recibía aparte "a qué empresa se le factura", para buscar el precio
   // con esa. Ya no: la empresa es una sola.
@@ -123,6 +127,7 @@ export function platosFrecuentes(datos, codigoEmpresa, {
   for (const c of datos.consumos) {
     if (normalizar(c.empresa) !== empresa) continue;
     if (desdeFecha && c.fecha < desdeFecha) continue;
+    if (antesDe && c.fecha >= antesDe) continue;
     const plato = normalizar(c.producto);
     if (!activos.has(plato)) continue;
     cuantas.set(plato, (cuantas.get(plato) || 0) + 1);
@@ -237,7 +242,7 @@ export function botonesDelPedido(datos, codigoEmpresa, fecha, { relleno = 8 } = 
   };
   for (const p of rapidosDe(datos, fecha).validos) poner(p, "hoy");
   for (const p of rapidosDe(datos, SIEMPRE).validos) poner(p, "siempre");
-  for (const f of platosFrecuentes(datos, empresa, { limite: relleno + salida.length })) {
+  for (const f of platosFrecuentes(datos, empresa, { limite: relleno + salida.length, antesDe: fecha })) {
     if (salida.length >= relleno) break;
     poner(f.producto, "frecuente");
   }
