@@ -51,6 +51,11 @@ service cloud.firestore {
     match /apodos/{id} {
       allow read, write: if tieneCuenta();
     }
+    // Los botones rapidos de Registrar (el especial del dia y los fijos).
+    // No mueven plata: los puede poner quien este en la cocina.
+    match /rapidos/{id} {
+      allow read, write: if tieneCuenta();
+    }
 
     // Lo que se tira el funcionamiento: solo el administrador.
     match /productos/{id} {

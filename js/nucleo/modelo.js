@@ -5,6 +5,7 @@
 import { normalizar, aEntero, esFechaISO } from "./formato.js";
 import { clavePrecio, clavePersona, formaDeCobro, CORTESIA, esLaCasa } from "./calculos.js";
 import { limpiarNombre } from "./nombres.js";
+import { quitarDeRapidos } from "./rapidos.js";
 
 /** La versión del formato de los datos. Si algún día cambia, sirve para migrar. */
 export const VERSION_DATOS = 1;
@@ -43,6 +44,9 @@ export function datosVacios() {
     // Cómo le dice el señor de los audios a cada persona ("te tomate" es
     // TETE RIVERA). Lo va aprendiendo dictado.js cada vez que ella corrige.
     apodos: {},
+    // Los botones rápidos que ella escoge para anotar: { siempre: [...],
+    // "2026-10-19": [...] }. Ver rapidos.js.
+    rapidos: {},
   };
 }
 
@@ -70,6 +74,7 @@ export function completarDatos(datos) {
   salida.config.acreedor = { ...base.config.acreedor, ...((datos.config || {}).acreedor || {}) };
   salida.cuadres = datos.cuadres || {};
   salida.apodos = datos.apodos && typeof datos.apodos === "object" ? datos.apodos : {};
+  salida.rapidos = datos.rapidos && typeof datos.rapidos === "object" ? datos.rapidos : {};
   salida.precios = datos.precios || {};
   salida.version = VERSION_DATOS;
   // Todo renglón tiene que tener id y lista de revisión, sí o sí.
@@ -435,6 +440,8 @@ export function borrarProducto(datos, nombre) {
   for (const llave of Object.keys(datos.precios)) {
     if (llave.startsWith(limpio + "|")) { delete datos.precios[llave]; precios++; }
   }
+  // Y de los botones rápidos: un botón a un plato que no existe no sirve.
+  quitarDeRapidos(datos, limpio);
   return { borrados: antes - datos.productos.length, precios };
 }
 

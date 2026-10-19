@@ -116,6 +116,23 @@ try {
   let loQueSeTecleo = null;
   let loQueSeApago = null;
 
+  // "&forzar=rapidos": un especial de hoy, dos fijos, uno que ya no existe y
+  // uno sin precio, para ver la tira de arriba y los botones del pedido con
+  // todo lo que pueden mostrar. "&forzar=rapidos-ayer" deja vacío el día y
+  // pone el especial en el día anterior, para ver "Los mismos del ...".
+  if (forzar.includes("rapidos")) {
+    const { ponerRapidos, SIEMPRE: SIEMPRE_R } = await import("../js/nucleo/rapidos.js");
+    const { agregarProducto: agProd } = await import("../js/nucleo/modelo.js");
+    agProd(datos, "SANCOCHO DE GALLINA", {});           // sin precio a propósito
+    const [uno, dos, tres] = datos.productos.filter((p) => p.activo !== false).map((p) => p.nombre);
+    const diaDelEspecial = forzar.includes("rapidos-ayer")
+      ? new Date(new Date(estado.fecha + "T12:00:00").getTime() - 86400000).toISOString().slice(0, 10)
+      : estado.fecha;
+    ponerRapidos(datos, diaDelEspecial, ["SANCOCHO DE GALLINA", uno]);
+    ponerRapidos(datos, SIEMPRE_R, [dos, tres]);
+    if (!forzar.includes("rapidos-ayer")) datos.rapidos[SIEMPRE_R].push("PLATO QUE YA NO EXISTE");
+  }
+
   // "&forzar=con-clave": pone la clave "1234", para ver la pantalla de la
   // clave con clave puesta. Va antes de pintar porque es un cambio a los datos.
   if (forzar.includes("con-clave")) {
@@ -332,6 +349,12 @@ try {
     const { pintarCerrada } = await import("../js/ui/clave.js");
     pintarCerrada(raiz, "Platos y precios", () => {});
   }
+  // "&forzar=rapidos+ventana-rapidos": abre la ventana de escoger botones.
+  if (forzar.includes("ventana-rapidos")) {
+    const b = [...raiz.querySelectorAll(".tira-rapidos button")].find((x) => /botones|platos de hoy/i.test(x.textContent));
+    if (b) b.click();
+  }
+
   if (forzar.includes("ponerla")) {
     const b = [...raiz.querySelectorAll("button")].find((x) => /Configurar la clave|Cambiar la clave/.test(x.textContent));
     if (b) b.click();

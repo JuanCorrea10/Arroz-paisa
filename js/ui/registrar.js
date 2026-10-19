@@ -31,9 +31,10 @@ import {
 import { leerElDictado, apodosDe, aprenderApodo, olvidarApodo } from "../nucleo/dictado.js";
 import { conClavePara } from "./clave.js";
 import {
-  pedidoHabitual, tieneCostumbre, platosFrecuentes, loDelDiaAnterior,
-  yaAnotadasHoy, cuantoValdria,
+  pedidoHabitual, tieneCostumbre, loDelDiaAnterior,
+  yaAnotadasHoy, cuantoValdria, botonesDelPedido,
 } from "../nucleo/habitos.js";
+import { rapidosDe, ponerRapidos, ultimosDeHoy, SIEMPRE, MAXIMO } from "../nucleo/rapidos.js";
 
 /** La persona cuya comanda se está llenando ahora mismo. */
 let personaActiva = null;
@@ -71,6 +72,7 @@ export function pintarRegistrar(raiz) {
       acciones(botonDePegarElDictado(raiz), botonDePedidosEnPDF())
     ),
     barraDeMando(raiz),
+    tiraDeRapidos(raiz),
     faltanLosPrecios(raiz),
     tarjetaDeAyer(raiz),
     cajaDeCaptura(raiz),
@@ -497,27 +499,218 @@ function barraDeMando(raiz) {
     },
   });
 
-  const empresa = el("select", {
-    id: "campo-empresa",
-    alCambiar: (e) => {
-      estado.empresa = e.target.value;
-      personaActiva = null;
-      pintarRegistrar(raiz);
-    },
-  }, ...empresas().map((emp) => el("option", { value: emp.codigo, selected: emp.codigo === estado.empresa }, emp.codigo)));
+  // La empresa va en BOTONES y no en una lista desplegable.
+  //
+  // En la mañana se cambia de empresa muchas veces -- MGP, después AGRO,
+  // después otra vez MGP porque llegó uno tarde --, y una lista que hay que
+  // abrir son dos toques cada vez y esconde las otras empresas. Con botones
+  // se ven todas, se cambia de un toque, y cada una dice cuántas comandas
+  // lleva hoy: de un vistazo se sabe cuál falta por anotar.
+  const delDiaTodas = delDia(estado.datos.consumos, estado.fecha);
+  const botonesDeEmpresa = el("div", { clase: "empresas-botones", role: "group", "aria-label": "Empresa" },
+    ...empresas().map((emp) => {
+      const cuantas = contarFacturas(delDiaTodas.filter((c) => c.empresa === emp.codigo));
+      const puesta = emp.codigo === estado.empresa;
+      return el("button", {
+        type: "button",
+        clase: "boton-empresa" + (puesta ? " puesta" : ""),
+        estilo: `--cinta:${colorDeEmpresa(emp.codigo)}`,
+        "aria-pressed": puesta ? "true" : "false",
+        title: emp.razonSocial || emp.codigo,
+        alHacerClic: () => {
+          if (puesta) return;
+          estado.empresa = emp.codigo;
+          personaActiva = null;
+          pintarRegistrar(raiz);
+        },
+      },
+        el("strong", { texto: emp.codigo }),
+        el("small", { texto: cuantas ? `${cuantas} hoy` : "nadie aún" })
+      );
+    })
+  );
+
+  const esHoy = estado.fecha === hoyISO();
 
   return el("div", { clase: "mando" },
-    el("div", { clase: "campo" },
+    el("div", { clase: "campo campo-dia" },
       el("label", { for: "campo-fecha", texto: "Día" }),
       fecha,
-      el("small", { estilo: "color:var(--tinta-suave)", texto: fechaLarga(estado.fecha) || "Elija un día" })
+      el("small", { estilo: "color:var(--tinta-suave)" },
+        fechaLarga(estado.fecha) || "Elija un día",
+        // Anotar un día viejo pasa (se quedó algo de ayer), y después hay que
+        // acordarse de volver. Si no es hoy, se dice y se vuelve de un toque.
+        esHoy ? null : el("button", {
+          type: "button",
+          clase: "plano chico volver-a-hoy",
+          alHacerClic: () => { estado.fecha = hoyISO(); personaActiva = null; pintarRegistrar(raiz); },
+        }, "Volver a hoy"))
     ),
-    el("div", { clase: "campo" },
-      el("label", { for: "campo-empresa", texto: "Empresa" }),
-      empresa,
+    el("div", { clase: "campo campo-empresas" },
+      el("span", { clase: "etiqueta", texto: "Empresa" }),
+      botonesDeEmpresa,
       el("small", { estilo: "color:var(--tinta-suave)", texto: (empresaPorCodigo(estado.empresa) || {}).razonSocial || "" })
     )
   );
+}
+
+// ---------------------------------------------------------------------------
+//  Los botones rápidos que ella escoge (ver nucleo/rapidos.js)
+// ---------------------------------------------------------------------------
+
+/**
+ * La tira de "los platos de hoy", arriba de todo.
+ *
+ * Está a la vista y no en un menú porque ella no explora: si escoger el
+ * especial del día fuera algo que hay que ir a buscar, no se escogería nunca y
+ * los botones de cada pedido seguirían sin traerlo.
+ */
+function tiraDeRapidos(raiz) {
+  const hoy = rapidosDe(estado.datos, estado.fecha);
+  const fijos = rapidosDe(estado.datos, SIEMPRE);
+  const perdidos = [...hoy.perdidos, ...fijos.perdidos];
+  const antes = hoy.validos.length ? null : ultimosDeHoy(estado.datos, estado.fecha);
+  const esHoy = estado.fecha === hoyISO();
+
+  const usarLosDeAntes = () => {
+    try {
+      ponerRapidos(estado.datos, estado.fecha, antes.platos);
+    } catch (e) {
+      mensaje(String(e.message || e), "malo", 8);
+      return;
+    }
+    cambio();
+    pintarRegistrar(raiz);
+    mensaje(`Listo: ${antes.platos.join(", ")} salen a un toque en cada pedido.`, "bien", 5);
+  };
+
+  return el("section", { clase: "tira-rapidos no-imprimir" },
+    el("div", { clase: "tira-rapidos-que" },
+      el("span", { clase: "tira-rapidos-rotulo", texto: esHoy ? "Platos de hoy" : `Platos del ${fechaLarga(estado.fecha)}` }),
+      hoy.validos.length
+        ? el("span", { clase: "tira-rapidos-platos" },
+            ...hoy.validos.map((p) => el("span", { clase: "plato-de-hoy", texto: p })))
+        : el("span", { clase: "tira-rapidos-vacio", texto: "Ninguno escogido. Los que escoja salen de un toque en cada pedido." })
+    ),
+    el("div", { clase: "tira-rapidos-acciones" },
+      antes
+        ? el("button", { type: "button", clase: "chico", alHacerClic: usarLosDeAntes,
+            title: antes.platos.join(", ") },
+            `Los mismos del ${fechaLarga(antes.fecha).split(" de ")[0]}`)
+        : null,
+      el("button", { type: "button", clase: hoy.validos.length ? "chico" : "principal chico",
+        alHacerClic: () => ventanaDeRapidos(raiz) },
+        hoy.validos.length || fijos.validos.length ? "Cambiar los botones" : "Escoger los platos de hoy")
+    ),
+    perdidos.length
+      ? el("p", { clase: "nota ojo tira-rapidos-perdidos" },
+          perdidos.map((p) => `${p.producto} ${p.porque}`).join(" · ") +
+          ". No sale como botón: quítelo en “Cambiar los botones”.")
+      : null
+  );
+}
+
+/**
+ * La ventana para escoger los botones: los de este día y los de siempre.
+ * Cada cambio se guarda en el momento; "Listo" solo cierra.
+ */
+function ventanaDeRapidos(raiz) {
+  const cuerpo = el("div", { clase: "ventana-rapidos" });
+  let enfocar = null;   // después de repintar, a qué buscador volver
+
+  const seccion = (cual, titulo, explica) => {
+    const { validos, perdidos } = rapidosDe(estado.datos, cual);
+    const guardados = [...validos, ...perdidos.map((p) => p.producto)];
+
+    const guardar = (lista, queDijo) => {
+      try {
+        ponerRapidos(estado.datos, cual, lista);
+      } catch (e) {
+        mensaje(String(e.message || e), "malo", 8);
+        return;
+      }
+      cambio();
+      enfocar = cual;
+      repintar();
+      if (queDijo) mensaje(queDijo, "bien", 3);
+    };
+
+    const opciones = estado.datos.productos
+      .filter((p) => p.activo !== false && String(p.nombre || "").trim() !== "" &&
+                     !guardados.includes(normalizar(p.nombre)))
+      .map((p) => {
+        const v = precioDe(estado.datos, p.nombre, estado.empresa);
+        return { texto: p.nombre, valor: normalizar(p.nombre), apunte: v === null ? "sin precio" : pesos(v) };
+      })
+      .sort((a, b) => a.texto.localeCompare(b.texto, "es"));
+
+    const caben = validos.length < MAXIMO;
+    const busca = caben ? buscador({
+      etiqueta: null,
+      placeholder: "Escriba un plato para agregarlo",
+      opciones,
+      alElegir: (plato) => guardar([...validos, plato]),
+    }) : null;
+    if (busca) busca.nodo.dataset.rapidos = cual;
+
+    return el("section", { clase: "rapidos-seccion" },
+      el("h4", { texto: titulo }),
+      el("p", { clase: "nota", texto: explica }),
+      guardados.length
+        ? el("div", { clase: "rapidos-elegidos" },
+            ...validos.map((p) =>
+              el("span", { clase: "rapido-elegido" },
+                p,
+                el("button", { type: "button", clase: "quitar-rapido", "aria-label": `Quitar ${p}`, title: "Quitar",
+                  alHacerClic: () => guardar(validos.filter((x) => x !== p)) }, "×"))),
+            ...perdidos.map((p) =>
+              el("span", { clase: "rapido-elegido perdido", title: p.porque },
+                `${p.producto} (${p.porque})`,
+                el("button", { type: "button", clase: "quitar-rapido", "aria-label": `Quitar ${p.producto}`, title: "Quitar",
+                  alHacerClic: () => guardar(validos) }, "×"))))
+        : el("p", { clase: "rapidos-ninguno", texto: "Todavía ninguno." }),
+      busca ? busca.nodo : el("p", { clase: "nota", texto: `Ya hay ${MAXIMO}, que es el máximo. Quite uno para poner otro.` })
+    );
+  };
+
+  function repintar() {
+    vaciar(cuerpo);
+    const esHoy = estado.fecha === hoyISO();
+    const antes = rapidosDe(estado.datos, estado.fecha).validos.length
+      ? null : ultimosDeHoy(estado.datos, estado.fecha);
+    poner(cuerpo,
+      el("p", { texto: "Salen como botones en cada pedido, para anotarlos de un toque. Después de estos salen solos los más pedidos." }),
+      seccion(estado.fecha,
+        esHoy ? "Solo hoy" : `Solo el ${fechaLarga(estado.fecha)}`,
+        "El especial del día. Mañana esta lista arranca vacía."),
+      antes
+        ? el("div", { clase: "acciones", estilo: "margin-top:calc(-1 * var(--e2))" },
+            el("button", { type: "button", clase: "chico",
+              alHacerClic: () => {
+                try { ponerRapidos(estado.datos, estado.fecha, antes.platos); }
+                catch (e) { mensaje(String(e.message || e), "malo", 8); return; }
+                cambio();
+                enfocar = estado.fecha;
+                repintar();
+              } }, `Poner los mismos del ${fechaLarga(antes.fecha)}`))
+        : null,
+      seccion(SIEMPRE, "Todos los días",
+        "Los que quiere tener a mano siempre, aunque no estén entre los más pedidos.")
+    );
+    if (enfocar) {
+      const caja = cuerpo.querySelector(`[data-rapidos="${enfocar}"] input`);
+      if (caja) setTimeout(() => caja.focus(), 30);
+      enfocar = null;
+    }
+  }
+
+  repintar();
+  ventana({
+    titulo: "Botones rápidos",
+    cuerpo,
+    botones: [{ texto: "Listo", clase: "principal" }],
+    alCerrar: () => pintarRegistrar(raiz),
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -726,6 +919,14 @@ function comandaEnCurso(raiz) {
   // Esc cierra la persona y salta a buscar la siguiente, sin soltar el
   // teclado. Transcribiendo de un audio, cada mano que se levanta cuesta.
   caja.addEventListener("keydown", (e) => {
+    // Alt + número: el botón rápido con ese número. Se mira e.code y no e.key
+    // porque con Alt algunos teclados cambian el carácter que sale.
+    const n = /^(Digit|Numpad)([1-9])$/.exec(e.code || "");
+    if (e.altKey && n) {
+      const boton = caja.querySelector(`.ficha-plato[data-rapido="${n[2]}"]`);
+      if (boton) { e.preventDefault(); boton.click(); }
+      return;
+    }
     if (e.key !== "Escape") return;
     e.preventDefault();
     personaActiva = null;
@@ -1209,19 +1410,29 @@ function atajosDePedido(raiz, laEmpresa, yaTieneAlgo) {
     }
   }
 
-  // 2) Los platos que más se piden en esta empresa, a un toque.
-  const frecuentes = platosFrecuentes(estado.datos, estado.empresa, { limite: 5 });
-  if (frecuentes.length) {
+  // 2) Los botones de un toque: los de hoy y los de siempre que ella escogió,
+  //    y después los más pedidos de esta empresa (ver botonesDelPedido).
+  //
+  //    Van numerados: Alt + el número lo anota sin soltar el teclado. Para
+  //    quien transcribe del audio es lo que más ahorra; a quien usa el dedo
+  //    el numerito no le estorba.
+  const botones = botonesDelPedido(estado.datos, laEmpresa, estado.fecha);
+  if (botones.length) {
     poner(caja,
       el("div", { clase: "fila fichas-platos" },
-        ...frecuentes.map((f) =>
+        ...botones.map((b, i) =>
           el("button", {
-            clase: "ficha-plato",
-            title: `${f.producto} — ${pesos(f.precio)}`,
-            alHacerClic: () => agregarPlato(f.producto, raiz),
+            clase: "ficha-plato" + (b.origen === "hoy" ? " de-hoy" : "") +
+                   (b.precio === null ? " sin-precio" : ""),
+            datos: { rapido: String(i + 1) },
+            title: `${b.producto} — ${b.precio === null ? "sin precio" : pesos(b.precio)}` +
+                   (i < 9 ? `  (Alt + ${i + 1})` : ""),
+            alHacerClic: () => agregarPlato(b.producto, raiz),
           },
-            el("span", { texto: f.producto }),
-            el("small", { texto: pesos(f.precio) })
+            i < 9 ? el("span", { clase: "ficha-numero", "aria-hidden": "true", texto: String(i + 1) }) : null,
+            b.origen === "hoy" ? el("span", { clase: "ficha-hoy", texto: "HOY" }) : null,
+            el("span", { texto: b.producto }),
+            el("small", { texto: b.precio === null ? `sin precio en ${laEmpresa}` : pesos(b.precio) })
           )
         )
       )

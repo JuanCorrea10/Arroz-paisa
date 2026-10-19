@@ -14,6 +14,7 @@ import {
 import { estado, cambio, empresas } from "./estado.js";
 import { barraDeFamilia } from "./familias.js";
 import { pesos, normalizar, coincide, aEntero, nombreMes } from "../nucleo/formato.js";
+import { renombrarEnRapidos } from "../nucleo/rapidos.js";
 import { clavePrecio, precioDe, indicePorCodigo, clavePersona, precioDelPlato, precioSeVeRaro,
   rangoQuincena } from "../nucleo/calculos.js";
 import { simularUnionDePlatos, unirPlatosDelCatalogo } from "../nucleo/sueltos.js";
@@ -642,6 +643,8 @@ async function renombrarPlato(raiz, producto) {
   }
   // 3) El catálogo.
   producto.nombre = nuevo;
+  // 4) Los botones rápidos, para que el botón no se quede con el nombre viejo.
+  renombrarEnRapidos(estado.datos, viejo, nuevo);
 
   cambio();
   pintarCatalogo(raiz);

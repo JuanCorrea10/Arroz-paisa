@@ -15,6 +15,7 @@
 
 import { normalizar } from "./formato.js";
 import { clavePersona, clavePrecio, precioDe } from "./calculos.js";
+import { rapidosDe, SIEMPRE } from "./rapidos.js";
 
 /**
  * La "firma" de un pedido: qué pidió y cuánto, sin importar el orden en que
@@ -207,4 +208,38 @@ export function cuantoValdria(datos, platos, empresa) {
     else total += precio * (Number(p.cantidad) || 1);
   }
   return { total, faltaPrecio };
+}
+
+/**
+ * Los botones de un toque en cada pedido, en el orden en que se buscan:
+ *
+ *   1. los de HOY que ella escogió (el especial del día),
+ *   2. los de SIEMPRE que ella escogió,
+ *   3. los más pedidos de la empresa, para completar hasta "relleno".
+ *
+ * Los que ella escogió salen todos, aunque pasen de "relleno": los puso a
+ * propósito. Los más pedidos solo llenan el hueco que quede, y sin repetir.
+ *
+ * Un plato escogido que no tiene precio en esta empresa SÍ sale, con precio
+ * null: ella lo puso, y esconderlo sería fallar callado. La pantalla lo marca
+ * en rojo y, si lo tocan, el renglón nace marcado como siempre.
+ *
+ * Devuelve [{ producto, precio, origen: "hoy" | "siempre" | "frecuente" }].
+ */
+export function botonesDelPedido(datos, codigoEmpresa, fecha, { relleno = 8 } = {}) {
+  const empresa = normalizar(codigoEmpresa);
+  const salida = [];
+  const vistos = new Set();
+  const poner = (producto, origen) => {
+    if (vistos.has(producto)) return;
+    vistos.add(producto);
+    salida.push({ producto, origen, precio: precioDe(datos, producto, empresa) });
+  };
+  for (const p of rapidosDe(datos, fecha).validos) poner(p, "hoy");
+  for (const p of rapidosDe(datos, SIEMPRE).validos) poner(p, "siempre");
+  for (const f of platosFrecuentes(datos, empresa, { limite: relleno + salida.length })) {
+    if (salida.length >= relleno) break;
+    poner(f.producto, "frecuente");
+  }
+  return salida;
 }

@@ -45,6 +45,7 @@ export const COLECCIONES = {
   compras:   { tipo: "lista", llave: (c) => String(c.id) },
   precios:   { tipo: "mapa" },
   apodos:    { tipo: "mapa" },
+  rapidos:   { tipo: "mapa" },
   // El mes y el año que se están mirando son de CADA computador: si se
   // subieran, cambiar el mes en uno le cambiaría la pantalla al otro.
   config:    { tipo: "unico", campos: ["acreedor", "clave"] },

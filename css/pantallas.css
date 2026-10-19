@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20261014-1310";
+  --version: "20261019-1439";
 }
 
 /* ===========================================================================
@@ -2521,3 +2521,133 @@ td.plata-fila { font-weight: 600; }
 .entrar-formulario { display: grid; gap: var(--e3); margin-top: var(--e4); }
 .entrar-formulario .acciones { margin-bottom: 0; }
 .entrar-formulario .acciones button { width: 100%; }
+
+/* ---------------------------------------------------------------------
+/*  Botones rápidos: los platos de hoy y los de siempre
+/* --------------------------------------------------------------------- */
+.tira-rapidos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e2) var(--e4);
+  background: var(--amarillo-claro);
+  border: 1px solid #e2c37a;
+  border-left: 5px solid var(--amarillo);
+  border-radius: var(--radio-g);
+  padding: var(--e3) var(--e4);
+  margin: calc(-1 * var(--e3)) 0 var(--e5);
+}
+.tira-rapidos-que { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e2); min-width: 0; }
+.tira-rapidos-rotulo {
+  font-family: var(--display);
+  font-weight: 700;
+  color: #7a4f00;
+}
+.tira-rapidos-platos { display: flex; flex-wrap: wrap; gap: var(--e1); }
+.plato-de-hoy {
+  background: #fff;
+  border: 1px solid #e2c37a;
+  border-radius: var(--radio);
+  padding: 0.15rem 0.55rem;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: var(--t-sm);
+}
+.tira-rapidos-vacio { color: #7a4f00; font-size: var(--t-sm); }
+.tira-rapidos-acciones { display: flex; flex-wrap: wrap; gap: var(--e2); }
+.tira-rapidos-perdidos { flex-basis: 100%; margin: 0; }
+
+/* En el pedido: el de hoy resalta, todos llevan su número. */
+.ficha-plato { position: relative; }
+.ficha-plato.de-hoy {
+  background: var(--amarillo-claro);
+  border-color: var(--amarillo);
+  border-width: 2px;
+}
+.ficha-plato.sin-precio small { color: var(--rojo); font-weight: 600; }
+.ficha-hoy {
+  font-family: var(--display);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #7a4f00;
+}
+.ficha-numero {
+  position: absolute;
+  top: 3px;
+  right: 5px;
+  font-family: var(--dato);
+  font-size: 0.68rem;
+  font-weight: 400;
+  color: var(--tinta-suave);
+  opacity: 0.8;
+}
+.ficha-plato > span:not(.ficha-numero):not(.ficha-hoy) { padding-right: 0.9rem; }
+
+/* La ventana para escogerlos. */
+.ventana-rapidos { display: grid; gap: var(--e4); }
+.rapidos-seccion h4 { margin: 0 0 var(--e1); }
+.rapidos-seccion .nota { margin: 0 0 var(--e2); }
+.rapidos-elegidos { display: flex; flex-wrap: wrap; gap: var(--e2); margin-bottom: var(--e2); }
+.rapido-elegido {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e1);
+  background: var(--papel-hueso);
+  border: 1.5px solid var(--borde-fuerte);
+  border-radius: var(--radio);
+  padding: 0.2rem 0.2rem 0.2rem 0.6rem;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: var(--t-sm);
+}
+.rapido-elegido.perdido { border-color: var(--rojo); color: var(--rojo); }
+.quitar-rapido {
+  min-height: 30px;
+  min-width: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 1.2rem;
+  line-height: 1;
+  color: var(--tinta-suave);
+}
+.quitar-rapido:hover { color: var(--rojo); background: var(--rojo-claro); }
+.rapidos-ninguno { color: var(--tinta-suave); font-size: var(--t-sm); margin: 0 0 var(--e2); }
+
+/* La empresa en botones, cada uno con cuántas comandas lleva hoy. */
+.mando .campo-dia { flex: 0 1 260px; }
+/* Sin el tope de 380 px de los demás campos: con cinco empresas, la quinta
+   se caía sola a otra fila teniendo media barra libre al lado. */
+.mando .campo-empresas { flex: 1 1 360px; max-width: none; }
+.empresas-botones { display: flex; flex-wrap: wrap; gap: var(--e2); }
+.boton-empresa {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  min-height: 52px;
+  padding: var(--e1) var(--e3);
+  border: 1.5px solid var(--borde-fuerte);
+  border-left: 5px solid var(--cinta, var(--marca));
+  border-radius: var(--radio);
+  background: var(--papel);
+  line-height: 1.2;
+  text-align: left;
+}
+.boton-empresa strong { font-family: var(--display); font-size: var(--t-md); }
+.boton-empresa small { font-family: var(--dato); font-size: var(--t-xs); color: var(--tinta-suave); font-weight: 400; }
+.boton-empresa:hover { background: var(--papel-hueso); }
+.boton-empresa.puesta {
+  background: var(--cinta, var(--marca));
+  border-color: var(--cinta, var(--marca));
+  color: #fff;
+}
+.boton-empresa.puesta small { color: rgba(255, 255, 255, 0.88); }
+.volver-a-hoy { margin-left: var(--e2); min-height: 28px; color: var(--marca); text-decoration: underline; }
+
+@media (max-width: 720px) {
+  .boton-empresa { flex: 1 1 calc(33% - var(--e2)); }
+  .tira-rapidos { margin-top: 0; }
+}

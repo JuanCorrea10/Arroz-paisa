@@ -23,6 +23,7 @@ import "./empresa-unica.test.mjs";
 import "./empresa-nueva.test.mjs";
 import "./clave.test.mjs";
 import "./sincronia.test.mjs";
+import "./rapidos.test.mjs";
 import "./aceptacion.test.mjs";
 import { correrTodo } from "./probar.mjs";
 await correrTodo();

@@ -18,6 +18,7 @@
 // ============================================================================
 
 import { normalizar } from "./formato.js";
+import { renombrarEnRapidos } from "./rapidos.js";
 import { clavePersona, clavePrecio, subtotal,
   esCortesia,
 } from "./calculos.js";
@@ -512,6 +513,9 @@ export function unirPlatosDelCatalogo(datos, nombreBueno, nombresAbsorbidos) {
   for (const llave of Object.keys(datos.precios)) {
     if (previa.malos.includes(llave.split("|")[0])) delete datos.precios[llave];
   }
+
+  // 4) Los botones rápidos que apuntaban al que sobra pasan al bueno.
+  for (const malo of previa.malos) renombrarEnRapidos(datos, malo, producto.nombre);
 
   return { ...previa, hecho: true };
 }

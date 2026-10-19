@@ -52,9 +52,7 @@ de administrador por accidente.
 
 ## 5. Las señas para la app
 
-1. Rueda dentada arriba a la izquierda → **Configuración del proyecto**.
-2. Abajo, en **Tus apps**, el icono `</>` (Web). Apodo: `app`. Sin Hosting.
-3. Sale un bloque `const firebaseConfig = { apiKey: "...", ... }`. Copiar ese
+1. Rueda dentada arriba a la izquierda → **Configuración del proyecto**.no entiender ese
    objeto en `js/datos/nube-config.js` reemplazando el `null`:
 
    ```js
@@ -91,3 +89,10 @@ Con las señas puestas y publicadas, en el computador de ella:
   en cada computador hace falta conexión; después no.
 - Para quitarle el acceso a alguien: Authentication → Users → los tres
   puntos → Inhabilitar cuenta.
+
+## Cuando cambien las reglas
+
+Si en `firebase/firestore.rules` aparece una colección nueva (pasó con
+`rapidos`, los botones rápidos de Registrar), hay que volver a pegar el archivo
+completo en **Firestore Database → Reglas → Publicar**. Si no, la nube rechaza
+esos cambios y la app lo dice en rojo.
