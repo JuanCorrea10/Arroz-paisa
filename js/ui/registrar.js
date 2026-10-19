@@ -1400,7 +1400,7 @@ function atajosDePedido(raiz, laEmpresa, yaTieneAlgo) {
           },
         },
           el("strong", { texto: "Lo de siempre" }),
-          el("small", { texto: resumen + (faltaPrecio ? "  ·  ojo, falta un precio" : `  ·  ${pesos(total)}`) })
+          el("small", { texto: resumen + (faltaPrecio ? "  ·  falta un precio" : `  ·  ${pesos(total)}`) })
         ),
         el("span", { clase: "nota atajo-porque" },
           habito.veces === habito.dias
@@ -1752,7 +1752,7 @@ async function crearPlato(plato, laEmpresa, raiz) {
         etiqueta: "Vale lo mismo en todas las empresas",
         tipo: "casilla",
         valor: true,
-        ayuda: "Si en alguna vale distinto, después se cambia en la pantalla Catálogo.",
+        ayuda: "Si en alguna vale distinto, después se cambia en Platos y precios.",
       },
     ],
     textoAceptar: "Crear y anotar",

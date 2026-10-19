@@ -65,7 +65,7 @@ export function pintarEntrar(raiz) {
     poner(raiz,
       el("section", { clase: "tarjeta entrar" },
         el("h1", { texto: "Arroz Paisa" }),
-        el("p", { texto: "Entre con la cuenta de este computador. Solo se pide una vez: después la app abre directo." }),
+        el("p", { texto: "Entre con la cuenta de este computador. Solo se pide una vez: después la aplicación abre directamente." }),
         formulario,
         el("p", { clase: "nota", texto:
           "Si no tiene cuenta o no recuerda la clave, comuníquese con el administrador. " +

@@ -127,7 +127,7 @@ export function pintarVentas(raiz) {
         el("h1", { texto: "Cuánto vendí" }),
         el("p", { texto: comoSePago
           ? `${filtro.nombre}: ${filtro.explica.toLowerCase()}. Para ver todo, cambie "Cómo se pagó".`
-          : "Cuántos platos salieron y cuánta plata entró, entre dos días." })
+          : "Cuántos platos se vendieron y cuánto dinero ingresó, entre dos fechas." })
       ),
       acciones(el("button", { clase: "chico", alHacerClic: () => window.print() }, "Imprimir"))
     ),
@@ -321,7 +321,7 @@ function tablaDeGrupos(venta) {
       { titulo: "" },
       { titulo: "Vendidos", clase: "n" },
       ...(hayCortesias ? [{ titulo: "Regalados", clase: "n" }] : []),
-      { titulo: "Plata", clase: "n" },
+      { titulo: "Valor", clase: "n" },
     ],
     venta.grupos.map((g) =>
       el("tr", {},
@@ -365,7 +365,7 @@ function tablaDeDias(venta) {
      { titulo: "Almuerzos", clase: "n" },
      { titulo: "Otros", clase: "n" },
      { titulo: "Facturas", clase: "n" },
-     { titulo: "Plata", clase: "n" }],
+     { titulo: "Valor", clase: "n" }],
     venta.dias.map((d) =>
       el("tr", {},
         el("td", { texto: fechaLarga(d.fecha) }),

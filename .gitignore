@@ -74,3 +74,7 @@ Untitled-*.png
 # Restos de herramientas del editor y de Firebase: no son del proyecto.
 firebase-debug.log
 .kilo/
+
+# Los permisos de Claude Code de ESTE computador. El agente de prueba
+# (.claude/agents/) si sube: es parte de como se prueba la app.
+.claude/settings.local.json

@@ -339,7 +339,7 @@ function tarjetaProblemas(raiz) {
   }
 
   return el("section", { clase: "tarjeta con-problemas" },
-    el("h2", { texto: `${problemas.length} renglones necesitan que los mire` }),
+    el("h2", { texto: `${problemas.length} ${problemas.length === 1 ? "renglón necesita" : "renglones necesitan"} revisión` }),
     el("p", { clase: "nota" },
       "No se perdió nada: están todos guardados. Solo les falta algo para que " +
       "sumen bien en la cuenta de cobro."),
@@ -370,10 +370,10 @@ function tarjetaProblemas(raiz) {
     ),
 
     el("p", { clase: "nota" },
-      "Los platos sin precio se arreglan de una en la pantalla ",
-      el("a", { href: "#catalogo", texto: "Catálogo" }),
+      "Los platos sin precio se arreglan en ",
+      el("a", { href: "#catalogo", texto: "Platos y precios" }),
       ", y los nombres repetidos en ",
-      el("a", { href: "#nombres", texto: "Revisar nombres" }), ".")
+      el("a", { href: "#nombres", texto: "Nombres repetidos" }), ".")
   );
 }
 

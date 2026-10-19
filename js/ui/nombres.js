@@ -44,7 +44,7 @@ export function pintarNombres(raiz) {
   poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
-        el("h1", { texto: "Revisar nombres" }),
+        el("h1", { texto: "Nombres repetidos" }),
         el("p", {
           texto:
             "Cuando el mismo empleado quedó anotado de dos formas distintas, su " +

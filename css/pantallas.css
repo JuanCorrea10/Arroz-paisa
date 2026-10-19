@@ -2,7 +2,7 @@
   /* La misma version que el meta del index.html. Sirve para que la app pueda
      comprobar que el CSS que llego es el que le toca, y no uno viejo que el
      navegador tenia guardado. Lo cambia el script de publicar. */
-  --version: "20261019-1439";
+  --version: "20261019-1508";
 }
 
 /* ===========================================================================
@@ -1210,7 +1210,11 @@ thead th {
   padding-top: var(--e3);
 }
 
-.periodo { display: flex; flex-direction: column; align-items: flex-start; gap: var(--e2); }
+/* Solo el de la cuenta de cobro (va dentro de .mando). Estaba como ".periodo"
+   a secas, y esa clase es también la del mes y el año de la barra roja de
+   arriba: los ponía uno encima del otro en TODAS las pantallas y la barra
+   crecía el doble. */
+.mando .periodo { display: flex; flex-direction: column; align-items: flex-start; gap: var(--e2); }
 
 .periodo-elegir {
   display: flex;

@@ -23,6 +23,7 @@ import http.server
 import mimetypes
 import time
 import os
+import re
 import socketserver
 import sys
 import webbrowser
@@ -96,8 +97,19 @@ class Manejador(http.server.SimpleHTTPRequestHandler):
             # y hace lo que ella hace cada manana. La pagina ya lo mandaba aqui
             # y no habia buzon: el POST daba 404 y el resultado se perdia.
             "/veredicto": "tests/ultimo-veredicto.txt",
+            # Lo que hizo tests/guion.html paso por paso (las manos del agente
+            # "trabajador-de-prueba"). Va en tests/salida porque lleva el texto
+            # de la pantalla, o sea nombres de personas: no sube a internet.
+            "/guion": "tests/salida/ultimo-guion.txt",
         }
         destino = BUZONES.get(self.path)
+        # /guion/<nombre>: cada guion deja su propio registro, para que dos
+        # trabajadores de prueba corriendo a la vez no se pisen el archivo.
+        # El nombre se limpia: nada de barras ni puntos que lo saquen de ahí.
+        if destino is None and self.path.startswith("/guion/"):
+            nombre = re.sub(r"[^A-Za-z0-9_-]", "", self.path[len("/guion/"):])[:60]
+            if nombre:
+                destino = f"tests/salida/guiones/{nombre}.registro.txt"
         if destino is None:
             self.send_error(404)
             return

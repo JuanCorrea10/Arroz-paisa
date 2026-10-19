@@ -1284,7 +1284,7 @@ export function revisarConsumo(consumo, datos) {
     avisos.push({
       codigo: "PLATO_NO_ESTA",
       mensaje: 'El plato "' + consumo.producto + '" no está en el catálogo.',
-      comoArreglar: "Agréguelo en la pantalla Catálogo con su precio.",
+      comoArreglar: "Agréguelo en Platos y precios, con su precio.",
     });
   }
   // Una cortesía en $ 0 está bien: no la paga nadie. Pero un pedido de

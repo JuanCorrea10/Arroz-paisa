@@ -104,7 +104,7 @@ function tarjetaAcreedor(raiz) {
   const a = estado.datos.config.acreedor || {};
   return el("section", { clase: "tarjeta" },
     el("div", { clase: "fila entre" },
-      el("h2", { texto: "Quien cobra" }),
+      el("h2", { texto: "Quién cobra" }),
       el("button", {
         clase: "plano chico",
         alHacerClic: async () => {
@@ -266,7 +266,7 @@ export function pintarCatalogo(raiz) {
   poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
-        el("h1", { texto: "Catálogo" }),
+        el("h1", { texto: "Platos y precios" }),
         el("p", { texto: "Los platos y cuánto vale cada uno." })
       ),
       el("button", { clase: "principal", alHacerClic: () => nuevoPlato(raiz) }, "Agregar plato")
@@ -838,7 +838,7 @@ export function pintarPersonas(raiz) {
     el("p", { clase: "nota" },
       "¿La misma persona quedó anotada dos veces con nombres muy distintos? ",
       el("strong", { texto: "Márquelas con la casilla de la izquierda y únalas" }),
-      ". La pantalla ", el("a", { href: "#nombres", texto: "Revisar nombres" }),
+      ". La pantalla ", el("a", { href: "#nombres", texto: "Nombres repetidos" }),
       " solo encuentra las que se parecen; si de una quedó el apodo y de la " +
       "otra el nombre completo, no se parecen en nada y allá no salen nunca."),
     el("p", { clase: "nota" },

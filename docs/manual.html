@@ -99,7 +99,7 @@
     <li><a href="#pantallas">Qué hace cada pantalla</a></li>
     <li><a href="#dia">Lo de todos los días</a></li>
     <li><a href="#quincena">Lo de cada quincena</a></li>
-    <li><a href="#pagos">Cuando alguien paga de una</a></li>
+    <li><a href="#pagos">Cuando alguien paga en efectivo</a></li>
     <li><a href="#nombres">Cuando un nombre queda repetido</a></li>
     <li><a href="#guardado">Dónde quedan guardados los datos</a></li>
     <li><a href="#problemas">Si algo sale mal</a></li>
@@ -107,17 +107,20 @@
 </div>
 
 <div class="caja bien">
-  <p><strong>Lo primero de todo:</strong> aquí no hay que darle a "guardar".
-  Todo se guarda solo, apenas usted lo escribe. Arriba a la derecha hay una
-  lucecita que dice <strong>Guardado</strong>. Mientras esa lucecita esté
-  verde, todo está en su sitio.</p>
+  <p><strong>Lo primero de todo:</strong> en esta aplicación no hay que
+  oprimir «Guardar». Todo se guarda solo, apenas usted lo escribe. Arriba a la
+  derecha hay un indicador que dice <strong>Guardado</strong>. Mientras ese
+  indicador esté en verde, todo está en su sitio.</p>
 </div>
 
 <h2 id="pantallas">1. Qué hace cada pantalla</h2>
 
 <p>
-  Arriba hay diez pestañas y no todas se usan igual de seguido. Primero un
-  vistazo rápido a todas, y después cada una explicada aparte:
+  La aplicación tiene dos partes, <strong>Almuerzos</strong> y
+  <strong>Proveedores</strong>, y se pasa de una a otra por
+  <span class="menu-item">Inicio</span>. Arriba salen solo las pantallas de la
+  parte en la que está. Primero un vistazo rápido a todas, y después cada una
+  explicada aparte:
 </p>
 
 <table class="pantallas">
@@ -148,9 +151,9 @@
     <td>Cada quincena.</td>
   </tr>
   <tr>
-    <td><span class="menu-item">Cuadre</span></td>
-    <td>Comparar cuántas facturas dice el trabajador contra las registradas.</td>
-    <td>Cada día, o todo junto al final del mes.</td>
+    <td><span class="menu-item">Cuánto vendí</span> y <span class="menu-item">Ventas del mes</span></td>
+    <td>Cuántos platos se vendieron y cuánto dinero ingresó, por días o por mes.</td>
+    <td>Cuando quiera saber cómo va el negocio.</td>
   </tr>
   <tr>
     <td><span class="menu-item">Compartir</span></td>
@@ -163,9 +166,24 @@
     <td>Cuando salga el numerito rojo al lado.</td>
   </tr>
   <tr>
-    <td><span class="menu-item">Ajustes</span></td>
-    <td>Personas, platos, empresas y los respaldos.</td>
-    <td>De vez en cuando, o cuando entra alguien nuevo.</td>
+    <td><span class="menu-item">Listas</span></td>
+    <td>Personas, Platos y precios, Empresas y Nombres repetidos.</td>
+    <td>De vez en cuando, o cuando cambia un precio.</td>
+  </tr>
+  <tr>
+    <td><span class="menu-item">Datos y respaldos</span></td>
+    <td>La carpeta donde queda la copia, los respaldos y traer el Excel.</td>
+    <td>El primer día, y para bajar un respaldo de vez en cuando.</td>
+  </tr>
+  <tr>
+    <td><span class="menu-item">Clave de administrador</span></td>
+    <td>Que solo la administradora pueda cambiar precios, platos, personas y empresas.</td>
+    <td>Una sola vez, al configurarla.</td>
+  </tr>
+  <tr>
+    <td><span class="menu-item">Facturas</span> y <span class="menu-item">Pago semanal</span></td>
+    <td>En Proveedores: anotar las facturas que llegan y cuánto pagarle a cada uno.</td>
+    <td>Cuando llega una factura, y cada semana para pagar.</td>
   </tr>
   <tr>
     <td><span class="menu-item">Cómo se usa</span></td>
@@ -192,7 +210,7 @@
   <p><strong>Qué se puede hacer:</strong></p>
   <ul>
     <li>Escribir parte del nombre y escoger de la lista que sale.</li>
-    <li>Anotar varios de una: escriba <strong>3 almuerzo</strong> y anota tres.</li>
+    <li>Anotar varios a la vez: escriba <strong>3 almuerzo</strong> y anota tres.</li>
     <li><strong>Lo de siempre</strong>: si la persona casi siempre pide lo mismo,
       sale un botón que lo anota completo de un toque.</li>
     <li><strong>Botones rápidos</strong>: en cada pedido salen botones que anotan
@@ -212,7 +230,7 @@
       &laquo;sin verduras&raquo;. Sale en Cocina y en lo que se le manda a la empresa.</li>
     <li><strong>Pago</strong>: decir c&oacute;mo se paga ese plato. Casi siempre
       es a cr&eacute;dito y no hay que tocar nada; el bot&oacute;n est&aacute;
-      ah&iacute; para el d&iacute;a que alguien pague de una.
+      ah&iacute; para el d&iacute;a que alguien pague en efectivo.
       (Ver <a href="#pagos">c&oacute;mo se paga cada plato</a>.)</li>
     <li><strong>Ver lo de ayer</strong>, por si el señor dicta &laquo;lo mismo de ayer&raquo;.</li>
     <li>Si la persona o el plato no existen todavía, se crean ahí mismo sin salirse.</li>
@@ -241,7 +259,7 @@
   <h3><span class="menu-item">Resumen del día</span></h3>
   <p class="parasirve">Cómo quedó un día, ya cerrado.</p>
   <p><strong>Qué se ve:</strong> los platos de ese día con su valor, cuántas
-  facturas salieron y el total. Si ese día alguien pagó de una, sale además el
+  facturas salieron y el total. Si ese día alguien pagó en efectivo, sale además el
   total partido en dos: lo que se le cobra a la empresa y lo que
   <strong>tiene que estar en la caja</strong>.</p>
   <p><strong>Qué se puede hacer:</strong> cambiar de día, escoger una empresa
@@ -261,7 +279,7 @@
   <p class="parasirve">Cuánto lleva cada quien.</p>
   <p><strong>Qué se ve:</strong> la lista de personas con lo de <strong>un día</strong>
   (el que se escoja arriba), lo de <strong>la quincena que va corriendo</strong>
-  y lo del mes, todo en el mismo renglón. Así se contesta de una
+  y lo del mes, todo en el mismo renglón. Así se contesta enseguida
   &laquo;¿cuánto llevo hoy?&raquo; y &laquo;¿cuánto llevo en la quincena?&raquo;
   sin cambiar de pantalla.</p>
   <p>De las dos quincenas sale <strong>una sola</strong>: la del día que se esté
@@ -294,11 +312,11 @@
 
 <div class="ficha">
   <h3><span class="menu-item">Cuánto vendí</span> y <span class="menu-item">Ventas del mes</span></h3>
-  <p class="parasirve">Cuántos platos salieron y cuánta plata entró.</p>
+  <p class="parasirve">Cuántos platos se vendieron y cuánto dinero ingresó.</p>
   <p><strong>Qué se ve:</strong> almuerzos y otros platos por aparte, día por
   día, y el total del mes. Arriba se escoge si mirar todo, solo lo que va a
-  crédito, o solo lo que pagaron de una.</p>
-  <p><strong>Ojo:</strong> lo que alguien pagó de una <em>es una venta</em> y
+  crédito, o solo lo que pagaron en efectivo.</p>
+  <p><strong>Atención:</strong> lo que alguien pagó en efectivo <em>es una venta</em> y
   sale aquí. Lo que no sale en ningún lado es en la cuenta de cobro: eso ya se
   pagó.</p>
 </div>
@@ -327,7 +345,7 @@
   <p class="parasirve">Los renglones que quedaron sueltos.</p>
   <p><strong>Qué se ve:</strong> tarjetas con lo que la app no supo resolver
   sola: una persona o un plato que no está en las listas. Cada tarjeta dice qué
-  pasa, qué hay que decidir, y cuánta plata está en juego.</p>
+  pasa, qué hay que decidir, y cuánto dinero está en juego.</p>
   <p><strong>Qué se puede hacer:</strong> decir si es la misma persona de
   siempre, crearla nueva, o dejarla como está.</p>
   <p><strong>Cuándo entrar:</strong> cuando salga el numerito rojo al lado del
@@ -345,17 +363,17 @@
       <strong>cambiarle la empresa</strong> a alguien que se pasó de sede.
       Ojo con eso último: los renglones ya anotados se van con la persona, así
       que el mes de una empresa baja y el de la otra sube. La app le dice
-      cuánta plata se mueve antes de hacerlo.
+      cuánto dinero se mueve antes de hacerlo.
       <br>Aquí también se <strong>unen dos personas</strong>: se marcan las dos
       con la casilla de la izquierda y sale el botón
       &laquo;Unir las marcadas&raquo;. Sirve cuando la misma persona quedó
-      anotada con nombres tan distintos que en Revisar nombres no se parecen.
+      anotada con nombres tan distintos que en Nombres repetidos no se parecen.
       <br>Si las dos quedaron en <strong>empresas distintas</strong>, primero
       cámbiele la empresa a una: al llegar a la otra se une sola con la que ya
       estaba allá.</li>
-    <li><strong>Revisar nombres</strong> &mdash; la app junta sola los nombres que
+    <li><strong>Nombres repetidos</strong> &mdash; la app junta sola los nombres que
       se parecen y pregunta si son la misma persona. Antes de unir muestra
-      cuántos renglones se mueven y cuánta plata.</li>
+      cuántos renglones se mueven y cuánto dinero.</li>
     <li><strong>Catálogo</strong> &mdash; los platos y el precio de cada uno.
       <strong>Un solo precio por plato</strong>: se escribe una vez y queda en
       las cuatro empresas. Si sube un precio, se cambia aquí y solo afecta de
@@ -506,16 +524,13 @@ totales, que es lo que se le manda a cada empresa.</p>
   Si en septiembre quiere revisar agosto, cambie ahí el mes.</p>
 </div>
 
-<h3>Cuadrar las facturas</h3>
-<p>En <span class="menu-item">Cuadre</span> hay una fila por cada día del mes.
-Usted escribe cuántas facturas le dijo el trabajador, y la app le dice cuántas
-tiene registradas y de a cuántas está la diferencia. Verde es que cuadra,
-rojo es que no.</p>
-
 <h3>La cuenta de cobro</h3>
-<p>En <span class="menu-item">Cuenta de cobro</span> elige la empresa y la
-quincena, y sale el documento listo, con el NIT y el total. El botón
-<span class="boton">Bajar PDF</span> lo deja en Descargas.</p>
+<p>En <span class="menu-item">Cuenta de cobro</span> se elige la empresa, el
+mes con las flechas y la quincena con su botón. Debajo sale en una frase qué
+días cobra la cuenta, y más abajo el documento listo, con el NIT y el total.
+Si la cuenta tiene que cubrir otros días, el botón
+<span class="boton">Cambiar estas fechas</span> lo permite sin tocar las demás
+cuentas. El botón <span class="boton">Bajar PDF</span> lo deja en Descargas.</p>
 
 <table>
   <tr><th>Empresa</th><th>Quincena 1</th><th>Quincena 2</th></tr>
@@ -525,12 +540,12 @@ quincena, y sale el documento listo, con el NIT y el total. El botón
 
 <h3>Mandarle la información a las empresas</h3>
 <p>En <span class="menu-item">Compartir</span>, cada empresa tiene su botón
-<span class="boton">Bajar el archivo para mandar</span>. Ese archivo se manda
+<span class="boton">Bajar el informe en PDF</span>. Ese archivo se envía
 por WhatsApp o por correo, y el supervisor lo abre con doble clic: ve el día a
 día, el consumo de cada persona y los totales de las dos quincenas.</p>
 
 <div class="caja bien">
-  <p><strong>Puede mandarlo tranquila.</strong> El archivo de cada empresa
+  <p><strong>Puede enviarlo con tranquilidad.</strong> El archivo de cada empresa
   lleva adentro <em>únicamente</em> los datos de esa empresa. No es que se los
   esconda: es que los de las otras no están ahí. Y no se puede editar.</p>
   <p>Si quiere estar segura, el botón <span class="boton">Ver primero qué
@@ -538,24 +553,26 @@ día, el consumo de cada persona y los totales de las dos quincenas.</p>
   mandarlo.</p>
 </div>
 
-<h2 id="pagos">4. Cuando alguien paga de una</h2>
+<h2 id="pagos">4. Cuando alguien paga en efectivo</h2>
 
 <p>
   Casi todo se anota <strong>a cr&eacute;dito</strong>: la persona come, y a la
-  empresa se le cobra en la cuenta de la quincena. Pero a veces alguien saca la
-  plata y paga en el momento. Para eso cada plato tiene un bot&oacute;n
-  <span class="menu-item">Pago</span> en la comanda.
+  empresa se le cobra en la cuenta de la quincena. Pero a veces alguien paga
+  en efectivo en el momento. Para eso, arriba del pedido de cada persona est&aacute;n
+  los botones <span class="menu-item">C&oacute;mo paga</span>, que cambian todos
+  sus platos de un toque; y cada plato tiene adem&aacute;s su bot&oacute;n
+  <span class="menu-item">Pago</span> para el caso raro en que se paga distinto.
 </p>
 
 <table class="pantallas">
-  <tr><th>Se marca</th><th>Qu&eacute; pasa con la plata</th><th>Cu&aacute;ndo</th></tr>
+  <tr><th>Se marca</th><th>Qu&eacute; pasa con el dinero</th><th>Cu&aacute;ndo</th></tr>
   <tr>
     <td><strong>A cr&eacute;dito</strong></td>
     <td>Se le cobra a la empresa en la quincena. <em>Es lo normal, no hay que tocar nada.</em></td>
     <td>Casi siempre.</td>
   </tr>
   <tr>
-    <td><strong>Pag&oacute; de una</strong></td>
+    <td><strong>Pag&oacute; en efectivo</strong></td>
     <td>NO se le cobra a la empresa. S&iacute; cuenta como venta del d&iacute;a
         y tiene que estar en la caja.</td>
     <td>Cuando la persona paga en efectivo.</td>
@@ -570,7 +587,7 @@ día, el consumo de cada persona y los totales de las dos quincenas.</p>
 <div class="caja ojo">
   <p><strong>Por qu&eacute; son tres y no dos.</strong> Antes hab&iacute;a un
   solo bot&oacute;n que dec&iacute;a &laquo;No cobrar&raquo;, y con ese no
-  alcanzaba. Si alguien pagaba de una, las dos salidas estaban malas:</p>
+  alcanzaba. Si alguien pagaba en efectivo, las dos salidas estaban malas:</p>
   <ul>
     <li>Dejarlo normal &rarr; la empresa terminaba pagando un almuerzo que la
       persona <em>ya hab&iacute;a pagado</em>. Cobrado dos veces.</li>
@@ -588,7 +605,7 @@ día, el consumo de cada persona y los totales de las dos quincenas.</p>
   <p><strong>Para cuadrar la caja al cerrar.</strong> En
   <span class="menu-item">Resumen del d&iacute;a</span>, cuando hubo pagos de
   contado, el total sale partido: <em>se le cobra a la empresa</em> y
-  <em>pagaron de una</em>. Ese segundo n&uacute;mero es exactamente lo que debe
+  <em>pagaron en efectivo</em>. Ese segundo n&uacute;mero es exactamente lo que debe
   haber en el caj&oacute;n.</p>
 </div>
 
@@ -596,10 +613,10 @@ día, el consumo de cada persona y los totales de las dos quincenas.</p>
   Una cosa que la app hace a prop&oacute;sito: cuando se trae
   <strong>lo de ayer</strong> o se usa <strong>lo de siempre</strong>, el pedido
   llega siempre <strong>a cr&eacute;dito</strong>, aunque ayer esa persona
-  hubiera pagado de una. Es a posta: si copiara el pago, quedar&iacute;a marcado
-  como pagado un almuerzo que nadie pag&oacute;, y esa plata se perder&iacute;a
-  sin que nadie se diera cuenta. Pagar de una es una decisi&oacute;n de ese
-  d&iacute;a.
+  hubiera pagado en efectivo. Es a prop&oacute;sito: si copiara el pago,
+  quedar&iacute;a marcado como pagado un almuerzo que nadie pag&oacute;, y ese
+  dinero se perder&iacute;a sin que nadie se diera cuenta. Pagar en efectivo es
+  una decisi&oacute;n de ese d&iacute;a.
 </p>
 
 <p>
@@ -616,8 +633,8 @@ día, el consumo de cada persona y los totales de las dos quincenas.</p>
 y <em>LUZ MARINA CASTRO</em>. Cuando pasa eso, su consumo aparece partido en
 dos y ninguna de las dos cuenta bien.</p>
 
-<p>Para eso está <span class="menu-item">Ajustes</span> →
-<strong>Revisar nombres</strong>. Ahí le salen los que se parecen, uno por
+<p>Para eso está <span class="menu-item">Listas</span> →
+<strong>Nombres repetidos</strong>. Ahí le salen los que se parecen, uno por
 uno. Usted marca cuál es el nombre bueno y le da a
 <span class="boton">Unir en el que marqué</span>. Antes de hacer nada le
 muestra cuántos renglones se van a mover.</p>
@@ -634,7 +651,7 @@ llaman igual.</strong> La app nunca las junta, ni aunque usted se lo pida.</p>
 
 <h3>Lo mejor: la lista de la empresa</h3>
 <p>Cuando una empresa le mande su lista de empleados, métala en
-<strong>Revisar nombres</strong>, en el botón
+<strong>Nombres repetidos</strong>, en el botón
 <span class="boton">Traer lista</span>. Con esa lista la app ya no adivina:
 sabe quién es quién por el documento.</p>
 <p>Así aparecen repetidos que por el nombre son imposibles de ver. En MGP
@@ -651,7 +668,7 @@ sale en las cuentas de cobro ni en lo que se le manda a las empresas.</p>
   <li><strong>Dentro del navegador.</strong> Es instantáneo. Pero si alguien
   le da a "limpiar el caché", se borra.</li>
   <li><strong>En una carpeta del computador</strong>, que usted elige una sola
-  vez en <span class="menu-item">Ajustes</span> → Datos y respaldos. Ahí queda
+  vez en <span class="menu-item">Inicio</span> → Datos y respaldos. Ahí queda
   un archivo siempre al día, y una copia con la fecha de cada día.</li>
 </ul>
 
@@ -671,8 +688,8 @@ dañe el computador.</p>
 <table>
   <tr><th>Qué ve</th><th>Qué hacer</th></tr>
   <tr>
-    <td>La lucecita de arriba dice <strong>No se pudo guardar</strong></td>
-    <td>Baje un respaldo de una, desde Datos y respaldos. No siga anotando
+    <td>El indicador de arriba dice <strong>No se pudo guardar</strong></td>
+    <td>Baje un respaldo de inmediato, desde Datos y respaldos. No siga anotando
         hasta que vuelva a decir Guardado.</td>
   </tr>
   <tr>

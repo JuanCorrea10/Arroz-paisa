@@ -95,11 +95,14 @@ const PANTALLAS = {
   // --- Las listas y la app: solo en la portada -----------------------------
   personas:  { titulo: "Personas",         pintar: pintarPersonas,
                dice: "El personal de cada empresa" },
-  nombres:   { titulo: "Revisar nombres",  pintar: pintarNombres,
+  // Los títulos son los mismos de la tira de Listas y del manual. Antes la
+  // tira decía "Platos y precios" y la pantalla abría diciendo "Catálogo":
+  // quien no explora cree que entró a otra parte.
+  nombres:   { titulo: "Nombres repetidos", pintar: pintarNombres,
                dice: "Unificar un mismo empleado registrado con dos nombres",
                contar: () => gruposParaRevisar(estado.datos).length +
                              nombresSucios(estado.datos).length },
-  catalogo:  { titulo: "Catálogo",         pintar: pintarCatalogo,
+  catalogo:  { titulo: "Platos y precios", pintar: pintarCatalogo,
                dice: "Los platos y cuánto vale cada uno" },
   empresas:  { titulo: "Empresas",         pintar: pintarEmpresas,
                dice: "Los clientes y el corte de quincena de cada uno" },
@@ -144,8 +147,8 @@ const MUNDOS = [
         pantallas: ["registrar", "cocina", "resumen"],
       },
       {
-        nombre: "La plata",
-        explica: "Lo que se cobra y lo que entra",
+        nombre: "Cobros y ventas",
+        explica: "Lo que se cobra y lo que ingresa",
         pantallas: ["cobro", "ventas", "ventasmes", "persona", "compartir"],
       },
       {

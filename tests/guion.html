@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<title>Guion: la app manejada como la maneja una persona</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #fff; overflow: hidden; }
+  iframe { width: 100vw; height: 100vh; border: 0; display: block; }
+  #rotulo { position: fixed; left: 0; bottom: 0; background: #241b18; color: #fff;
+            font: 12px ui-monospace, Consolas, monospace; padding: 4px 10px; z-index: 9;
+            max-width: 100vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #rotulo.malo { background: #8b1a12; }
+</style>
+<script>
+  // La imagen lenta: retrasa el "load" de ESTA página los milisegundos que
+  // diga "espera", para que Chrome --screenshot tome la foto cuando el guion
+  // ya terminó. Va con document.write porque tiene que existir antes de que
+  // la página termine de cargar, y el tiempo sale de la dirección.
+  (function () {
+    var ms = Number(new URLSearchParams(location.search).get("espera")) || 25000;
+    document.write('<img src="/espera?ms=' + ms + '" alt="" hidden>');
+  })();
+</script>
+</head>
+<body>
+<!--
+  LAS MANOS DEL ROBOT.
+
+  Arranca la app ENTERA en un marco (IndexedDB, menú, datos de verdad de
+  datos/inicial.json en un perfil nuevo) y hace, paso por paso, lo que haría
+  una persona: entrar a una pantalla, tocar un botón por lo que DICE,
+  escribir en la casilla que tiene tal rótulo, escoger de la lista.
+
+  Sirve para probar la app como la usa la gente y no como la ve el código: si
+  un botón no se encuentra por su texto, una persona tampoco lo encuentra.
+  Lo usa el agente "trabajador-de-prueba" (.claude/agents/), pero se puede
+  correr a mano.
+
+  Uso (con py -3 servidor.py andando):
+    chrome --headless=new --user-data-dir=<carpeta NUEVA> --window-size=1300,1000
+           --screenshot=C:/ruta/absoluta/foto.png   (relativa no: Chrome la deja en otra parte)
+           "http://localhost:8000/tests/guion.html?espera=25000&pasos=ir:registrar|escribir:Quién comió=ana"
+
+  O con los pasos en un archivo, uno por renglón (las líneas con # se saltan):
+    tests/salida/guiones/<nombre>.txt   y   ?archivo=<nombre>
+  (tests/salida está fuera de git: los guiones llevan nombres de personas.)
+
+  Los pasos:
+    ir:<pantalla>                entra por el menú de direcciones (#registrar, #cocina...)
+    tocar:<texto>                toca el botón, enlace u opción que DIGA ese texto
+    tocar:<texto>#2              ... el segundo que lo diga
+    escribir:<rótulo>=<texto>    escribe en la casilla con ese rótulo (o esa ayuda adentro)
+    escribir:=<texto>            escribe donde esté el cursor
+    elegir:<texto>               escoge de la lista que se abrió al escribir
+    marcar:<rótulo>              marca o desmarca una casilla de chulito
+    tecla:<tecla>                Escape, Enter, Tab, Alt+1 ...
+    dia:<AAAA-MM-DD>             pone el día que se está mirando (como cambiar la fecha arriba)
+    bajar:<texto>                corre la pantalla hasta donde diga ese texto (para la foto)
+    esperar:<ms>
+    nota:<texto>                 solo se copia al registro
+
+  Lo que pasó queda en tests/salida/guiones/<archivo>.registro.txt (o en
+  tests/salida/ultimo-guion.txt si los pasos van en la dirección), paso por paso, con los
+  avisos que salieron y la ventana que quedó abierta, y al final el texto de
+  la pantalla. Se manda en cada paso: si algo se cuelga, se ve hasta dónde llegó.
+-->
+<iframe id="app"></iframe>
+<div id="rotulo">arrancando…</div>
+<script type="module">
+const marco = document.getElementById("app");
+const rotulo = document.getElementById("rotulo");
+const params = new URLSearchParams(location.search);
+const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+const registro = [];
+let fallas = 0;
+
+const sinTildes = (t) => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "")
+  .toLowerCase().replace(/\s+/g, " ").trim();
+
+function anotar(linea) {
+  registro.push(linea);
+  rotulo.textContent = linea;
+  mandar();
+}
+
+let mandando = Promise.resolve();
+function mandar() {
+  const cuerpo = registro.join("\n");
+  // Con archivo, el registro va a tests/salida/guiones/<archivo>.registro.txt
+  // (cada guion el suyo); sin archivo, a tests/salida/ultimo-guion.txt.
+  const buzon = params.get("archivo") ? "/guion/" + params.get("archivo") : "/guion";
+  mandando = mandando.then(() => fetch(buzon, { method: "POST", body: cuerpo }).catch(() => {}));
+}
+
+async function pasosDelGuion() {
+  if (params.get("archivo")) {
+    const r = await fetch(`salida/guiones/${encodeURIComponent(params.get("archivo"))}.txt`, { cache: "no-store" });
+    if (!r.ok) throw new Error(`No encontré tests/salida/guiones/${params.get("archivo")}.txt`);
+    return (await r.text()).split(/\r?\n/);
+  }
+  return String(params.get("pasos") || "").split(/\||\n/);
+}
+
+marco.addEventListener("load", async () => {
+  const ven = marco.contentWindow;
+  const doc = marco.contentDocument;
+  try {
+    for (let i = 0; i < 80; i++) {
+      const g = doc.getElementById("guardado");
+      if (g && /Guardado|Sin datos/.test(g.textContent)) break;
+      await esperar(100);
+    }
+    anotar(`arrancó la app · ${doc.getElementById("guardado")?.textContent.trim() || "?"} · ${new Date().toLocaleString("es-CO")}`);
+
+    if (params.get("clave")) await enLaApp(ven, doc, `
+      const { estado, cambio } = await import("./js/ui/estado.js");
+      const { ponerClave } = await import("./js/nucleo/clave.js");
+      await ponerClave(estado.datos, ${JSON.stringify(params.get("clave"))});
+      cambio();`);
+
+    const pasos = (await pasosDelGuion()).map((p) => p.trim()).filter((p) => p && !p.startsWith("#"));
+    let n = 0;
+    for (const paso of pasos) {
+      n++;
+      const avisosAntes = avisos(doc);
+      let dijo;
+      try {
+        dijo = await hacer(ven, doc, paso);
+      } catch (e) {
+        dijo = "MAL  " + (e.message || e);
+        fallas++;
+      }
+      await esperar(350);
+      const nuevos = avisos(doc).filter((a) => !avisosAntes.includes(a));
+      const ventana = doc.querySelector("dialog[open] .ventana-cuerpo h3");
+      anotar(`${String(n).padStart(2, "0")}. ${paso}\n    ${dijo}` +
+        (nuevos.length ? `\n    aviso: ${nuevos.join(" / ")}` : "") +
+        (ventana ? `\n    ventana abierta: «${ventana.textContent.trim()}»` : ""));
+    }
+
+    // Lo que quedó en la pantalla, en texto: para leerlo sin la foto.
+    const pantalla = (doc.getElementById("pantalla")?.innerText || "")
+      .replace(/\n{2,}/g, "\n").trim();
+    const dialogo = doc.querySelector("dialog[open]");
+    anotar([
+      "",
+      `==== AL FINAL · #${(ven.location.hash || "").slice(1)} · ${fallas} pasos MAL ====`,
+      `menú: ${[...doc.querySelectorAll(".menu a")].map((a) => a.textContent.trim()).join(" · ")}`,
+      `lucecita: ${doc.getElementById("guardado")?.textContent.trim()}`,
+      avisos(doc).length ? `avisos en pantalla: ${avisos(doc).join(" / ")}` : "sin avisos en pantalla",
+      dialogo ? `VENTANA ABIERTA:\n${dialogo.innerText.trim().slice(0, 2500)}` : "sin ventana abierta",
+      "---- texto de la pantalla ----",
+      pantalla.slice(0, 7000) + (pantalla.length > 7000 ? "\n[... sigue]" : ""),
+    ].join("\n"));
+    rotulo.hidden = !fallas;
+    if (fallas) { rotulo.classList.add("malo"); rotulo.textContent = `${fallas} pasos no se pudieron hacer: ver tests/salida/ultimo-guion.txt`; }
+  } catch (e) {
+    rotulo.classList.add("malo");
+    anotar("REVENTÓ EL GUION: " + (e && (e.stack || e.message)));
+  }
+});
+
+function avisos(doc) {
+  return [...doc.querySelectorAll("#mensajes .mensaje")]
+    .filter((m) => !m.dataset.yendose).map((m) => m.textContent.trim());
+}
+
+/** Corre código dentro de la app, con SUS módulos (su mapa de versiones). */
+async function enLaApp(ven, doc, codigo) {
+  const marca = "__hecho" + Math.random().toString(36).slice(2);
+  const s = doc.createElement("script");
+  s.type = "module";
+  s.textContent = `try { ${codigo} } finally { window.${marca} = true; }`;
+  doc.head.append(s);
+  for (let i = 0; i < 60 && !ven[marca]; i++) await esperar(100);
+  if (!ven[marca]) throw new Error("el código dentro de la app no terminó");
+}
+
+const visible = (n) => n && n.getClientRects().length > 0 && !n.closest(".oculto, [hidden]");
+
+/** Dónde se busca: si hay una ventana abierta, solo ahí (no se puede tocar lo de atrás). */
+function donde(doc) {
+  const abiertas = [...doc.querySelectorAll("dialog[open]")];
+  return abiertas.length ? abiertas[abiertas.length - 1] : doc.body;
+}
+
+function buscarPorTexto(doc, texto, selector) {
+  const [puro, cual] = texto.split("#");
+  const quiero = sinTildes(puro);
+  const todos = [...donde(doc).querySelectorAll(selector)].filter(visible);
+  const exactos = todos.filter((n) => sinTildes(n.textContent) === quiero || sinTildes(n.getAttribute("aria-label")) === quiero);
+  const parecidos = todos.filter((n) => sinTildes(n.textContent).includes(quiero) || sinTildes(n.getAttribute("aria-label")).includes(quiero));
+  const lista = exactos.length ? exactos : parecidos;
+  const i = Math.max(0, (Number(cual) || 1) - 1);
+  return { nodo: lista[i] || null, cuantos: lista.length, todos };
+}
+
+function casillaPorRotulo(doc, rotuloBuscado) {
+  const quiero = sinTildes(rotuloBuscado);
+  const raiz = donde(doc);
+  for (const l of raiz.querySelectorAll("label")) {
+    if (!visible(l) || !sinTildes(l.textContent).includes(quiero)) continue;
+    const c = l.htmlFor ? doc.getElementById(l.htmlFor) : l.querySelector("input, select, textarea");
+    if (c && visible(c)) return c;
+  }
+  for (const c of raiz.querySelectorAll("input, select, textarea")) {
+    if (!visible(c)) continue;
+    if (sinTildes(c.placeholder).includes(quiero) || sinTildes(c.getAttribute("aria-label")).includes(quiero)) return c;
+  }
+  return null;
+}
+
+async function hacer(ven, doc, paso) {
+  const dos = paso.indexOf(":");
+  const verbo = sinTildes(dos < 0 ? paso : paso.slice(0, dos));
+  const resto = dos < 0 ? "" : paso.slice(dos + 1).trim();
+
+  if (verbo === "ir") {
+    ven.location.hash = "#" + resto.replace(/^#/, "");
+    await esperar(600);
+    const h1 = doc.querySelector("#pantalla h1");
+    return `OK   en #${resto} · título: «${h1 ? h1.textContent.trim() : "sin título"}»`;
+  }
+
+  if (verbo === "tocar") {
+    const sel = "button, a, [role=option], [role=button], summary, label.casilla-ver";
+    const { nodo, cuantos, todos } = buscarPorTexto(doc, resto, sel);
+    if (!nodo) {
+      fallas++;
+      const hay = [...new Set(todos.map((n) => n.textContent.trim().replace(/\s+/g, " ")).filter(Boolean))].slice(0, 30);
+      return `MAL  no encontré nada que diga «${resto}». Se ve: ${hay.join(" | ")}`;
+    }
+    if (nodo.disabled) { fallas++; return `MAL  «${nodo.textContent.trim()}» está, pero apagado (no se puede tocar)`; }
+    nodo.scrollIntoView({ block: "center" });
+    nodo.click();
+    await esperar(400);
+    return `OK   toqué «${nodo.textContent.trim().replace(/\s+/g, " ").slice(0, 80)}»` + (cuantos > 1 ? ` (había ${cuantos} que lo dicen)` : "");
+  }
+
+  if (verbo === "escribir") {
+    const igual = resto.indexOf("=");
+    const rot = igual < 0 ? "" : resto.slice(0, igual).trim();
+    const texto = igual < 0 ? resto : resto.slice(igual + 1);
+    const c = rot ? casillaPorRotulo(doc, rot) : doc.activeElement;
+    if (!c || !/^(INPUT|TEXTAREA|SELECT)$/.test(c.tagName)) {
+      fallas++;
+      const rotulos = [...donde(doc).querySelectorAll("label")].filter(visible).map((l) => l.textContent.trim()).slice(0, 20);
+      return `MAL  no encontré una casilla «${rot || "(donde está el cursor)"}». Rótulos a la vista: ${rotulos.join(" | ")}`;
+    }
+    c.scrollIntoView({ block: "center" });
+    c.focus();
+    if (c.tagName === "SELECT") {
+      const op = [...c.options].find((o) => sinTildes(o.textContent).includes(sinTildes(texto)));
+      if (!op) { fallas++; return `MAL  la lista no tiene «${texto}». Tiene: ${[...c.options].map((o) => o.textContent).join(" | ")}`; }
+      c.value = op.value;
+    } else {
+      c.value = texto;
+    }
+    c.dispatchEvent(new ven.Event("input", { bubbles: true }));
+    c.dispatchEvent(new ven.Event("change", { bubbles: true }));
+    await esperar(300);
+    const lista = c.closest(".buscador")?.querySelectorAll("li[role=option]") || [];
+    return `OK   escribí «${texto}»` + (lista.length ? ` · la lista ofrece: ${[...lista].slice(0, 6).map((li) => li.textContent.trim()).join(" | ")}` : "");
+  }
+
+  if (verbo === "elegir") {
+    const { nodo, todos } = buscarPorTexto(doc, resto, "li[role=option]");
+    if (!nodo) { fallas++; return `MAL  la lista no ofrece «${resto}». Ofrece: ${todos.map((n) => n.textContent.trim()).slice(0, 12).join(" | ") || "(no hay lista abierta)"}`; }
+    nodo.click();
+    await esperar(400);
+    return `OK   escogí «${nodo.textContent.trim()}»`;
+  }
+
+  if (verbo === "marcar") {
+    const c = casillaPorRotulo(doc, resto);
+    if (!c || c.type !== "checkbox") { fallas++; return `MAL  no encontré una casilla de chulito «${resto}»`; }
+    c.click();
+    await esperar(300);
+    return `OK   la casilla «${resto}» quedó ${c.checked ? "marcada" : "sin marcar"}`;
+  }
+
+  if (verbo === "tecla") {
+    const partes = resto.split("+");
+    const tecla = partes.pop();
+    const mod = new Set(partes.map((p) => p.toLowerCase()));
+    const code = /^[0-9]$/.test(tecla) ? "Digit" + tecla : /^[a-z]$/i.test(tecla) ? "Key" + tecla.toUpperCase() : tecla;
+    const blanco = doc.activeElement || doc.body;
+    const op = { key: tecla, code, altKey: mod.has("alt"), ctrlKey: mod.has("ctrl"), shiftKey: mod.has("shift"), bubbles: true, cancelable: true };
+    blanco.dispatchEvent(new ven.KeyboardEvent("keydown", op));
+    blanco.dispatchEvent(new ven.KeyboardEvent("keyup", op));
+    await esperar(400);
+    return `OK   tecla ${resto} sobre ${blanco.tagName.toLowerCase()}${blanco.id ? "#" + blanco.id : ""}`;
+  }
+
+  if (verbo === "dia") {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(resto)) { fallas++; return "MAL  el día va como AAAA-MM-DD"; }
+    await enLaApp(ven, doc, `
+      const { estado } = await import("./js/ui/estado.js");
+      estado.fecha = ${JSON.stringify(resto)};
+      estado.anio = Number(estado.fecha.slice(0, 4));
+      estado.mes = Number(estado.fecha.slice(5, 7));`);
+    ven.dispatchEvent(new ven.HashChangeEvent("hashchange"));
+    await esperar(500);
+    return `OK   el día quedó en ${resto}`;
+  }
+
+  if (verbo === "bajar") {
+    const quiero = sinTildes(resto);
+    const nodo = [...doc.querySelectorAll("#pantalla h1, #pantalla h2, #pantalla h3, #pantalla h4, #pantalla strong, #pantalla button, #pantalla p, #pantalla td, #pantalla label")]
+      .filter(visible).find((n) => sinTildes(n.textContent).includes(quiero));
+    if (!nodo) { fallas++; return `MAL  no encontré «${resto}» para bajar hasta allá`; }
+    nodo.scrollIntoView({ block: "start" });
+    ven.scrollBy(0, -110);   // que la barra de arriba no lo tape
+    await esperar(300);
+    return `OK   bajé hasta «${nodo.textContent.trim().slice(0, 60)}»`;
+  }
+
+  if (verbo === "esperar") { await esperar(Math.min(Number(resto) || 500, 10000)); return `OK   esperé ${resto} ms`; }
+  if (verbo === "nota") return `--   ${resto}`;
+
+  fallas++;
+  return `MAL  no sé hacer «${verbo}». Sé: ir, tocar, escribir, elegir, marcar, tecla, dia, bajar, esperar, nota`;
+}
+
+// El src va DESPUÉS del oyente: servido desde localhost, el marco alcanza a
+// cargar antes de que corra este guion, y el oyente llegaría tarde.
+marco.src = "../index.html#registrar";
+</script>
+</body>
+</html>

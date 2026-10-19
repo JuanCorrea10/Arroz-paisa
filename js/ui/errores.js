@@ -50,11 +50,11 @@ export function pintarErrores(raiz) {
   poner(raiz,
     el("div", { clase: "encabezado-pantalla" },
       el("div", {},
-        el("h1", { texto: "Posibles errores" }),
+        el("h1", { texto: "Revisar" }),
         el("p", {
           texto:
-            "Cosas que quedaron raras y la app no se atreve a arreglar sola. " +
-            "Usted decide y ella obedece.",
+            "Registros que la aplicación no corrige sola porque hay que decidir. " +
+            "Cada uno dice qué le pasa y cómo se arregla.",
         })
       )
     ),
@@ -128,7 +128,7 @@ export function pintarErrores(raiz) {
     poner(raiz,
       el("p", { clase: "nota" },
         `Aparte de esto hay ${parecidos} grupos de nombres parecidos en `,
-        el("a", { href: "#nombres", texto: "Revisar nombres" }),
+        el("a", { href: "#nombres", texto: "Nombres repetidos" }),
         ". Esos no dañan ninguna cuenta, solo parten el consumo de alguien en dos.")
     );
   }
