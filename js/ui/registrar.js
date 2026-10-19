@@ -359,7 +359,7 @@ function mostrarLoQueEntendi(raiz, texto) {
     if (!opciones.length && !resumenHabito) return null;
     return el("div", { clase: "fila", estilo: "align-items:center;gap:var(--e2);margin-top:var(--e2)" },
       el("span", { clase: "apunte", texto: "¿Qué pidió?" }),
-      el("select", { alCambiar: (e) => {
+      el("select", { "aria-label": `Qué pidió ${quien || p.persona.escrito || ""}`.trim(), alCambiar: (e) => {
         if (e.target.value) platosEscogidos.set(p, e.target.value);
         else platosEscogidos.delete(p);
       } },
