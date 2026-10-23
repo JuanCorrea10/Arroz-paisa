@@ -504,7 +504,6 @@ function anotarElDictado(raiz, pedidos, aprendidos = []) {
   let puestos = 0;
   for (const p of pedidos) {
     const precio = precioDe(estado.datos, p.producto.nombre, estado.empresa);
-    const esCasa = esLaCasa(empresaPorCodigo(estado.empresa));
     // Nace como los que esa persona YA tiene hoy, igual que cuando ella los
     // anota a mano: si no, la gaseosa entraría a crédito después de que ella
     // marcó el almuerzo como pagado, y se cobraría dos veces.
@@ -518,7 +517,7 @@ function anotarElDictado(raiz, pedidos, aprendidos = []) {
       producto: p.producto.nombre,
       cantidad: p.cantidad,
       precioUnitario: precio === null ? 0 : precio,
-      cobro: comoViene || (esCasa ? DE_CONTADO : null),
+      cobro: comoViene || null,
     }));
     puestos++;
   }
@@ -903,12 +902,11 @@ function controlDeComoPaga(raiz, laEmpresa) {
   const quien = { empresa: laEmpresa, persona: personaActiva, fecha: estado.fecha };
   const cuantos = renglonesDe(personaActiva).length;
   // Sin platos todavía, se marca lo que va a pasar con el primero: lo que
-  // ella escogió, o lo normal (a crédito; en la casa, en efectivo). Antes no
+  // ella escogió, o lo normal (a crédito, en todas las empresas). Antes no
   // se marcaba ninguno y no se sabía cómo iba a entrar.
-  const esCasa = esLaCasa(empresaPorCodigo(laEmpresa));
   const puesta = cuantos
     ? comoPagaLaPersona(estado.datos.consumos, quien)
-    : formaEscogidaSinPlatos(laEmpresa, personaActiva, estado.fecha) || (esCasa ? DE_CONTADO : A_CREDITO);
+    : formaEscogidaSinPlatos(laEmpresa, personaActiva, estado.fecha) || A_CREDITO;
 
   return el("div", { clase: "como-paga" },
     el("span", { clase: "como-paga-rotulo", texto: "Cómo paga:" }),
@@ -1626,12 +1624,9 @@ function agregarPlato(plato, raiz, cuantos = 1) {
 
   const precio = precioDe(estado.datos, plato, laEmpresa);
 
-  // La gente del propio restaurante paga de una, de su bolsillo. Si el renglón
-  // naciera "a crédito" como los de las fábricas, esa plata quedaría anotada
-  // como deuda de una empresa a la que nunca se le va a pasar cuenta: no
-  // entraría a la caja y el cuadre no daría nunca. Y ella no se iba a acordar
-  // de marcar plato por plato a las seis de la mañana.
-  const esCasa = esLaCasa(empresaPorCodigo(laEmpresa));
+  // Todo nace A CRÉDITO, también en Arroz Paisa (la casa). Antes los platos
+  // de la casa nacían "pagó en efectivo"; ella pidió (oct. 2026) que fuera
+  // a crédito como las demás, y que el efectivo se marque a mano cuando pase.
 
   // El plato nuevo nace como los que esa persona YA tiene hoy.
   //
@@ -1649,7 +1644,7 @@ function agregarPlato(plato, raiz, cuantos = 1) {
     producto: plato,
     cantidad,
     precioUnitario: precio === null ? 0 : precio,
-    cobro: comoViene || (esCasa ? DE_CONTADO : null),
+    cobro: comoViene || null,
   });
   estado.datos.consumos.push(renglon);
   cambio();

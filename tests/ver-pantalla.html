@@ -293,6 +293,9 @@ try {
       await import("../js/nucleo/modelo.js");
     const { DE_CONTADO } = await import("../js/nucleo/calculos.js");
     agEmp(datos, { codigo: "CASA", razonSocial: "Arroz Paisa", esCasa: true });
+    // Alguien de la casa SIN pedidos ese día (va de primera en la lista):
+    // con "+elegir-persona" se ve cómo nace su primer plato, que es a crédito.
+    agPer(datos, { nombre: "ANA SIN PEDIDOS", empresa: "CASA" });
     for (const quien of ["ROSA MEJIA", "LUIS TOBON", "MARTA ARIAS"]) {
       agPer(datos, { nombre: quien, empresa: "CASA" });
       datos.consumos.push(nuevoC({
