@@ -33,6 +33,9 @@ export async function reconectarCarpeta() {
   return { estado: comoQuedo, nombre: "Arroz Paisa - datos" };
 }
 
+// La carpeta de mentiras nunca trae datos guardados.
+export async function leerDatosDeLaCarpeta() { return null; }
+
 export async function elegirCarpeta() {
   comoQuedo = "conectada";
   return "Arroz Paisa - datos";

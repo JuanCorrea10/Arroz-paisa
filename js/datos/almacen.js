@@ -167,6 +167,24 @@ export async function elegirCarpeta() {
   return nombreCarpeta();
 }
 
+/**
+ * Lo que ya hay guardado en la carpeta conectada, o null si no hay nada que
+ * sirva. Se usa al conectar una carpeta: si esa carpeta ya tiene datos (por
+ * ejemplo, la app se mudó de dirección y en la nueva arrancó vacía), se le
+ * ofrecen a ella en vez de escribirles encima lo poco que hay aquí.
+ */
+export async function leerDatosDeLaCarpeta() {
+  if (!carpeta) return null;
+  try {
+    const handle = await carpeta.getFileHandle("datos.json");
+    const datos = JSON.parse(await (await handle.getFile()).text());
+    if (validarDatos(datos).length) return null;
+    return completarDatos(datos);
+  } catch {
+    return null; // no hay archivo, o no se puede leer: no hay nada que ofrecer
+  }
+}
+
 /** Intenta recuperar la carpeta que ya se había elegido en otra ocasión. */
 export async function recuperarCarpeta() {
   if (!soportaCarpeta()) {

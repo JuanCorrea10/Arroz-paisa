@@ -719,7 +719,13 @@ async function arrancar() {
   const vacia = !estado.datos.consumos.length && !estado.datos.empresas.length;
   if (vacia && !location.hash) {
     location.hash = "#datos";
-    mensaje("Bienvenida. Empiece trayendo el Excel.", "bien", 10);
+    // Vacía puede ser la primera vez... o que la app cambió de dirección: el
+    // navegador guarda los datos por dirección, así que en la nueva arranca
+    // vacía aunque no se haya perdido nada. Se dicen las dos cosas.
+    mensaje(
+      "Aquí todavía no hay datos. Si ya usaba la app en otra dirección, sus datos " +
+      "siguen allá: conecte aquí la misma carpeta, o devuelva un respaldo. " +
+      "Si es la primera vez, empiece trayendo el Excel.", "ojo", 25);
   } else if (vinoDeSemilla) {
     mensaje(
       `Listo: ${estado.datos.consumos.length} renglones de ` +

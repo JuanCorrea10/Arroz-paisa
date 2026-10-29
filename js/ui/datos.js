@@ -156,6 +156,41 @@ function tarjetaCarpeta(raiz) {
     alHacerClic: async () => {
       try {
         await almacen.elegirCarpeta();
+
+        // ¿La carpeta ya tiene datos, y más que los de aquí? Pasa al mudar la
+        // app de dirección: en la nueva el navegador arranca vacío, y si se
+        // conectaba la carpeta, lo poco de aquí se escribía encima de todo lo
+        // de antes. Se pregunta, y lo normal es traerlos.
+        const deLaCarpeta = await almacen.leerDatosDeLaCarpeta();
+        const aqui = estado.datos.consumos.length;
+        if (deLaCarpeta && deLaCarpeta.consumos.length > aqui) {
+          const traer = await confirmar({
+            titulo: "Esa carpeta ya tiene datos",
+            mensaje:
+              `En la carpeta hay ${deLaCarpeta.consumos.length} renglones y ` +
+              `${deLaCarpeta.personas.length} personas guardados; aquí hay ${aqui} renglones.\n\n` +
+              "Lo normal es traer los de la carpeta, para seguir trabajando con todo lo que ya tenía.",
+            siTexto: "Traer los de la carpeta",
+            noTexto: "No, dejar los de aquí",
+          });
+          if (traer) {
+            estado.datos = deLaCarpeta;
+            sincronizarPeriodo();
+            asegurarEmpresa();
+            cambio();
+            pintarDatos(raiz);
+            mensaje(`Listo: ${deLaCarpeta.consumos.length} renglones traídos de la carpeta.`, "bien", 8);
+            return;
+          }
+          // Dijo que no (o cerró la ventana): no se escribe nada ahora. Se
+          // avisa qué va a pasar con el próximo cambio, que no sea sorpresa.
+          mensaje(
+            "Atención: con el próximo cambio, lo de aquí reemplaza lo de la carpeta. " +
+            "Las copias de días anteriores siguen en su carpeta “respaldos”.", "ojo", 14);
+          pintarDatos(raiz);
+          return;
+        }
+
         await almacen.guardarYa();
         mensaje("Carpeta conectada. Ahí queda todo al día.", "bien", 6);
         pintarDatos(raiz);
