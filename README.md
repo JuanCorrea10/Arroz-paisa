@@ -146,7 +146,9 @@ PowerShell por defecto. El `.cmd` le dice "corre SOLO este, y solo esta vez",
 que es lo mismo sin bajarle la guardia al computador entero.
 
 Eso revisa que no se vaya ningun dato de las personas, guarda el cambio y lo
-sube. Al minuto se ve en <https://juancorrea10.github.io/Arroz-paisa/>.
+sube. Al minuto se ve en <https://arroz-paisa.pages.dev/> (Cloudflare Pages toma
+cada cambio de GitHub sola). La dirección vieja,
+<https://juancorrea10.github.io/Arroz-paisa/>, sigue andando con lo mismo.
 
 La revision de datos la hace el script y no uno a mano, porque es la clase de
 cosa que se olvida justo el dia que importa.

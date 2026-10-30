@@ -69,8 +69,10 @@ de administrador por accidente.
    Estas señas no son un secreto (identifican el proyecto, no abren nada);
    lo que protege los datos son las reglas y las cuentas.
 
-4. En **Authentication → Settings → Dominios autorizados** tiene que estar
-   `juancorrea10.github.io` (y `localhost` ya viene). Si no está, agregarlo.
+4. En **Authentication → Settings → Dominios autorizados** está
+   `arroz-paisa.pages.dev` (agregado el 29 de octubre de 2026). Para entrar
+   con correo y clave no hace falta, pero sí para otras formas de entrar que
+   se agreguen después: si la app cambia de dirección, agregar la nueva.
 
 ## 6. Pasar los datos de su mamá
 

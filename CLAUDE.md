@@ -112,6 +112,15 @@ prueba; la pantalla solo la llama y la pinta.
   `pedirDatos()`, `confirmar()`, `mensaje()`. No inventar widgets nuevos si ya
   hay uno.
 
+### Dónde vive la app publicada
+
+En **https://arroz-paisa.pages.dev** (Cloudflare Pages, conectado al repo:
+cada `git push` se publica solo en un minuto). La dirección vieja de GitHub
+Pages sigue andando con los mismos archivos. El navegador guarda los datos POR
+DIRECCIÓN: en una dirección nueva la app arranca vacía aunque nada se haya
+perdido; los datos se pasan con la carpeta (Datos y respaldos ofrece traerlos)
+o con un respaldo. Ver `cloudflare/COMO-PASARLA-A-CLOUDFLARE.md`.
+
 ### La nube (dos computadores, un solo juego de datos)
 
 Desde octubre de 2026 el negocio tiene dos computadores. Los datos viven en

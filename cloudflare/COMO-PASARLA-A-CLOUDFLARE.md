@@ -1,5 +1,14 @@
 # Cómo pasar la app a Cloudflare (lo hace Juan, una sola vez)
 
+> **Hecho el 29 de octubre de 2026:** el proyecto `arroz-paisa` de Cloudflare
+> Pages está conectado a GitHub y la app anda en **https://arroz-paisa.pages.dev**.
+> El dominio quedó agregado en Firebase. Falta el paso 4 (pasar los datos de
+> su mamá) y, si se quiere, el 3 (dominio propio).
+>
+> Cloudflare ahora empuja a "Workers" al crear: hay que tocar **"Continue to
+> Pages"** (abajo, en letra pequeña), si no la dirección sale larga
+> (`...workers.dev`).
+
 Hoy la app vive en `juancorrea10.github.io/Arroz-paisa`. Con Cloudflare Pages
 queda en una dirección más corta, por ejemplo `arroz-paisa.pages.dev`, gratis.
 Si además se compra un dominio propio (por ejemplo `arroz-paisa.com`, que el

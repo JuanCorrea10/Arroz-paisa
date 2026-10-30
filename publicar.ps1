@@ -210,7 +210,8 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host ""
 Write-Host "  Listo. En un minuto se ve el cambio en:" -ForegroundColor Green
-Write-Host "     https://juancorrea10.github.io/Arroz-paisa/" -ForegroundColor Cyan
+Write-Host "     https://arroz-paisa.pages.dev/   (la de siempre: Cloudflare)" -ForegroundColor Cyan
+Write-Host "     https://juancorrea10.github.io/Arroz-paisa/   (la vieja, todavia andando)" -ForegroundColor DarkGray
 Write-Host ""
 Write-Host "  (GitHub se demora un minuto. Si no ve el cambio, recargue con" -ForegroundColor DarkGray
 Write-Host "   Ctrl+Shift+R, que le pide los archivos de nuevo sin usar los" -ForegroundColor DarkGray
