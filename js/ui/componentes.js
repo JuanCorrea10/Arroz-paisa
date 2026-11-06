@@ -20,7 +20,10 @@ export function el(etiqueta, props = {}, ...hijos) {
     else if (llave === "texto") nodo.textContent = valor;
     else if (llave === "html") nodo.innerHTML = valor;
     else if (llave === "alHacerClic") nodo.addEventListener("click", valor);
-    else if (llave === "alCambiar") nodo.addEventListener("change", valor);
+    else if (llave === "alCambiar") {
+      if (etiqueta === "input" && props.type === "date") avisarCuandoTermineLaFecha(nodo, valor);
+      else nodo.addEventListener("change", valor);
+    }
     else if (llave === "alEscribir") nodo.addEventListener("input", valor);
     else if (llave === "alTeclear") nodo.addEventListener("keydown", valor);
     else if (llave === "datos") for (const [k, v] of Object.entries(valor)) nodo.dataset[k] = v;
@@ -33,6 +36,85 @@ export function el(etiqueta, props = {}, ...hijos) {
     nodo.append(hijo instanceof Node ? hijo : document.createTextNode(String(hijo)));
   }
   return nodo;
+}
+
+/**
+ * Una casilla de fecha avisa cuando la persona TERMINÓ, no en cada tecla.
+ *
+ * El navegador dispara "change" con cada dígito: al escribir 20 en el día, el
+ * primer "2" ya es una fecha válida (el 02). Las pantallas guardaban y se
+ * volvían a pintar ahí mismo, la casilla desaparecía y el resto de lo tecleado
+ * se perdía. Se pidió "al 20 de septiembre" y la cuenta quedó "del 1 al 2 de
+ * agosto", cobrando otra cosa sin decir nada.
+ *
+ * Con el teclado se avisa al salir de la casilla o con Enter. Con el calendario
+ * (un clic, sin teclas) se avisa de una, que es lo que uno espera.
+ *
+ * Está aquí y no en cada pantalla porque son siete casillas en cuatro pantallas
+ * y todas tenían el mismo problema.
+ */
+function avisarCuandoTermineLaFecha(nodo, alCambiar) {
+  let tecleando = false;
+  let hayCambio = false;
+  let anterior = nodo.value;
+
+  const entregar = () => {
+    if (!hayCambio || !nodo.isConnected) return;
+    hayCambio = false;
+    tecleando = false;
+    // Un año a medio escribir también es una fecha válida para el navegador:
+    // con "26" queda el año 0026, y una cuenta desde ahí cobraría toda la
+    // historia. Se rechaza y se dice, en vez de guardarlo.
+    const anio = Number(nodo.value.slice(0, 4));
+    if (nodo.value && (anio < 2000 || anio > 2100)) {
+      nodo.value = anterior;
+      mensaje("El año de esa fecha no es correcto. Escríbala completa, por ejemplo 15/08/2026.", "malo", 8);
+      return;
+    }
+    anterior = nodo.value;
+    alCambiar({ target: nodo });
+  };
+
+  nodo.addEventListener("pointerdown", () => { tecleando = false; });
+  nodo.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const id = nodo.id;
+      entregar();
+      if (id) { const otra = document.getElementById(id); if (otra) otra.focus(); }
+    } else if (e.key !== "Tab" && e.key !== "Shift") {
+      if (!tecleando && !hayCambio) anterior = nodo.value;
+      tecleando = true;
+    }
+  });
+  nodo.addEventListener("change", () => {
+    hayCambio = true;
+    if (!tecleando) entregar();
+  });
+  nodo.addEventListener("blur", (e) => {
+    tecleando = false;
+    if (!hayCambio) return;
+    const siguiente = e.relatedTarget;
+
+    // Salió tocando un botón ("Listo", "Bajar PDF"). Si se repintara ya, el
+    // botón desaparecería debajo del dedo y el clic se perdería. Se espera al
+    // clic, pero se avisa ANTES de que el botón haga lo suyo: el PDF tiene que
+    // salir con la fecha que se acaba de escribir.
+    if (siguiente && siguiente.matches && siguiente.matches("button, a")) {
+      const alClic = () => { clearTimeout(reloj); entregar(); };
+      const reloj = setTimeout(() => {
+        document.removeEventListener("click", alClic, true);
+        entregar();
+      }, 600);
+      document.addEventListener("click", alClic, { capture: true, once: true });
+      return;
+    }
+
+    // Salió a otra casilla: el repintado no le puede quitar el cursor.
+    const idDeLaOtra = siguiente && siguiente.id;
+    entregar();
+    if (idDeLaOtra) { const otra = document.getElementById(idDeLaOtra); if (otra) otra.focus(); }
+  });
 }
 
 /**

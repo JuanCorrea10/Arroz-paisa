@@ -214,8 +214,7 @@ function nombreDeCuenta(cuenta) {
  * un parámetro y tapa a la del módulo: asignarla allá no movería la pantalla.
  */
 function irALaCuenta(cuenta, repintar) {
-  estado.anio = cuenta.anio;
-  estado.mes = cuenta.mes;
+  cambiarPeriodo(cuenta.anio, cuenta.mes);
   quincena = cuenta.quincena;
   cambiandoFechas = false;
   repintar();
@@ -272,16 +271,34 @@ function loQueCobraLaCuenta(empresa, propio, cubre, ponerElRango, repintar) {
   // botón que dice lo que hace. Lo de siempre -- la quincena completa -- no
   // los necesita, y verlos ahí todo el tiempo era lo que la hacía dudar de
   // cuál de las dos cosas mandaba.
+  //
+  // Si una fecha se pasa de la otra, la otra se corre y se dice, igual que en
+  // Cuánto vendí. Antes se rechazaba: para cobrar "del 15 al 31" estando en
+  // "del 1 al 14", el 15 no entraba (era después del 14), y al poner el 31 la
+  // cuenta quedaba "del 1 al 31": el mes entero, sin que ella lo pidiera.
+  const cambiarFecha = (cual, valor) => {
+    const r = { desde: cubre.desde, hasta: cubre.hasta, [cual]: valor };
+    if (esFechaISO(valor) && r.desde > r.hasta) {
+      const laOtra = cual === "desde" ? "hasta" : "desde";
+      r[laOtra] = valor;
+      mensaje(cual === "desde"
+        ? "La fecha final quedó igual a la inicial para que el periodo no quede al revés. Ahora escoja la fecha final."
+        : "La fecha inicial quedó igual a la final para que el periodo no quede al revés. Ahora escoja la fecha inicial.",
+        "ojo", 8);
+    }
+    ponerElRango(r.desde, r.hasta);
+  };
+
   const calendarios = el("div", { clase: "rango-fechas" },
     el("label", { for: "cobro-desde", clase: "rango-palabra", texto: "Del" }),
     el("input", {
       type: "date", id: "cobro-desde", value: cubre.desde,
-      alCambiar: (e) => ponerElRango(e.target.value, cubre.hasta),
+      alCambiar: (e) => cambiarFecha("desde", e.target.value),
     }),
     el("label", { for: "cobro-hasta", clase: "rango-palabra", texto: "al" }),
     el("input", {
       type: "date", id: "cobro-hasta", value: cubre.hasta,
-      alCambiar: (e) => ponerElRango(cubre.desde, e.target.value),
+      alCambiar: (e) => cambiarFecha("hasta", e.target.value),
     }));
 
   return el("div", { clase: "periodo-dice" + (propio ? " a-mano" : "") },

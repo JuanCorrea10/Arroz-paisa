@@ -317,6 +317,56 @@ async function probar() {
       : "MAL  la clave NO se pudo quitar: quedó puesta en este navegador (es 1234)");
   }
 
+  // --- 5. Las fechas de la cuenta de cobro --------------------------------
+  //
+  //  Dos errores que cobraban otra cosa sin decir nada: guardar en cada tecla
+  //  (se escribía 20 y quedaba el 02) y rechazar la fecha inicial si pasaba de
+  //  la final (se pedía del 15 al 31 y quedaba del 1 al 31).
+  ven.location.hash = "#cobro";
+  await esperar(500);
+  const selEmpresa = doc.getElementById("cobro-empresa");
+  selEmpresa.value = "AGRO";
+  selEmpresa.dispatchEvent(new ven.Event("change", { bubbles: true }));
+  await esperar(300);
+  botonQueDiga(/Cambiar estas fechas/).click();
+  await esperar(300);
+  const frase = () => (doc.querySelector(".periodo-frase") || {}).textContent || "";
+  const antes = frase();
+  const alTeclear = (id, valor) => {
+    const c = doc.getElementById(id);
+    c.dispatchEvent(new ven.KeyboardEvent("keydown", { key: "2", bubbles: true }));
+    c.value = valor;
+    c.dispatchEvent(new ven.Event("change", { bubbles: true }));
+    return c;
+  };
+  const casillaDesde = alTeclear("cobro-desde", "2026-08-02");
+  await esperar(200);
+  anotar(casillaDesde.isConnected && frase() === antes
+    ? "OK   mientras se escribe la fecha, la casilla sigue ahí y la cuenta no cambia"
+    : "MAL  la fecha se guardó a medio escribir: " + frase());
+
+  alTeclear("cobro-desde", "2026-08-20").dispatchEvent(new ven.FocusEvent("blur"));
+  await esperar(300);
+  anotar(/del 20 al 20/.test(frase().replace(/\s+/g, " "))
+    ? "OK   una fecha inicial después de la final no se rechaza: la final se corre"
+    : "MAL  la fecha inicial no se aplicó: " + frase());
+
+  alTeclear("cobro-hasta", "2026-08-28").dispatchEvent(new ven.FocusEvent("blur"));
+  await esperar(300);
+  anotar(/del 20 al 28/.test(frase().replace(/\s+/g, " "))
+    ? "OK   la cuenta cobra exactamente las fechas pedidas (del 20 al 28)"
+    : "MAL  la cuenta no quedó en las fechas pedidas: " + frase());
+
+  alTeclear("cobro-hasta", "0026-08-28").dispatchEvent(new ven.FocusEvent("blur"));
+  await esperar(300);
+  anotar(/del 20 al 28/.test(frase().replace(/\s+/g, " "))
+    ? "OK   un año a medio escribir no se guarda"
+    : "MAL  se guardó un año a medio escribir: " + frase());
+
+  // Dejar la cuenta como estaba.
+  const volver = botonQueDiga(/Volver a la quincena/);
+  if (volver) { volver.click(); await esperar(300); }
+
   await mandar();
 
   // El guion puede reventar a mitad -- una pantalla que cambio, un boton que
