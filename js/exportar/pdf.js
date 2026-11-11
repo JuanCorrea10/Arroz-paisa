@@ -781,7 +781,7 @@ function tarjetasDeComandas(doc, comandas, y, alCambiarDeHoja, colorEmpresa, fec
   // en courier se pierde. Al lado de un plato de 10,5 se lee "DOS almuerzos",
   // que es el orden en que hay que entenderlo.
   const T_NOMBRE = 12.5, T_PLATO = 10.5, T_VALOR = 9.5, T_CANT = 12, T_NUM = 8, T_TOTAL = 13;
-  const T_NOTA = 9, T_CINTA = 15, T_DIA = 10.5, T_ROTULO = 8.5;
+  const T_NOTA = 10, T_CINTA = 15, T_DIA = 10.5, T_ROTULO = 8.5;
   const NUM_ANCHO = 7.8, NUM_ALTO = 5.4, CANT_ANCHO = 8.6, ALTO_PIE = 10.5;
 
   const ancho = (anchoHoja - 28 - (COLS - 1) * HUECO) / COLS;
@@ -864,11 +864,15 @@ function tarjetasDeComandas(doc, comandas, y, alCambiarDeHoja, colorEmpresa, fec
       // La tabla que había antes SÍ la sacaba, y al pasar a tarjetas se me
       // quedó por fuera: el papel dejó de decir algo que el registro sí sabe.
       // Se mide aquí, con la tarjeta, porque cambia el alto -- medirla después
-      // dejaría la nota pisando el renglón de abajo.
+      // dejaría la nota pisando el renglón de abajo. Y se mide con la MISMA
+      // letra con que se pinta (negrita): la negrita es más ancha, y medida en
+      // normal se saldría por el borde de la tarjeta.
+      doc.setFont("helvetica", "bold");
       doc.setFontSize(T_NOTA);
       const nota = c.observacion
-        ? doc.splitTextToSize(String(c.observacion), anchoPlato)
+        ? doc.splitTextToSize("Nota: " + String(c.observacion), anchoPlato)
         : [];
+      doc.setFont("helvetica", "normal");
       doc.setFontSize(T_PLATO);
 
       return {
@@ -973,11 +977,17 @@ function tarjetasDeComandas(doc, comandas, y, alCambiarDeHoja, colorEmpresa, fec
       doc.setFontSize(tamValor);
       doc.text(valorDe(p.c), x + ancho - PAD, base, { align: "right" });
 
-      // La nota, debajo del plato y en cursiva: es del plato, no otro plato.
+      // La nota, debajo del plato: es del plato, no otro plato.
+      //
+      // Negrita, oscura y con "Nota:" adelante. Iba en cursiva gris y más
+      // chiquita que el plato, y en la cocina no la veían: el "sin cebolla"
+      // tiene que saltar más que el nombre del plato, no menos. El color café
+      // es el mismo de la pantalla; en fotocopia queda casi negro, que es lo
+      // que se quiere.
       if (p.nota.length) {
-        doc.setFont("helvetica", "italic");
+        doc.setFont("helvetica", "bold");
         doc.setFontSize(T_NOTA);
-        doc.setTextColor(...GRIS);
+        doc.setTextColor(107, 71, 8);
         doc.text(p.nota, x + PAD + CANT_ANCHO, base + de(T_PLATO) * p.lineas.length - de(T_PLATO) + de(T_NOTA));
       }
 
